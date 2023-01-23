@@ -1,0 +1,288 @@
+#!/bin/bash
+
+set -e
+
+BASE_DIR=$(realpath $(dirname $0))
+
+# Workspace directories
+WORKSPACE_ROOT=$BASE_DIR
+
+# Build configuration
+NJOBS=$(grep -c ^processor /proc/cpuinfo)
+PLATFORM_NAME="x86_64-linux-gnu"
+PLATFORM_NAME="x86_64-w64-mingw32"
+CROSS_PREFIX="x86_64-w64-mingw32"
+
+# Intermediate directories
+WORK_DIR="$BASE_DIR/contrib/work/$PLATFORM_NAME"
+BUILD_DIR="$WORK_DIR/build"
+SRC_DIR="$WORK_DIR/src"
+
+panic() {
+    echo $1
+    exit 1
+}
+
+test_sha256() {
+    local local_path=$1
+    local expected_hash=$2
+
+    local real_hash=$(sha256sum $local_path | awk '{print $1}')
+
+    if [[ $real_hash == $expected_hash ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+download_tarball() {
+    local uri=$1
+    local tarball_hash=$2
+
+    local filename=$(basename $uri)
+    local local_path="$SRC_DIR/$filename"
+
+    echo "Downloading $local_path"
+
+    # Check if file exists and is valid
+    if [[ -f $local_path ]]; then
+        test_sha256 $local_path $tarball_hash
+
+        if [[ $? -eq 0 ]]; then
+            echo "File already exists and is valid"
+            return 0
+        fi
+
+        echo "File found, but invalid"
+        rm $local_path
+    fi
+
+    # Get and check file integrity
+    wget $uri -O $local_path
+    test_sha256 $local_path $tarball_hash
+    if [[ $? -eq 0 ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+build_x264() {
+    local init_cwd=$(pwd)
+
+    local uri="https://code.videolan.org/videolan/x264/-/archive/5db6aa6cab1b146e07b60cc1736a01f21da01154/x264-5db6aa6cab1b146e07b60cc1736a01f21da01154.zip"
+    local archive_root='x264-5db6aa6cab1b146e07b60cc1736a01f21da01154'
+    local sha256="6896825756ebe2c2657580d7636ed5fd6a41fea8e7722ba866fac7be6780d02f"
+    local work_dir="$BUILD_DIR/x264"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get x264 sources"
+    mkdir -p $work_dir
+    unzip "$SRC_DIR/$(basename $uri)" -d $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    ./configure --prefix=$OUT_DIR \
+        --host=$CROSS_PREFIX --cross-prefix=$CROSS_PREFIX- \
+        --enable-static \
+        --disable-cli
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_nvcodecheaders() {
+    local init_cwd=$(pwd)
+
+    local uri="https://github.com/FFmpeg/nv-codec-headers.git"
+    local sha1="84483da70d903239d4536763fde8c7e6c4e80784"
+    local work_dir="$BUILD_DIR/nv-codec-headers"
+
+    # Get sources
+    mkdir -p $work_dir && cd $work_dir
+    git clone $uri
+    cd nv-codec-headers
+    git checkout $sha1
+
+    # Build
+    make install PREFIX=$OUT_DIR
+
+    cd $init_cwd
+}
+
+build_opus() {
+    local init_cwd=$(pwd)
+
+    local version="1.3.1"
+    local uri="https://archive.mozilla.org/pub/opus/opus-$version.tar.gz"
+    local archive_root="opus-$version"
+    local sha256="65b58e1e25b2a114157014736a3d9dfeaad8d41be1c8179866f144a2fb44ff9d"
+    local work_dir="$WORK_DIR/opus"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get opus sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    patch -p1 < $BASE_DIR/contrib/opus/0001-configure-Disable-FORTIFY_SOURCE.patch
+
+    ./configure --host=$CROSS_PREFIX --prefix=$OUT_DIR \
+        --disable-extra-programs --disable-shared
+
+    make -j$NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_ffmpeg() {
+    local init_cwd=$(pwd)
+
+    local version="5.0"
+
+    local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.gz"
+    local archive_root="ffmpeg-$version"
+    local sha256="7bf52bc242b5db8df67c62cb826df134d917dedcf6abf1289e15e4057bcc1750"
+    local work_dir="$BUILD_DIR/ffmpeg"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get ffmpeg sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+    patch -p1 < $BASE_DIR/contrib/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen-mingw.patch
+    patch -p1 < $BASE_DIR/contrib/ffmpeg/0002-d3d11va-Allow-to-allocate-DXGI_FORMAT_B8G8R8A8_UNORM.patch
+    patch -p1 < $BASE_DIR/contrib/ffmpeg/0003-avdevice-Disable-dshow.patch
+
+    mkdir build && cd build
+
+    ../configure --prefix=$OUT_DIR \
+        --arch=x86_64 --target-os=mingw32 --cross-prefix=$CROSS_PREFIX- --pkg-config=pkg-config \
+        --enable-shared \
+        --enable-gpl --enable-libx264 \
+        --enable-libopus \
+        --enable-nonfree --enable-nvenc
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_zlib() {
+    local init_cwd=$(pwd)
+
+    local version="1.2.13"
+
+    local uri="https://zlib.net/zlib-$version.tar.gz"
+    local archive_root="zlib-$version"
+    local sha256="b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30"
+    local work_dir="$WORK_DIR/zlib"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get zlib sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+    make -j$NJOBS -f win32/Makefile.gcc PREFIX=$CROSS_PREFIX-
+
+    make -j$NJOBS -f win32/Makefile.gcc \
+        prefix=$OUT_DIR \
+        INCLUDE_PATH=$OUT_DIR/include \
+        LIBRARY_PATH=$OUT_DIR/lib \
+        BINARY_PATH=$OUT_DIR/bin \
+        install
+
+    cd $init_cwd
+}
+
+build_lua() {
+    local init_cwd=$(pwd)
+
+    local version="5.4.4"
+
+    local uri="https://www.lua.org/ftp/lua-$version.tar.gz"
+    local archive_root="lua-$version"
+    local sha256="164c7849653b80ae67bec4b7473b884bf5cc8d2dca05653475ec2ed27b9ebf61"
+    local work_dir="$BUILD_DIR/lua"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get lua sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+    patch -p1 < $BASE_DIR/contrib/lua/0001-Add-CMakeLists.txt.patch
+
+    mkdir build && cd build
+    cmake .. -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake -DCMAKE_INSTALL_PREFIX=$OUT_DIR
+    make -j$NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+usage()
+{
+cat << EOF
+usage: $0 -o <path> [options]
+
+Build txproto and its native dependencies.
+
+OPTIONS:
+   -h            Show some help
+   -o <path>     Install the built binaries in the absolute path
+EOF
+}
+
+while getopts "ho:" OPTION
+do
+    case $OPTION in
+        h)
+            usage
+            exit 1
+            ;;
+        o)
+            OUT_DIR=$OPTARG
+            ;;
+    esac
+done
+shift $(($OPTIND - 1))
+
+if [ "x$1" != "x" ]; then
+    usage
+    exit 1
+fi
+
+if [ -z ${OUT_DIR} ]; then
+    usage
+    exit 1
+fi
+
+# Create folders
+mkdir -p $SRC_DIR $BUILD_DIR
+mkdir -p $OUT_DIR
+
+# Output directory
+export PATH=$OUT_DIR/bin:$PATH
+export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+
+# Build dependencies
+build_x264
+build_nvcodecheaders
+build_opus
+build_ffmpeg
+build_lua
+build_zlib
