@@ -12,9 +12,8 @@ NJOBS=$(grep -c ^processor /proc/cpuinfo)
 PLATFORM_NAME="x86_64-linux-gnu"
 
 # Intermediate directories
-WORK_DIR="$BASE_DIR/contrib/work/$PLATFORM_NAME"
-BUILD_DIR="$WORK_DIR/build"
-SRC_DIR="$WORK_DIR/src"
+BUILD_DIR="$BASE_DIR/work/$PLATFORM_NAME"
+SRC_DIR="$BASE_DIR/work/src"
 
 panic() {
     echo $1
@@ -125,7 +124,7 @@ build_ffmpeg() {
 
     # Build
     cd "$work_dir/$archive_root"
-    patch -p1 < $BASE_DIR/contrib/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen.patch
+    patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen.patch
 
     mkdir build && cd build
 

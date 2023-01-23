@@ -5,7 +5,7 @@ set -e
 BASE_DIR=$(realpath $(dirname $0))
 
 # Workspace directories
-WORKSPACE_ROOT=$BASE_DIR
+WORKSPACE_ROOT=$BASE_DIR/..
 
 # Build configuration
 NJOBS=$(grep -c ^processor /proc/cpuinfo)
@@ -14,9 +14,8 @@ PLATFORM_NAME="x86_64-w64-mingw32"
 CROSS_PREFIX="x86_64-w64-mingw32"
 
 # Intermediate directories
-WORK_DIR="$BASE_DIR/contrib/work/$PLATFORM_NAME"
-BUILD_DIR="$WORK_DIR/build"
-SRC_DIR="$WORK_DIR/src"
+BUILD_DIR="$BASE_DIR/work/$PLATFORM_NAME"
+SRC_DIR="$BASE_DIR/work/src"
 
 panic() {
     echo $1
@@ -121,7 +120,7 @@ build_opus() {
     local uri="https://archive.mozilla.org/pub/opus/opus-$version.tar.gz"
     local archive_root="opus-$version"
     local sha256="65b58e1e25b2a114157014736a3d9dfeaad8d41be1c8179866f144a2fb44ff9d"
-    local work_dir="$WORK_DIR/opus"
+    local work_dir="$BUILD_DIR/opus"
 
     # Get sources
     download_tarball $uri $sha256 || panic "Fail to get opus sources"
@@ -131,7 +130,7 @@ build_opus() {
     # Build
     cd "$work_dir/$archive_root"
 
-    patch -p1 < $BASE_DIR/contrib/opus/0001-configure-Disable-FORTIFY_SOURCE.patch
+    patch -p1 < $BASE_DIR/opus/0001-configure-Disable-FORTIFY_SOURCE.patch
 
     ./configure --host=$CROSS_PREFIX --prefix=$OUT_DIR \
         --disable-extra-programs --disable-shared
@@ -159,9 +158,9 @@ build_ffmpeg() {
 
     # Build
     cd "$work_dir/$archive_root"
-    patch -p1 < $BASE_DIR/contrib/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen-mingw.patch
-    patch -p1 < $BASE_DIR/contrib/ffmpeg/0002-d3d11va-Allow-to-allocate-DXGI_FORMAT_B8G8R8A8_UNORM.patch
-    patch -p1 < $BASE_DIR/contrib/ffmpeg/0003-avdevice-Disable-dshow.patch
+    patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen-mingw.patch
+    patch -p1 < $BASE_DIR/ffmpeg/0002-d3d11va-Allow-to-allocate-DXGI_FORMAT_B8G8R8A8_UNORM.patch
+    patch -p1 < $BASE_DIR/ffmpeg/0003-avdevice-Disable-dshow.patch
 
     mkdir build && cd build
 
@@ -186,7 +185,7 @@ build_zlib() {
     local uri="https://zlib.net/zlib-$version.tar.gz"
     local archive_root="zlib-$version"
     local sha256="b3a24de97a8fdbc835b9833169501030b8977031bcb54b3b3ac13740f846ab30"
-    local work_dir="$WORK_DIR/zlib"
+    local work_dir="$BUILD_DIR/zlib"
 
     # Get sources
     download_tarball $uri $sha256 || panic "Fail to get zlib sources"
@@ -224,7 +223,7 @@ build_lua() {
 
     # Build
     cd "$work_dir/$archive_root"
-    patch -p1 < $BASE_DIR/contrib/lua/0001-Add-CMakeLists.txt.patch
+    patch -p1 < $BASE_DIR/lua/0001-Add-CMakeLists.txt.patch
 
     mkdir build && cd build
     cmake .. -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake -DCMAKE_INSTALL_PREFIX=$OUT_DIR
