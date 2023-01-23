@@ -1,0 +1,34 @@
+From 8cf47d98f17284ea4c20681cc2da894655920271 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <rofferom@gmail.com>
+Date: Tue, 15 Mar 2022 16:26:15 +0100
+Subject: [PATCH] rtpenc: Log AVPacket->pts <=> RTP timestamp mapping at send
+ time
+
+---
+ libavformat/rtpenc.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/libavformat/rtpenc.c b/libavformat/rtpenc.c
+index 6be67b5885..fc1999bf17 100644
+--- a/libavformat/rtpenc.c
++++ b/libavformat/rtpenc.c
+@@ -523,8 +523,6 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
+     int rtcp_bytes;
+     int size= pkt->size;
+ 
+-    av_log(s1, AV_LOG_TRACE, "%d: write len=%d\n", pkt->stream_index, size);
+-
+     rtcp_bytes = ((s->octet_count - s->last_octet_count) * RTCP_TX_RATIO_NUM) /
+         RTCP_TX_RATIO_DEN;
+     if ((s->first_packet || ((rtcp_bytes >= RTCP_SR_SIZE) &&
+@@ -535,6 +533,7 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
+         s->first_packet = 0;
+     }
+     s->cur_timestamp = s->base_timestamp + pkt->pts;
++    av_log(s1, AV_LOG_TRACE, "%d: write len=%d pts=%lld timestamp=%u\n", pkt->stream_index, size, pkt->pts, s->cur_timestamp);
+
+     switch(st->codecpar->codec_id) {
+     case AV_CODEC_ID_PCM_MULAW:
+-- 
+2.30.2
+
