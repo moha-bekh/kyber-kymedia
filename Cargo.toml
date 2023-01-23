@@ -1,5 +1,6 @@
 [workspace]
 
 members = [
+    "avserver",
     "txproto-rs",
 ]
