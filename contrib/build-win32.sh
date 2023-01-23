@@ -6,6 +6,7 @@ BASE_DIR=$(realpath $(dirname $0))
 
 # Workspace directories
 WORKSPACE_ROOT=$BASE_DIR/..
+TXPROTO_SRCDIR="$WORKSPACE_ROOT/external/txproto"
 
 # Build configuration
 NJOBS=$(grep -c ^processor /proc/cpuinfo)
@@ -233,6 +234,24 @@ build_lua() {
     cd $init_cwd
 }
 
+build_txproto() {
+    local init_cwd=$(pwd)
+
+    mkdir -p $BUILD_DIR/txproto
+    cd $BUILD_DIR/txproto
+
+    meson \
+        --buildtype=release \
+        --prefix=$OUT_DIR \
+        --cross-file=$WORKSPACE_ROOT/contrib/mingw-w64-meson-toolchain.ini \
+        $TXPROTO_SRCDIR
+
+    ninja
+    ninja install
+
+    cd $init_cwd
+}
+
 usage()
 {
 cat << EOF
@@ -285,3 +304,4 @@ build_opus
 build_ffmpeg
 build_lua
 build_zlib
+build_txproto
