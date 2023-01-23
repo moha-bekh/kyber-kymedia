@@ -295,6 +295,7 @@ mkdir -p $OUT_DIR
 
 # Output directory
 export PATH=$OUT_DIR/bin:$PATH
+export PKG_CONFIG_ALLOW_CROSS=1
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 
 # Build dependencies

@@ -203,6 +203,7 @@ mkdir -p $OUT_DIR
 
 # Output directory
 export PATH=$OUT_DIR/bin:$PATH
+export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu
 export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig
 
 # Build dependencies
