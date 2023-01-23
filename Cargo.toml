@@ -2,5 +2,6 @@
 
 members = [
     "avserver",
+    "avservice-types",
     "txproto-rs",
 ]
