@@ -92,7 +92,7 @@ build-debian-buster-x86_64:
     ../scripts/change_prefix.sh
     cd -
     # Build component
-    ./build-linux.sh -s -o $KYBER_PREFIX
+    ./build-linux.sh -k -s -o $KYBER_PREFIX
 
 clippy-debian-buster-x86_64:
   stage: misc
@@ -113,7 +113,7 @@ clippy-debian-buster-x86_64:
     ../scripts/change_prefix.sh
     cd -
     # Build component
-    ./build-linux.sh -s -c -o $KYBER_PREFIX
+    ./build-linux.sh -k -s -c -o $KYBER_PREFIX
 
 build-windows-x86_64:
   stage: build
@@ -134,7 +134,7 @@ build-windows-x86_64:
     ../scripts/change_prefix.sh
     cd -
     # Build component
-    ./build-win32.sh -s -o $KYBER_PREFIX
+    ./build-win32.sh -k -s -o $KYBER_PREFIX
 
 clippy-windows-x86_64:
   stage: misc
@@ -155,4 +155,4 @@ clippy-windows-x86_64:
     ../scripts/change_prefix.sh
     cd -
     # Build component
-    ./build-win32.sh -s -c -o $KYBER_PREFIX
+    ./build-win32.sh -k -s -c -o $KYBER_PREFIX

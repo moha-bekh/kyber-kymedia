@@ -1,0 +1,13 @@
+[package]
+name = "avservice"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+log = "0.4.14"
+thiserror = "1.0.37"
+tokio = { version = "1.21.2", features = ["fs", "time"] }
+
+libkypc = "0.1.0"
+avservice-types = { path = "../avservice-types" }
+txproto-rs = { path = "../txproto-rs" }
