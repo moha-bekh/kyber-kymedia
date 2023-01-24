@@ -1,5 +1,6 @@
 mod config;
 mod error;
+mod kymux;
 mod rtp;
 mod utils;
 
@@ -40,6 +41,26 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 info!("Start RTP Audio: {ip}:{port}");
 
                 let c = rtp::start_audio(ip, port)?;
+                ctx = Some(c);
+            }
+            (cmd_id, Command::KymuxStartVideo { uri, codec, yuv444 }) => {
+                receiver.accept(cmd_id, None).await?;
+                info!("Start Kymux Video: URI {uri:?}, codec: {codec:?}, yuv444: {yuv444}");
+
+                let codec = match codec {
+                    VideoCodec::H264 => "h264",
+                    VideoCodec::HEVC => "hevc",
+                    VideoCodec::AV1 => "av1",
+                };
+
+                let c = kymux::start_video(&uri, &config.encoder, codec, yuv444)?;
+                ctx = Some(c);
+            }
+            (cmd_id, Command::KymuxStartAudio { uri }) => {
+                receiver.accept(cmd_id, None).await?;
+                info!("Start Kymux Audio: URI {uri:?}");
+
+                let c = kymux::start_audio(&uri)?;
                 ctx = Some(c);
             }
             (cmd_id, Command::Stop) => {

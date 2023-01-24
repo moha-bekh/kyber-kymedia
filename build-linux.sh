@@ -124,6 +124,7 @@ case "$ACTION" in
 
         cp \
             target/release/avserver \
+            scripts/avserver_kymux_stream.lua \
             scripts/avserver_rtp_stream.lua \
             $OUT_DIR/bin
     ;;

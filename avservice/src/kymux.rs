@@ -1,0 +1,37 @@
+use crate::utils;
+use crate::{Error, Result};
+
+const LUA_SCRIPT: &str = "avserver_kymux_stream.lua";
+const VIDEO_ENTRYPOINT: &str = "main_video";
+const AUDIO_ENTRYPOINT: &str = "main_audio";
+
+pub(crate) fn start_video(
+    uri: &str,
+    encoder: &str,
+    codec: &str,
+    yuv444: bool,
+) -> Result<txproto_rs::Context> {
+    let script = utils::get_resource_path(LUA_SCRIPT);
+    let script = utils::path_to_string(&script)?;
+
+    let yuv444 = format!("{yuv444}");
+
+    let args: Vec<&str> = vec![uri, encoder, codec, &yuv444];
+
+    let ctx = txproto_rs::Context::new(&script, VIDEO_ENTRYPOINT, Some(args))
+        .ok_or(Error::TxprotoCreateFailed)?;
+
+    Ok(ctx)
+}
+
+pub(crate) fn start_audio(uri: &str) -> Result<txproto_rs::Context> {
+    let script = utils::get_resource_path(LUA_SCRIPT);
+    let script = utils::path_to_string(&script)?;
+
+    let args: Vec<&str> = vec![uri];
+
+    let ctx = txproto_rs::Context::new(&script, AUDIO_ENTRYPOINT, Some(args))
+        .ok_or(Error::TxprotoCreateFailed)?;
+
+    Ok(ctx)
+}
