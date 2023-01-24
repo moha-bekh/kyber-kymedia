@@ -1,8 +1,17 @@
 video_display_id = nil
+audio_monitor_id = nil
 
 function io_update_cb(identifier, entry)
+    print("Add entry", entry.name)
+
     if video_display_id == nil and entry.type == "display" and entry.default then
+        print("Use video display", entry.name)
         video_display_id = identifier
+    end
+
+    if audio_monitor_id == nil and entry.type == "monitor" and entry.default then
+        print("Use audio monitor", entry.name)
+        audio_monitor_id = identifier
     end
 end
 
@@ -11,7 +20,7 @@ function muxer_stats(stats)
     tx.set_status(statusline)
 end
 
-function main(...)
+function main_video(...)
     local arg = {...}
     rtp_host, rtp_port, yuv444, sdp_file = arg[1], arg[2], arg[3], arg[4]
 
@@ -103,6 +112,45 @@ function main(...)
     })
     muxer.link(encoder_v)
     muxer.schedule("stats", muxer_stats)
+
+    tx.commit()
+end
+
+function main_audio(...)
+    local arg = {...}
+    rtp_host, rtp_port = arg[1], arg[2]
+
+    event = tx.register_io_cb(io_update_cb)
+    event.destroy()
+
+    tx.set_epoch(0)
+
+    source_audio = tx.create_io(audio_monitor_id, {
+        buffer_ms = 20,
+    })
+
+    encoder = tx.create_encoder({
+        encoder = "libopus",
+        options = {
+            b = 10^3 * 128,
+            application = "audio",
+            frame_duration = 20,
+            vbr = "on",
+        },
+    })
+    encoder.link(source_audio)
+
+    muxer_a = tx.create_muxer({
+        out_url = string.format("rtp://%s:%s", rtp_host, rtp_port),
+        out_format = "rtp",
+        options = {
+            max_interleave_delta = 0,
+        },
+        priv_options = {
+            low_latency = true,
+        }
+    })
+    muxer_a.link(encoder)
 
     tx.commit()
 end

@@ -96,8 +96,7 @@ case "$ACTION" in
 
         cp \
             target/x86_64-pc-windows-gnu/release/avserver.exe \
-            scripts/txproto_stream_audio.lua \
-            scripts/txproto_stream_video.lua \
+            scripts/avserver_rtp_stream.lua \
             $OUT_DIR/bin
 
     ;;

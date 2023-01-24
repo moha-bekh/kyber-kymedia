@@ -87,8 +87,7 @@ case "$ACTION" in
 
         cp \
             target/release/avserver \
-            scripts/txproto_stream_audio.lua \
-            scripts/txproto_stream_video.lua \
+            scripts/avserver_rtp_stream.lua \
             $OUT_DIR/bin
     ;;
     "clippy")
