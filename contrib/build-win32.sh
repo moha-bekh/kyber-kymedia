@@ -145,28 +145,22 @@ build_opus() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="5.0"
-
-    local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.gz"
-    local archive_root="ffmpeg-$version"
-    local sha256="7bf52bc242b5db8df67c62cb826df134d917dedcf6abf1289e15e4057bcc1750"
+    local uri="https://github.com/FFmpeg/FFmpeg.git"
+    local sha1="2d202985b79630cd5056c4e32f8f77f22bf1067c"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
-    download_tarball $uri $sha256 || panic "Fail to get ffmpeg sources"
-    mkdir -p $work_dir
-    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+    mkdir -p $work_dir && cd $work_dir
+    git clone $uri
+    cd FFmpeg
+    git checkout $sha1
 
     # Build
-    cd "$work_dir/$archive_root"
-    patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen-mingw.patch
-    patch -p1 < $BASE_DIR/ffmpeg/0002-d3d11va-Allow-to-allocate-DXGI_FORMAT_B8G8R8A8_UNORM.patch
-    patch -p1 < $BASE_DIR/ffmpeg/0003-avdevice-Disable-dshow.patch
-
     mkdir build && cd build
 
     ../configure --prefix=$OUT_DIR \
         --arch=x86_64 --target-os=mingw32 --cross-prefix=$CROSS_PREFIX- --pkg-config=pkg-config \
+        --extra-ldflags="-static-libgcc" \
         --enable-shared \
         --enable-gpl --enable-libx264 \
         --enable-libopus \
