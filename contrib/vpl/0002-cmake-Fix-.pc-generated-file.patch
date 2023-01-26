@@ -1,0 +1,50 @@
+From 0cb9e3bb1a8217503af36d7b599a6cdfb50fcdfc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <rofferom@gmail.com>
+Date: Fri, 27 Jan 2023 09:20:33 +0100
+Subject: [PATCH 2/2] cmake: Fix .pc generated file
+
+---
+ dispatcher/CMakeLists.txt      | 12 +++---------
+ dispatcher/pkgconfig/vpl.pc.in |  6 +++---
+ 2 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/dispatcher/CMakeLists.txt b/dispatcher/CMakeLists.txt
+index 2524f08..27578a0 100644
+--- a/dispatcher/CMakeLists.txt
++++ b/dispatcher/CMakeLists.txt
+@@ -160,15 +160,9 @@ if(BUILD_DEV)
+     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vpl"
+     COMPONENT dev)
+ 
+-  file(RELATIVE_PATH pc_rel_prefix ${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig
+-       ${CMAKE_INSTALL_PREFIX})
+-  file(RELATIVE_PATH pc_rel_libdir ${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig
+-       ${CMAKE_INSTALL_FULL_LIBDIR})
+-  file(RELATIVE_PATH pc_rel_incdir ${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig
+-       ${CMAKE_INSTALL_FULL_INCLUDEDIR})
+-  set(pc_rel_prefix "$\{pcfiledir}/${pc_rel_prefix}")
+-  set(pc_rel_libdir "$\{pcfiledir}/${pc_rel_libdir}")
+-  set(pc_rel_incdir "$\{pcfiledir}/${pc_rel_incdir}")
++  set(pc_prefix "${CMAKE_INSTALL_PREFIX}")
++  set(pc_libdir "${CMAKE_INSTALL_LIBDIR}")
++  set(pc_incdir "${CMAKE_INSTALL_INCLUDEDIR}")
+ 
+   if(CMAKE_DL_LIBS)
+     set(DL_LIBS "-l${CMAKE_DL_LIBS}")
+diff --git a/dispatcher/pkgconfig/vpl.pc.in b/dispatcher/pkgconfig/vpl.pc.in
+index ab468a9..97f12dd 100644
+--- a/dispatcher/pkgconfig/vpl.pc.in
++++ b/dispatcher/pkgconfig/vpl.pc.in
+@@ -1,6 +1,6 @@
+-prefix=@pc_rel_prefix@
+-libdir=@pc_rel_libdir@
+-includedir=@pc_rel_incdir@
++prefix=@pc_prefix@
++libdir=${prefix}/@pc_libdir@
++includedir=${prefix}/@pc_incdir@
+ 
+ # oneAPI Video Processing Library (oneVPL)
+ Name: oneVPL
+-- 
+2.30.2
+

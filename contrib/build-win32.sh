@@ -164,6 +164,39 @@ build_amf() {
     cd $init_cwd
 }
 
+build_vpl() {
+    local init_cwd=$(pwd)
+
+    local version="2023.1.2"
+
+    local uri="https://github.com/oneapi-src/oneVPL/archive/refs/tags/v$version.tar.gz"
+    local archive_root="oneVPL-$version"
+    local sha256="b2261cca174ce1815f3d47c647921ab17f68267c69c1e2444ff27aab7d199cbb"
+    local work_dir="$BUILD_DIR/vpl"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get vpl sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+    patch -p1 < $WORKSPACE_ROOT/contrib/vpl/0001-Force-static-libstdc-link.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/vpl/0002-cmake-Fix-.pc-generated-file.patch
+
+    mkdir build && cd build
+
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DBUILD_PREVIEW=OFF -DBUILD_TOOLS=OFF -DBUILD_TOOLS_ONEVPL_EXPERIMENTAL=OFF -DINSTALL_EXAMPLE_CODE=OFF \
+        -DBUILD_SHARED_LIBS=OFF
+
+    make -j$NJOBS
+    make install
+
+    cd $init_cwd
+}
+
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
@@ -187,7 +220,8 @@ build_ffmpeg() {
         --enable-gpl --enable-libx264 \
         --enable-libopus \
         --enable-nonfree --enable-nvenc \
-        --enable-amf
+        --enable-amf \
+        --enable-libvpl
 
     make -j $NJOBS
     make install
@@ -319,6 +353,7 @@ export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 build_x264
 build_nvcodecheaders
 build_amf
+build_vpl
 build_opus
 build_ffmpeg
 build_lua
