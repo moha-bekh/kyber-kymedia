@@ -142,6 +142,28 @@ build_opus() {
     cd $init_cwd
 }
 
+build_amf() {
+    local init_cwd=$(pwd)
+
+    local version="1.4.29"
+
+    local uri="https://github.com/GPUOpen-LibrariesAndSDKs/AMF/archive/refs/tags/v$version.tar.gz"
+    local archive_root="AMF-$version"
+    local sha256="be42e4acd973fc7a228f087313bee9eaca08df031ec4596f14fb2eabef528628"
+    local work_dir="$BUILD_DIR/amf"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get amf sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Install
+    cd "$work_dir/$archive_root"
+    cp -a amf/public/include $OUT_DIR/include/AMF
+
+    cd $init_cwd
+}
+
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
@@ -164,7 +186,8 @@ build_ffmpeg() {
         --enable-shared \
         --enable-gpl --enable-libx264 \
         --enable-libopus \
-        --enable-nonfree --enable-nvenc
+        --enable-nonfree --enable-nvenc \
+        --enable-amf
 
     make -j $NJOBS
     make install
@@ -295,6 +318,7 @@ export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 # Build dependencies
 build_x264
 build_nvcodecheaders
+build_amf
 build_opus
 build_ffmpeg
 build_lua
