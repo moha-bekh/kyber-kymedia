@@ -210,6 +210,8 @@ build_ffmpeg() {
     cd FFmpeg
     git checkout $sha1
 
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
+
     # Build
     mkdir build && cd build
 
