@@ -1,10 +1,11 @@
+mod config;
 mod error;
 mod rtp;
 mod utils;
 
 use log::info;
 
-use avservice_types::{Command, Event};
+use avservice_types::{Command, Event, VideoCodec};
 use libkypc::Worker;
 
 pub use error::{Error, Result};
@@ -15,6 +16,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     let (mut receiver, _sender) = worker.get_sender_receiver()?;
 
     let mut ctx = None;
+    let config = config::load().await?;
 
     while let Ok(msg) = receiver.recv().await {
         match msg {

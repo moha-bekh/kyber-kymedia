@@ -18,6 +18,10 @@ pub enum Error {
 
     #[error("OsString '{s:?}' conversion to string failed")]
     OsStringConversion { s: std::ffi::OsString },
+    #[error("Fail to parse configuration file")]
+    ConfigParseFail,
+    #[error("Fail to load configuration: {reason:?}")]
+    ConfigLoadFail { reason: toml::de::Error },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
