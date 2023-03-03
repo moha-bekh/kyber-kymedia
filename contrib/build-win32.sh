@@ -200,19 +200,22 @@ build_vpl() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local uri="https://github.com/FFmpeg/FFmpeg.git"
-    local sha1="2d202985b79630cd5056c4e32f8f77f22bf1067c"
+    local version="6.0"
+
+    local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
+    local archive_root="ffmpeg-$version"
+    local sha256="57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
-    mkdir -p $work_dir && cd $work_dir
-    git clone $uri
-    cd FFmpeg
-    git checkout $sha1
-
-    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
+    download_tarball $uri $sha256 || panic "Fail to get ffmpeg sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
 
     # Build
+    cd "$work_dir/$archive_root"
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
+
     mkdir build && cd build
 
     ../configure --prefix=$OUT_DIR \
