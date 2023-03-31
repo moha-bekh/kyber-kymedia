@@ -36,19 +36,27 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
 
                 ctx = Some(c);
             }
-            (cmd_id, Command::RtpGenerateVideoSdp { yuv444 }) => {
+            (cmd_id, Command::RtpGenerateVideoSdp { display_id, yuv444 }) => {
                 info!("Generate RTP Video SDP: yuv444: {yuv444}");
-                let sdp = rtp::generate_sdp(yuv444).await?;
+                let sdp = rtp::generate_sdp(display_id, yuv444).await?;
 
                 receiver
                     .accept(cmd_id, Some(Event::RtpSdpGenerated { sdp }))
                     .await?;
             }
-            (cmd_id, Command::RtpStartVideo { ip, port, yuv444 }) => {
+            (
+                cmd_id,
+                Command::RtpStartVideo {
+                    display_id,
+                    ip,
+                    port,
+                    yuv444,
+                },
+            ) => {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start RTP Video: {ip}:{port} yuv444: {yuv444}");
 
-                let c = rtp::start_video(ip, port, yuv444)?;
+                let c = rtp::start_video(display_id, ip, port, yuv444)?;
                 ctx = Some(c);
             }
             (cmd_id, Command::RtpStartAudio { ip, port }) => {

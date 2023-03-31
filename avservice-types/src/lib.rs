@@ -21,9 +21,11 @@ pub struct Display {
 pub enum Command {
     EnumerateDisplays,
     RtpGenerateVideoSdp {
+        display_id: u32,
         yuv444: bool,
     },
     RtpStartVideo {
+        display_id: u32,
         ip: String,
         port: u16,
         yuv444: bool,

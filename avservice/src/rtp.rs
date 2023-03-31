@@ -12,7 +12,7 @@ const LUA_SCRIPT: &str = "avserver_rtp_stream.lua";
 const VIDEO_ENTRYPOINT: &str = "main_video";
 const AUDIO_ENTRYPOINT: &str = "main_audio";
 
-pub(crate) async fn generate_sdp(yuv444: bool) -> Result<String> {
+pub(crate) async fn generate_sdp(display_id: u32, yuv444: bool) -> Result<String> {
     // Prepare target file
     let sdp_path = env::temp_dir().join("video.sdp");
 
@@ -27,10 +27,17 @@ pub(crate) async fn generate_sdp(yuv444: bool) -> Result<String> {
     // Run txproto
     let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
+    let display_id = format!("{display_id}");
     let yuv444_str = format!("{yuv444}");
     let sdp_path_str = utils::path_to_string(&sdp_path)?;
 
-    let args = vec!["localhost", "30000", &yuv444_str, &sdp_path_str];
+    let args = vec![
+        display_id.as_str(),
+        "localhost",
+        "30000",
+        &yuv444_str,
+        &sdp_path_str,
+    ];
 
     let ctx = txproto_rs::Context::new(&script, VIDEO_ENTRYPOINT, Some(args))
         .ok_or(Error::TxprotoCreateFailed)?;
@@ -73,14 +80,19 @@ pub(crate) async fn generate_sdp(yuv444: bool) -> Result<String> {
     Err(Error::RtpVideoSdpParseFailed)
 }
 
-pub(crate) fn start_video(ip: String, port: u16, yuv444: bool) -> Result<txproto_rs::Context> {
-    let script = utils::get_resource_path(LUA_SCRIPT);
-    let script = utils::path_to_string(&script)?;
+pub(crate) fn start_video(
+    display_id: u32,
+    ip: String,
+    port: u16,
+    yuv444: bool,
+) -> Result<txproto_rs::Context> {
+    let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
+    let display_id = format!("{display_id}");
     let port = format!("{port}");
     let yuv444 = format!("{yuv444}");
 
-    let args: Vec<&str> = vec![&ip, &port, &yuv444];
+    let args: Vec<&str> = vec![&display_id, &ip, &port, &yuv444];
 
     let ctx = txproto_rs::Context::new(&script, VIDEO_ENTRYPOINT, Some(args))
         .ok_or(Error::TxprotoCreateFailed)?;
