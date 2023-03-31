@@ -19,6 +19,7 @@ pub struct Display {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Command {
+    EnumerateDisplays,
     RtpGenerateVideoSdp {
         yuv444: bool,
     },
@@ -44,5 +45,7 @@ pub enum Command {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Event {
+    DisplayList { displays: Vec<Display> },
+    DisplayListUpdated { displays: Vec<Display> },
     RtpSdpGenerated { sdp: String },
 }

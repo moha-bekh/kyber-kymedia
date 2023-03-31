@@ -13,8 +13,13 @@ pub enum Error {
     RtpVideoSdpFileNotFound,
     #[error("RTP Video SDP file parse failed")]
     RtpVideoSdpParseFailed,
+
     #[error("libtxproto creation failed")]
     TxprotoCreateFailed,
+    #[error("libtxproto failed to get global")]
+    TxprotoGetGlobalFailed { variable: String },
+    #[error("libtxproto returned an invalid json")]
+    TxprotoInvalidJson { json: String },
 
     #[error("OsString '{s:?}' conversion to string failed")]
     OsStringConversion { s: std::ffi::OsString },

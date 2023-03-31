@@ -1,4 +1,5 @@
 mod config;
+mod displays;
 mod error;
 mod kymux;
 mod rtp;
@@ -14,13 +15,27 @@ pub use error::{Error, Result};
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
 
-    let (mut receiver, _sender) = worker.get_sender_receiver()?;
+    let (mut receiver, sender) = worker.get_sender_receiver()?;
 
     let mut ctx = None;
     let config = config::load().await?;
 
     while let Ok(msg) = receiver.recv().await {
         match msg {
+            (cmd_id, Command::EnumerateDisplays) => {
+                let (c, display_list) = displays::enumerate(sender.clone())?;
+
+                receiver
+                    .accept(
+                        cmd_id,
+                        Some(Event::DisplayList {
+                            displays: display_list,
+                        }),
+                    )
+                    .await?;
+
+                ctx = Some(c);
+            }
             (cmd_id, Command::RtpGenerateVideoSdp { yuv444 }) => {
                 info!("Generate RTP Video SDP: yuv444: {yuv444}");
                 let sdp = rtp::generate_sdp(yuv444).await?;
