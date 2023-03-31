@@ -11,8 +11,7 @@ pub(crate) fn start_video(
     codec: &str,
     yuv444: bool,
 ) -> Result<txproto_rs::Context> {
-    let script = utils::get_resource_path(LUA_SCRIPT);
-    let script = utils::path_to_string(&script)?;
+    let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
     let yuv444 = format!("{yuv444}");
 
@@ -25,8 +24,7 @@ pub(crate) fn start_video(
 }
 
 pub(crate) fn start_audio(uri: &str) -> Result<txproto_rs::Context> {
-    let script = utils::get_resource_path(LUA_SCRIPT);
-    let script = utils::path_to_string(&script)?;
+    let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
     let args: Vec<&str> = vec![uri];
 

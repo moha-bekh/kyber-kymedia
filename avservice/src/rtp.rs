@@ -25,8 +25,7 @@ pub(crate) async fn generate_sdp(yuv444: bool) -> Result<String> {
     }
 
     // Run txproto
-    let script = utils::get_resource_path(LUA_SCRIPT);
-    let script = utils::path_to_string(&script)?;
+    let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
     let yuv444_str = format!("{yuv444}");
     let sdp_path_str = utils::path_to_string(&sdp_path)?;
@@ -90,8 +89,7 @@ pub(crate) fn start_video(ip: String, port: u16, yuv444: bool) -> Result<txproto
 }
 
 pub(crate) fn start_audio(ip: String, port: u16) -> Result<txproto_rs::Context> {
-    let script = utils::get_resource_path(LUA_SCRIPT);
-    let script = utils::path_to_string(&script)?;
+    let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
     let port = format!("{port}");
 
