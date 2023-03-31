@@ -7,6 +7,16 @@ pub enum VideoCodec {
     AV1,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Display {
+    pub id: u32,
+    pub name: String,
+    pub height: i32,
+    pub width: i32,
+    pub x: i32,
+    pub y: i32,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Command {
     RtpGenerateVideoSdp {
