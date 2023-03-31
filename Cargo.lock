@@ -640,6 +640,7 @@ name = "txproto-rs"
 version = "0.1.0"
 dependencies = [
  "libc",
+ "log",
  "txproto-sys",
 ]
 

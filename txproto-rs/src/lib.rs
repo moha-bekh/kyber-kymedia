@@ -1,5 +1,8 @@
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::ptr;
+
+use libc::{c_char, c_void};
+use log::warn;
 
 use txproto_sys as sys;
 
@@ -70,5 +73,55 @@ impl Context {
 
         let ret = unsafe { sys::txproto_execute(self.ptr, chunk.as_ptr()) };
         println!("Execute. ret={ret}");
+    }
+
+    pub fn get_global(&self, name: &str) -> Option<String> {
+        let name = to_cstr(name);
+        let mut out_string: *mut c_char = std::ptr::null_mut();
+
+        unsafe { sys::txproto_getglobal(self.ptr, name.as_ptr(), &mut out_string) };
+
+        if !out_string.is_null() {
+            let s = unsafe { CStr::from_ptr(out_string) };
+            let s = s.to_string_lossy().to_string();
+
+            unsafe { libc::free(out_string as *mut _) };
+            Some(s)
+        } else {
+            None
+        }
+    }
+
+    extern "C" fn callback_trampoline<F>(json: *const c_char, opaque: *mut c_void)
+    where
+        F: FnMut(String),
+    {
+        let ret = unsafe { CStr::from_ptr(json).to_str() };
+        let json = match ret {
+            Ok(json) => json,
+            Err(err) => {
+                warn!("Failed to convert JSON to &str: {err:?}");
+                return;
+            }
+        };
+
+        let cb = unsafe { &mut *(opaque as *mut F) };
+        cb(json.to_string());
+    }
+
+    pub fn set_callback<F>(&self, varname: &str, f: F)
+    where
+        F: FnMut(String),
+    {
+        let varname = to_cstr(varname);
+
+        unsafe {
+            sys::txproto_set_cb(
+                self.ptr,
+                varname.as_ptr(),
+                Some(Self::callback_trampoline::<F>),
+                Box::into_raw(Box::new(f)) as *mut _,
+            )
+        };
     }
 }
