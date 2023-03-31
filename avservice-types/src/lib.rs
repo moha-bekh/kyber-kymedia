@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum VideoCodec {
     H264,
     HEVC,
     AV1,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Command {
     RtpGenerateVideoSdp {
         yuv444: bool,
@@ -32,7 +32,7 @@ pub enum Command {
     Stop,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Event {
     RtpSdpGenerated { sdp: String },
 }
