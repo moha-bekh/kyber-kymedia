@@ -35,6 +35,7 @@ pub enum Command {
         port: u16,
     },
     KymuxStartVideo {
+        display_id: u32,
         uri: String,
         codec: VideoCodec,
         yuv444: bool,

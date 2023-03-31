@@ -1,11 +1,13 @@
+requested_display_api_id = nil
+
 video_display_id = nil
 audio_monitor_id = nil
 
 function io_update_cb(identifier, entry)
-    print("Add entry", entry.name)
+    print("Add entry", entry.name, entry.api_id)
 
-    if video_display_id == nil and entry.type == "display" and entry.default then
-        print("Use video display", entry.name)
+    if video_display_id == nil and entry.type == "display" and entry.api_id == requested_display_api_id then
+        print("Use video display", identifier, entry.name)
         video_display_id = identifier
     end
 
@@ -164,8 +166,10 @@ end
 
 function main_video(...)
     local arg = {...}
-    local uri, encoder_name, codec, yuv444 = arg[1], arg[2], arg[3], arg[4], arg[5]
+    local display_id, uri, encoder_name, codec, yuv444 = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6]
     local bitrate = "20M"
+
+    requested_display_api_id = tonumber(display_id)
 
     event = tx.register_io_cb(io_update_cb)
     event.destroy()

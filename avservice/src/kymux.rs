@@ -6,6 +6,7 @@ const VIDEO_ENTRYPOINT: &str = "main_video";
 const AUDIO_ENTRYPOINT: &str = "main_audio";
 
 pub(crate) fn start_video(
+    display_id: u32,
     uri: &str,
     encoder: &str,
     codec: &str,
@@ -13,9 +14,10 @@ pub(crate) fn start_video(
 ) -> Result<txproto_rs::Context> {
     let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
+    let display_id = format!("{display_id}");
     let yuv444 = format!("{yuv444}");
 
-    let args: Vec<&str> = vec![uri, encoder, codec, &yuv444];
+    let args: Vec<&str> = vec![&display_id, uri, encoder, codec, &yuv444];
 
     let ctx = txproto_rs::Context::new(&script, VIDEO_ENTRYPOINT, Some(args))
         .ok_or(Error::TxprotoCreateFailed)?;
