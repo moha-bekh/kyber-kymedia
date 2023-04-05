@@ -4,15 +4,15 @@ video_display_id = nil
 audio_monitor_id = nil
 
 function io_update_cb(identifier, entry)
-    print("Add entry", entry.name, entry.api_id)
+    tx.log("Add entry", entry.name)
 
     if video_display_id == nil and entry.type == "display" and entry.api_id == requested_display_api_id then
-        print("Use video display", identifier, entry.name)
+        tx.log("Use video display", entry.name)
         video_display_id = identifier
     end
 
     if audio_monitor_id == nil and entry.type == "monitor" and entry.default then
-        print("Use audio monitor", entry.name)
+        tx.log("Use audio monitor", entry.name)
         audio_monitor_id = identifier
     end
 end
