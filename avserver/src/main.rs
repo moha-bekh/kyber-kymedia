@@ -9,6 +9,8 @@ async fn main() -> Result<()> {
         .format_timestamp_millis()
         .init();
 
+    txproto_rs::init_logger();
+
     let worker = libkypc::process::connect_to_commander().await?;
     avservice::run(worker).await
 }
