@@ -10,6 +10,8 @@ fn main() {
         .use_core()
         // Use libc
         .ctypes_prefix("libc")
+        .allowlist_function("txproto_.*")
+        .allowlist_type("SPLogLevel.*")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks));
 
     // Set header include paths
