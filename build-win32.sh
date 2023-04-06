@@ -29,6 +29,7 @@ OPTIONS:
    -k            Build Kyber dependencies
    -s            Skip native dependencies build
    -c            Run clippy
+   -w            Don't spawn cmd.exe when running avserver.exe
    -o <path>     Install the built binaries in the absolute path
 EOF
 }
@@ -53,9 +54,10 @@ git_clone() {
 
 BUILD_DEPS=true
 BUILD_KYBER_DEPS=false
+HIDE_CONSOLE_FEATURE=""
 ACTION="build"
 
-while getopts "hksco:" OPTION
+while getopts "hksco:w" OPTION
 do
     case $OPTION in
         h)
@@ -73,6 +75,9 @@ do
             ;;
         o)
             OUT_DIR=$OPTARG
+            ;;
+        w)
+            HIDE_CONSOLE_FEATURE="--features win32-hide-console"
             ;;
     esac
 done
@@ -126,7 +131,8 @@ case "$ACTION" in
             --target x86_64-pc-windows-gnu \
             --release \
             --bins \
-            --examples
+            --examples \
+            $HIDE_CONSOLE_FEATURE
 
         # Install
         mkdir -p $OUT_DIR/bin

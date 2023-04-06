@@ -134,7 +134,7 @@ build-windows-x86_64:
     ../scripts/change_prefix.sh
     cd -
     # Build component
-    ./build-win32.sh -k -s -o $KYBER_PREFIX
+    ./build-win32.sh -k -s -w -o $KYBER_PREFIX
 
 clippy-windows-x86_64:
   stage: misc
