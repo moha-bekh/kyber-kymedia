@@ -201,7 +201,6 @@ function main_video(...)
 
     packet_sink = tx.create_packet_sink({
         uri = uri,
-        stream_id = 0, -- hardcoded: must be 0 for video
     })
     packet_sink.link(encoder_v)
 
@@ -235,7 +234,6 @@ function main_audio(...)
 
     packet_sink = tx.create_packet_sink({
         uri = uri,
-        stream_id = 1, -- hardcoded: must be 1 for audio
     })
     packet_sink.link(encoder)
 
