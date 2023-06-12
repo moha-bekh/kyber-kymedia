@@ -166,8 +166,7 @@ end
 
 function main_video(...)
     local arg = {...}
-    local display_id, uri, encoder_name, codec, yuv444 = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6]
-    local bitrate = "20M"
+    local display_id, uri, encoder_name, bitrate, codec, yuv444 = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6]
 
     requested_display_api_id = tonumber(display_id)
 

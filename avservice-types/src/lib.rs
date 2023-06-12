@@ -37,6 +37,7 @@ pub enum Command {
     KymuxStartVideo {
         display_id: u32,
         uri: String,
+        bitrate: u32,
         codec: VideoCodec,
         yuv444: bool,
     },

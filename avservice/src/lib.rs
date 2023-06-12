@@ -71,12 +71,13 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 Command::KymuxStartVideo {
                     display_id,
                     uri,
+                    bitrate,
                     codec,
                     yuv444,
                 },
             ) => {
                 receiver.accept(cmd_id, None).await?;
-                info!("Start Kymux Video: URI {uri:?}, codec: {codec:?}, yuv444: {yuv444}");
+                info!("Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}");
 
                 let codec = match codec {
                     VideoCodec::H264 => "h264",
@@ -84,7 +85,8 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     VideoCodec::AV1 => "av1",
                 };
 
-                let c = kymux::start_video(display_id, &uri, &config.encoder, codec, yuv444)?;
+                let c =
+                    kymux::start_video(display_id, &uri, &config.encoder, bitrate, codec, yuv444)?;
                 ctx = Some(c);
             }
             (cmd_id, Command::KymuxStartAudio { uri }) => {
