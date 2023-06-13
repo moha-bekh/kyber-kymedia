@@ -28,6 +28,7 @@ pub enum Command {
         display_id: u32,
         ip: String,
         port: u16,
+        bitrate: u32,
         yuv444: bool,
     },
     RtpStartAudio {

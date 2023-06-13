@@ -35,6 +35,7 @@ pub(crate) async fn generate_sdp(display_id: u32, yuv444: bool) -> Result<String
         display_id.as_str(),
         "localhost",
         "30000",
+        "20M",
         &yuv444_str,
         &sdp_path_str,
     ];
@@ -84,15 +85,17 @@ pub(crate) fn start_video(
     display_id: u32,
     ip: String,
     port: u16,
+    bitrate: u32,
     yuv444: bool,
 ) -> Result<txproto_rs::Context> {
     let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
     let display_id = format!("{display_id}");
     let port = format!("{port}");
+    let bitrate = format!("{bitrate}");
     let yuv444 = format!("{yuv444}");
 
-    let args: Vec<&str> = vec![&display_id, &ip, &port, &yuv444];
+    let args: Vec<&str> = vec![&display_id, &ip, &port, &bitrate, &yuv444];
 
     let ctx = txproto_rs::Context::new(&script, VIDEO_ENTRYPOINT, Some(args))
         .ok_or(Error::TxprotoCreateFailed)?;

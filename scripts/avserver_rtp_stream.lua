@@ -24,7 +24,7 @@ end
 
 function main_video(...)
     local arg = {...}
-    display_id, rtp_host, rtp_port, yuv444, sdp_file = arg[1], arg[2], arg[3], arg[4], arg[5]
+    display_id, rtp_host, rtp_port, bitrate, yuv444, sdp_file = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6]
 
     requested_display_api_id = tonumber(display_id)
 
@@ -70,7 +70,7 @@ function main_video(...)
             zerolatency = true,
             delay = 1,
             profile = nvenc_get_profile(yuv444),
-            b = "20M",
+            b = bitrate,
             flags = "+global_header",
         }
     }
@@ -81,7 +81,7 @@ function main_video(...)
         priv_options = { fifo_size = 2 },
         options = {
             profile = "high",
-            b = "20M",
+            b = bitrate,
             bf = 0,
             flags = "+global_header",
         }

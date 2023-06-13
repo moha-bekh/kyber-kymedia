@@ -50,13 +50,14 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     display_id,
                     ip,
                     port,
+                    bitrate,
                     yuv444,
                 },
             ) => {
                 receiver.accept(cmd_id, None).await?;
-                info!("Start RTP Video: {ip}:{port} yuv444: {yuv444}");
+                info!("Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}");
 
-                let c = rtp::start_video(display_id, ip, port, yuv444)?;
+                let c = rtp::start_video(display_id, ip, port, bitrate, yuv444)?;
                 ctx = Some(c);
             }
             (cmd_id, Command::RtpStartAudio { ip, port }) => {
