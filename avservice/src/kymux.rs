@@ -12,14 +12,24 @@ pub(crate) fn start_video(
     bitrate: u32,
     codec: &str,
     yuv444: bool,
+    intra_refresh: bool,
 ) -> Result<txproto_rs::Context> {
     let script = utils::get_resource_path_str(LUA_SCRIPT)?;
 
     let display_id = format!("{display_id}");
     let bitrate = bitrate.to_string();
     let yuv444 = format!("{yuv444}");
+    let intra_refresh = format!("{intra_refresh}");
 
-    let args: Vec<&str> = vec![&display_id, uri, encoder, &bitrate, codec, &yuv444];
+    let args: Vec<&str> = vec![
+        &display_id,
+        uri,
+        encoder,
+        &bitrate,
+        codec,
+        &yuv444,
+        &intra_refresh,
+    ];
 
     let ctx = txproto_rs::Context::new(&script, VIDEO_ENTRYPOINT, Some(args))
         .ok_or(Error::TxprotoCreateFailed)?;

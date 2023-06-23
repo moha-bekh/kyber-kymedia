@@ -22,7 +22,7 @@ function muxer_stats(stats)
     tx.set_status(statusline)
 end
 
-function create_x264(source_video, codec, yuv444, bitrate)
+function create_x264(source_video, codec, yuv444, bitrate, intra_refresh)
     local filter = tx.create_filtergraph({
         graph = "scale=w=1920:h=-1,format=nv12",
         priv_options = { dump_graph = false },
@@ -44,7 +44,7 @@ function create_x264(source_video, codec, yuv444, bitrate)
     return filter, encoder
 end
 
-function create_nvenc(source_video, codec, yuv444, bitrate)
+function create_nvenc(source_video, codec, yuv444, bitrate, intra_refresh)
     local options = {
         preset = "p2",
         tune = "ull",
@@ -75,7 +75,7 @@ function create_nvenc(source_video, codec, yuv444, bitrate)
     return nil, encoder
 end
 
-function create_qsv(source_video, codec, yuv444, bitrate)
+function create_qsv(source_video, codec, yuv444, bitrate, intra_refresh)
     local filter = tx.create_filtergraph({
         graph = "hwmap,format=qsv,scale_qsv=format=nv12",
         hwctx = "qsv",
@@ -107,7 +107,7 @@ function create_qsv(source_video, codec, yuv444, bitrate)
     return filter, encoder
 end
 
-function create_amf(source_video, codec, yuv444, bitrate)
+function create_amf(source_video, codec, yuv444, bitrate, intra_refresh)
     local filter = tx.create_filtergraph({
         graph = "hwdownload,format=bgra,hwupload",
         hwctx = "d3d11va",
@@ -141,7 +141,7 @@ function create_amf(source_video, codec, yuv444, bitrate)
     return filter, encoder
 end
 
-function create_vaapi(source_video, codec, yuv444, bitrate)
+function create_vaapi(source_video, codec, yuv444, bitrate, intra_refresh)
     local options = {
         b = bitrate,
         bf = 0,
@@ -166,7 +166,7 @@ end
 
 function main_video(...)
     local arg = {...}
-    local display_id, uri, encoder_name, bitrate, codec, yuv444 = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6]
+    local display_id, uri, encoder_name, bitrate, codec, yuv444, intra_refresh = arg[1], arg[2], arg[3], arg[4], arg[5], arg[6], arg[7]
 
     requested_display_api_id = tonumber(display_id)
 
@@ -196,7 +196,7 @@ function main_video(...)
         -- enabled.
     end
 
-    local filter_v, encoder_v = encoder_create_cb(source_video, codec, yuv444, bitrate)
+    local filter_v, encoder_v = encoder_create_cb(source_video, codec, yuv444, bitrate, intra_refresh)
 
     packet_sink = tx.create_packet_sink({
         uri = uri,

@@ -86,8 +86,15 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     VideoCodec::AV1 => "av1",
                 };
 
-                let c =
-                    kymux::start_video(display_id, &uri, &config.encoder, bitrate, codec, yuv444)?;
+                let c = kymux::start_video(
+                    display_id,
+                    &uri,
+                    &config.encoder,
+                    bitrate,
+                    codec,
+                    yuv444,
+                    config.intra_refresh(),
+                )?;
                 ctx = Some(c);
             }
             (cmd_id, Command::KymuxStartAudio { uri }) => {
