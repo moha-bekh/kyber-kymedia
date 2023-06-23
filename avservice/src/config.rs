@@ -8,13 +8,21 @@ use crate::{Error, Result};
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
     pub(crate) encoder: String,
+    intra_refresh: Option<bool>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             encoder: "nvenc".into(),
+            intra_refresh: None,
         }
+    }
+}
+
+impl Config {
+    pub(crate) fn intra_refresh(&self) -> bool {
+        self.intra_refresh.unwrap_or(true)
     }
 }
 
