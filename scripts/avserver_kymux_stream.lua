@@ -69,6 +69,11 @@ function create_nvenc(source_video, codec, yuv444, bitrate, intra_refresh)
         options["g"] = 120
     end
 
+    tx.log("Nvenc options")
+    for k, v in pairs(options) do
+        tx.log(string.format("    %s=%s", k, v))
+    end
+
     local encoder = tx.create_encoder({
         encoder = string.format("%s_nvenc", codec),
         priv_options = { fifo_size = 1 },
