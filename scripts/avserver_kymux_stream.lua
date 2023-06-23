@@ -64,6 +64,11 @@ function create_nvenc(source_video, codec, yuv444, bitrate, intra_refresh)
         end
     end
 
+    if intra_refresh == "true" then
+        options["intra-refresh"] = true
+        options["g"] = 120
+    end
+
     local encoder = tx.create_encoder({
         encoder = string.format("%s_nvenc", codec),
         priv_options = { fifo_size = 1 },
