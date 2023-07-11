@@ -111,11 +111,11 @@ build_x264() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="5.0"
+    local version="6.0"
 
-    local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.gz"
+    local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
     local archive_root="ffmpeg-$version"
-    local sha256="7bf52bc242b5db8df67c62cb826df134d917dedcf6abf1289e15e4057bcc1750"
+    local sha256="57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
@@ -126,7 +126,6 @@ build_ffmpeg() {
     # Build
     cd "$work_dir/$archive_root"
     patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen.patch
-    patch -p1 < $BASE_DIR/ffmpeg/0001-hwcontext_vulkan-remove-optional-encode-decode-exten.patch
 
     mkdir build && cd build
 
