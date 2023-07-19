@@ -266,11 +266,11 @@ build_zlib() {
 build_lua() {
     local init_cwd=$(pwd)
 
-    local version="5.4.4"
+    local version="5.4.6"
 
     local uri="https://www.lua.org/ftp/lua-$version.tar.gz"
     local archive_root="lua-$version"
-    local sha256="164c7849653b80ae67bec4b7473b884bf5cc8d2dca05653475ec2ed27b9ebf61"
+    local sha256="7d5ea1b9cb6aa0b59ca3dde1c6adcb57ef83a1ba8e5432c0ecd06bf439b3ad88"
     local work_dir="$BUILD_DIR/lua"
 
     # Get sources
