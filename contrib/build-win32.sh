@@ -99,7 +99,7 @@ build_nvcodecheaders() {
     local init_cwd=$(pwd)
 
     local uri="https://github.com/FFmpeg/nv-codec-headers.git"
-    local sha1="c5e4af74850a616c42d39ed45b9b8568b71bf8bf"
+    local sha1="n12.0.16.0"
     local work_dir="$BUILD_DIR/nv-codec-headers"
 
     # Get sources
