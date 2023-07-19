@@ -88,9 +88,9 @@ build_nvcodecheaders() {
 build_x264() {
     local init_cwd=$(pwd)
 
-    local uri="https://code.videolan.org/videolan/x264/-/archive/5db6aa6cab1b146e07b60cc1736a01f21da01154/x264-5db6aa6cab1b146e07b60cc1736a01f21da01154.zip"
-    local archive_root='x264-5db6aa6cab1b146e07b60cc1736a01f21da01154'
-    local sha256="6896825756ebe2c2657580d7636ed5fd6a41fea8e7722ba866fac7be6780d02f"
+    local uri="https://code.videolan.org/videolan/x264/-/archive/a8b68ebfaa68621b5ac8907610d3335971839d52/x264-a8b68ebfaa68621b5ac8907610d3335971839d52.zip"
+    local archive_root='x264-a8b68ebfaa68621b5ac8907610d3335971839d52'
+    local sha256="113c3ca73da52be3f3dc9ad78a3af945ee7a1059ee1f9ee34caa2e18504eb245"
     local work_dir="$BUILD_DIR/x264"
 
     # Get sources
