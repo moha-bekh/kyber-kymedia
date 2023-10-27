@@ -50,7 +50,9 @@ pub(crate) fn enumerate(
 
     // Get display list
     let Some(display_list) = ctx.get_global(LUA_DISPLAY_LIST_JSON) else {
-        return Err(Error::TxprotoGetGlobalFailed { variable: LUA_DISPLAY_LIST_JSON.into() });
+        return Err(Error::TxprotoGetGlobalFailed {
+            variable: LUA_DISPLAY_LIST_JSON.into(),
+        });
     };
 
     let displays = serde_json::from_str(&display_list).map_err(|e| {
