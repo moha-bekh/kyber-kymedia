@@ -126,6 +126,7 @@ build_ffmpeg() {
     # Build
     cd "$work_dir/$archive_root"
     patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen.patch
+    patch -p1 < $BASE_DIR/ffmpeg/0001-avcodec-x86-mathops-clip-constants-used-with-shift-i.patch
 
     mkdir build && cd build
 

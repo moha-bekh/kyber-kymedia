@@ -215,6 +215,7 @@ build_ffmpeg() {
     # Build
     cd "$work_dir/$archive_root"
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-avcodec-x86-mathops-clip-constants-used-with-shift-i.patch
 
     mkdir build && cd build
 
