@@ -132,6 +132,7 @@ build_ffmpeg() {
 
     ../configure --prefix=$OUT_DIR \
         --enable-shared \
+        --disable-doc \
         --enable-libdrm \
         --enable-gpl --enable-libx264 \
         --enable-libopus \

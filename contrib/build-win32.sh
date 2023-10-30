@@ -223,6 +223,7 @@ build_ffmpeg() {
         --arch=x86_64 --target-os=mingw32 --cross-prefix=$CROSS_PREFIX- --pkg-config=pkg-config \
         --extra-ldflags="-static -static-libgcc" \
         --enable-shared \
+        --disable-doc \
         --enable-gpl --enable-libx264 \
         --enable-libopus \
         --enable-nonfree --enable-nvenc \
