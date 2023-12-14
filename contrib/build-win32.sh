@@ -170,8 +170,8 @@ build_vpl() {
     local version="2023.3.0"
 
     local uri="https://github.com/oneapi-src/oneVPL/archive/refs/tags/v$version.tar.gz"
-    local archive_root="oneVPL-$version"
-    local sha256="6378539dfd15c08aad4b7756c0dd694430c789a0aa2ebaf4352de18e59ab54e9"
+    local archive_root="libvpl-$version"
+    local sha256="ff048ceba8ebbb416af23606fd360ed9916ad008626ea6c27c304611eda556c6"
     local work_dir="$BUILD_DIR/vpl"
 
     # Get sources
