@@ -216,6 +216,7 @@ build_ffmpeg() {
     cd "$work_dir/$archive_root"
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-avcodec-x86-mathops-clip-constants-used-with-shift-i.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
 
     mkdir build && cd build
 

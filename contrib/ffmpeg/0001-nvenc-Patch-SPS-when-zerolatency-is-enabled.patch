@@ -1,0 +1,126 @@
+From c393b625d395e7fda097227f720a4076a3e24fea Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Thu, 25 Jan 2024 15:59:15 +0100
+Subject: [PATCH] nvenc: Patch SPS when zerolatency is enabled
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Workaround for Chromium H264 Hardware decoding on Windows.
+
+According to a Chromium developper:
+"We'll force a $max_reorder_frames frame requirement if it has any value
+other than zero. So I'd make sure it's set to zero in the VUI params.
+
+According to nvEncodeAPI.h:
+NV_ENC_RC_PARAMS.zeroReorderDelay: Set this to 1 to indicate zero latency
+operation (no reordering delay, num_reorder_frames=0)
+
+When setting zeroReorderDelay=1, max_reorder_frames isn't set. So we try to
+patch SPS to enable it.
+
+According to H.264-202108 spec:
+"When the max_num_reorder_frames syntax element is not present, the value of
+ max_num_reorder_frames value shall be inferred as follows:
+ – If profile_idc is equal to 44, 86, 100, 110, 122, or 244 and
+   constraint_set3_flag is equal to 1, the value of max_num_reorder_frames
+   shall be inferred to be equal to 0.
+ – Otherwise (profile_idc is not equal to 44, 86, 100, 110, 122, or 244 or
+   constraint_set3_flag is equal to 0), the value of max_num_reorder_frames
+   shall be inferred to be equal to MaxDpbFrames."
+
+The goal of the function is to set constraint_set3_flag=1 for the correct
+profiles. This avoid to modify the VUI param directly.
+---
+ libavcodec/nvenc.c | 61 ++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 61 insertions(+)
+
+diff --git a/libavcodec/nvenc.c b/libavcodec/nvenc.c
+index 8a28454042..cb60488c6f 100644
+--- a/libavcodec/nvenc.c
++++ b/libavcodec/nvenc.c
+@@ -22,6 +22,8 @@
+ #include "config.h"
+ #include "config_components.h"
+ 
++#include "cbs.h"
++#include "cbs_h264.h"
+ #include "nvenc.h"
+ #include "hevc_sei.h"
+ #if CONFIG_AV1_NVENC_ENCODER
+@@ -1800,6 +1802,58 @@ fail:
+     return res;
+ }
+ 
++/*
++ * Workaround for Chromium H264 Hardware decoding on Windows.
++ *
++ * According to a Chromium developper:
++ * "We'll force a $max_reorder_frames frame requirement if it has any value
++ * other than zero. So I'd make sure it's set to zero in the VUI params.
++ *
++ * According to nvEncodeAPI.h:
++ * NV_ENC_RC_PARAMS.zeroReorderDelay: Set this to 1 to indicate zero latency
++ * operation (no reordering delay, num_reorder_frames=0)
++ *
++ * When setting zeroReorderDelay=1, max_reorder_frames isn't set. So we try to
++ * patch SPS to enable it.
++ *
++ * According to H.264-202108 spec:
++ * "When the max_num_reorder_frames syntax element is not present, the value of
++ *  max_num_reorder_frames value shall be inferred as follows:
++ *  – If profile_idc is equal to 44, 86, 100, 110, 122, or 244 and
++ *    constraint_set3_flag is equal to 1, the value of max_num_reorder_frames
++ *    shall be inferred to be equal to 0.
++ *  – Otherwise (profile_idc is not equal to 44, 86, 100, 110, 122, or 244 or
++ *    constraint_set3_flag is equal to 0), the value of max_num_reorder_frames
++ *    shall be inferred to be equal to MaxDpbFrames."
++ *
++ * The goal of the function is to set constraint_set3_flag=1 for the correct
++ * profiles. This avoid to modify the VUI param directly.
++ */
++static int patch_h264_extradata(AVCodecContext *avctx)
++{
++    av_log(avctx, AV_LOG_INFO, "Patch H264 extradata\n");
++
++    switch (avctx->profile) {
++    case FF_PROFILE_H264_HIGH:
++    case FF_PROFILE_H264_HIGH_10:
++    case FF_PROFILE_H264_HIGH_422:
++    case FF_PROFILE_H264_HIGH_444_PREDICTIVE:
++        /**
++         * [0..3]: Annex-B header
++         * [4]: NAL unit header
++         * [5]: SPS.profile_idc
++         * [6]: constraint_set3_flag is bit 4
++         */
++        avctx->extradata[6] |= 0x10;
++        break;
++
++    default:
++        break;
++    }
++
++    return 0;
++}
++
+ static av_cold int nvenc_setup_extradata(AVCodecContext *avctx)
+ {
+     NvencContext *ctx = avctx->priv_data;
+@@ -1831,6 +1885,13 @@ static av_cold int nvenc_setup_extradata(AVCodecContext *avctx)
+ 
+     memcpy(avctx->extradata, tmpHeader, outSize);
+ 
++    if (avctx->codec_id == AV_CODEC_ID_H264 && ctx->zerolatency) {
++        int res = patch_h264_extradata(avctx);
++        if (res < 0) {
++            av_log(avctx, AV_LOG_ERROR, "Patch H264 extradata failed\n");
++        }
++    }
++
+     return 0;
+ }
+ 
+-- 
+2.39.2
+
