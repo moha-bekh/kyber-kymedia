@@ -12,6 +12,7 @@ tokio = {version = "1.21.2", features = ["io-util", "macros", "net", "rt", "rt-m
 avservice = { path = "../avservice" }
 avservice-types = { path = "../avservice-types" }
 libkypc = "0.1.0"
+txproto-rs = { path = "../txproto-rs" }
 
 [features]
 win32-hide-console = []
