@@ -19,7 +19,3 @@ pub(crate) fn path_to_string(path: &Path) -> Result<String> {
         .into_string()
         .map_err(|s| Error::OsStringConversion { s })
 }
-
-pub(crate) fn get_resource_path_str(resource_name: &str) -> Result<String> {
-    path_to_string(&get_resource_path(resource_name))
-}

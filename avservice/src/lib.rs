@@ -12,12 +12,14 @@ use libkypc::Worker;
 
 pub use error::{Error, Result};
 
+type Context = Option<()>;
+
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
 
     let (mut receiver, sender) = worker.get_sender_receiver()?;
 
-    let mut ctx = None;
+    let mut _ctx = None;
     let config = config::load().await?;
 
     while let Ok(msg) = receiver.recv().await {
@@ -34,7 +36,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     )
                     .await?;
 
-                ctx = Some(c);
+                _ctx = Some(c);
             }
             (cmd_id, Command::RtpGenerateVideoSdp { display_id, yuv444 }) => {
                 info!("Generate RTP Video SDP: yuv444: {yuv444}");
@@ -58,14 +60,14 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 info!("Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}");
 
                 let c = rtp::start_video(display_id, ip, port, bitrate, yuv444)?;
-                ctx = Some(c);
+                _ctx = Some(c);
             }
             (cmd_id, Command::RtpStartAudio { ip, port }) => {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start RTP Audio: {ip}:{port}");
 
                 let c = rtp::start_audio(ip, port)?;
-                ctx = Some(c);
+                _ctx = Some(c);
             }
             (
                 cmd_id,
@@ -95,21 +97,19 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     yuv444,
                     config.intra_refresh(),
                 )?;
-                ctx = Some(c);
+                _ctx = Some(c);
             }
             (cmd_id, Command::KymuxStartAudio { uri }) => {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start Kymux Audio: URI {uri:?}");
 
                 let c = kymux::start_audio(&uri)?;
-                ctx = Some(c);
+                _ctx = Some(c);
             }
             (cmd_id, Command::Stop) => {
                 receiver.accept(cmd_id, None).await?;
 
-                if let Some(ctx) = ctx.take() {
-                    ctx.stop();
-                }
+                drop(_ctx);
 
                 worker.stop().await?;
                 break;
