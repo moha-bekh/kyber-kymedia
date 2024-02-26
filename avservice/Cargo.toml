@@ -13,3 +13,4 @@ toml = "0.7.2"
 
 libkypc = "0.1.0"
 avservice-types = { path = "../avservice-types" }
+txproto-rs = { path = "../txproto-rs" }

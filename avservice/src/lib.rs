@@ -1,9 +1,11 @@
+mod audio;
 mod config;
 mod displays;
 mod error;
 mod kymux;
 mod rtp;
 mod utils;
+mod video;
 
 use log::info;
 
@@ -11,6 +13,7 @@ use avservice_types::{Command, Event, VideoCodec};
 use libkypc::Worker;
 
 pub use error::{Error, Result};
+pub(crate) use video::{VideoConfig, VideoEncoder};
 
 type Context = Option<()>;
 

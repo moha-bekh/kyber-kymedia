@@ -95,6 +95,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml",
+ "txproto-rs",
 ]
 
 [[package]]
