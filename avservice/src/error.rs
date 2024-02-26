@@ -2,8 +2,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("Unimplemented")]
-    Unimplemented,
     #[error("libkypc error: {source:?}")]
     LibypcError {
         #[from]
