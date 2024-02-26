@@ -3,18 +3,18 @@ use serde::Deserialize;
 use tokio::fs;
 
 use crate::utils;
-use crate::{Error, Result};
+use crate::{Error, Result, VideoEncoder};
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
-    pub(crate) encoder: String,
+    pub(crate) encoder: VideoEncoder,
     intra_refresh: Option<bool>,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            encoder: "nvenc".into(),
+            encoder: VideoEncoder::NVENC,
             intra_refresh: None,
         }
     }

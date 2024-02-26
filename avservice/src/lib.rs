@@ -99,7 +99,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 let c = kymux::start_video(
                     display_id,
                     &uri,
-                    &config.encoder,
+                    config.encoder,
                     bitrate,
                     codec,
                     yuv444,
