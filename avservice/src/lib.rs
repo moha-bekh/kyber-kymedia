@@ -48,7 +48,14 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
             }
             (cmd_id, Command::RtpGenerateVideoSdp { display_id, yuv444 }) => {
                 info!("Generate RTP Video SDP: yuv444: {yuv444}");
-                let sdp = rtp::generate_sdp(display_id, yuv444).await?;
+                let sdp = rtp::generate_sdp(
+                    display_id,
+                    config.encoder,
+                    VideoCodec::H264,
+                    yuv444,
+                    config.intra_refresh(),
+                )
+                .await?;
 
                 receiver
                     .accept(cmd_id, Some(Event::RtpSdpGenerated { sdp }))
@@ -67,7 +74,16 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}");
 
-                let c = rtp::start_video(display_id, ip, port, bitrate, yuv444)?;
+                let video_config = VideoConfig {
+                    display_id,
+                    encoder: config.encoder,
+                    bitrate,
+                    codec: VideoCodec::H264,
+                    yuv444,
+                    intra_refresh: config.intra_refresh(),
+                };
+
+                let c = rtp::start_video(video_config, ip, port)?;
                 _ctx = Some(c);
             }
             (cmd_id, Command::RtpStartAudio { ip, port }) => {
