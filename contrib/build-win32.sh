@@ -167,11 +167,11 @@ build_amf() {
 build_vpl() {
     local init_cwd=$(pwd)
 
-    local version="2023.3.0"
+    local version="2.10.1"
 
     local uri="https://github.com/oneapi-src/oneVPL/archive/refs/tags/v$version.tar.gz"
     local archive_root="libvpl-$version"
-    local sha256="ff048ceba8ebbb416af23606fd360ed9916ad008626ea6c27c304611eda556c6"
+    local sha256="524299a7b920ac0de1f6913ca90515858ea3a8ea2daaea60f8e0be62f22c8041"
     local work_dir="$BUILD_DIR/vpl"
 
     # Get sources

@@ -1,20 +1,20 @@
-From 0cb9e3bb1a8217503af36d7b599a6cdfb50fcdfc Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Romain=20Roff=C3=A9?= <rofferom@gmail.com>
-Date: Fri, 27 Jan 2023 09:20:33 +0100
+From ce100b36efe6ae85370b9afbdb2523d595f55d21 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Tue, 27 Feb 2024 19:32:54 +0100
 Subject: [PATCH 2/2] cmake: Fix .pc generated file
 
 ---
- dispatcher/CMakeLists.txt      | 12 +++---------
- dispatcher/pkgconfig/vpl.pc.in |  6 +++---
+ libvpl/CMakeLists.txt      | 12 +++---------
+ libvpl/pkgconfig/vpl.pc.in |  6 +++---
  2 files changed, 6 insertions(+), 12 deletions(-)
 
-diff --git a/dispatcher/CMakeLists.txt b/dispatcher/CMakeLists.txt
-index 2524f08..27578a0 100644
---- a/dispatcher/CMakeLists.txt
-+++ b/dispatcher/CMakeLists.txt
-@@ -160,15 +160,9 @@ if(BUILD_DEV)
+diff --git a/libvpl/CMakeLists.txt b/libvpl/CMakeLists.txt
+index 8c2ed23..19d7318 100644
+--- a/libvpl/CMakeLists.txt
++++ b/libvpl/CMakeLists.txt
+@@ -161,15 +161,9 @@ if(BUILD_DEV)
      DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vpl"
-     COMPONENT dev)
+     COMPONENT ${VPL_COMPONENT_DEV})
  
 -  file(RELATIVE_PATH pc_rel_prefix ${CMAKE_INSTALL_FULL_LIBDIR}/pkgconfig
 -       ${CMAKE_INSTALL_PREFIX})
@@ -31,10 +31,10 @@ index 2524f08..27578a0 100644
  
    if(CMAKE_DL_LIBS)
      set(DL_LIBS "-l${CMAKE_DL_LIBS}")
-diff --git a/dispatcher/pkgconfig/vpl.pc.in b/dispatcher/pkgconfig/vpl.pc.in
-index ab468a9..97f12dd 100644
---- a/dispatcher/pkgconfig/vpl.pc.in
-+++ b/dispatcher/pkgconfig/vpl.pc.in
+diff --git a/libvpl/pkgconfig/vpl.pc.in b/libvpl/pkgconfig/vpl.pc.in
+index 4581141..936d5f7 100644
+--- a/libvpl/pkgconfig/vpl.pc.in
++++ b/libvpl/pkgconfig/vpl.pc.in
 @@ -1,6 +1,6 @@
 -prefix=@pc_rel_prefix@
 -libdir=@pc_rel_libdir@
@@ -43,8 +43,8 @@ index ab468a9..97f12dd 100644
 +libdir=${prefix}/@pc_libdir@
 +includedir=${prefix}/@pc_incdir@
  
- # oneAPI Video Processing Library (oneVPL)
- Name: oneVPL
+ Name: Intel® Video Processing Library
+ Description: Accelerated video decode, encode, and frame processing capabilities on Intel® GPUs
 -- 
-2.30.2
+2.39.2
 
