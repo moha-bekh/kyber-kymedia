@@ -11,11 +11,16 @@ use log::info;
 
 use avservice_types::{Command, Event, VideoCodec};
 use libkypc::Worker;
+use txproto_rs::Txproto;
 
 pub use error::{Error, Result};
 pub(crate) use video::{VideoConfig, VideoEncoder};
 
-type Context = Option<()>;
+#[allow(unused)]
+struct Context {
+    events: Option<Vec<txproto_rs::Event>>,
+    ctx: Txproto,
+}
 
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
@@ -112,7 +117,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
             (cmd_id, Command::Stop) => {
                 receiver.accept(cmd_id, None).await?;
 
-                drop(_ctx);
+                _ctx = None;
 
                 worker.stop().await?;
                 break;
