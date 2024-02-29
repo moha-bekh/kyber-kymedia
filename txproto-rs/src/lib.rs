@@ -15,9 +15,14 @@ use txproto_sys as sys;
 
 pub use avtypes::{Dictionary, DictionaryEntry, HWDeviceType, PixelFormat, Rational};
 pub use error::{Error, Result};
-pub use event::Event;
+pub use event::{Event, EventType};
 pub use io::{IOEntryType, IOSysEntry, IOSysType};
 pub use logging::init_logger;
+
+#[derive(Debug)]
+pub enum HandleEvent {
+    Error,
+}
 
 pub struct EncoderConfig<'a> {
     pub enc_name: &'a str,
