@@ -109,7 +109,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     intra_refresh: config.intra_refresh(),
                 };
 
-                let ret = rtp::start_video(video_config, ip, port);
+                let ret = rtp::start_video(video_config, ip, port, sender.clone());
                 match ret {
                     Ok(c) => _ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
@@ -119,7 +119,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start RTP Audio: {ip}:{port}");
 
-                let ret = rtp::start_audio(ip, port);
+                let ret = rtp::start_audio(ip, port, sender.clone());
                 match ret {
                     Ok(c) => _ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
@@ -147,7 +147,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     intra_refresh: config.intra_refresh(),
                 };
 
-                let ret = kymux::start_video(video_config, &uri);
+                let ret = kymux::start_video(video_config, &uri, sender.clone());
                 match ret {
                     Ok(c) => _ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
@@ -157,7 +157,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start Kymux Audio: URI {uri:?}");
 
-                let ret = kymux::start_audio(&uri);
+                let ret = kymux::start_audio(&uri, sender.clone());
                 match ret {
                     Ok(c) => _ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Audio).await,

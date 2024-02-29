@@ -6,12 +6,13 @@ use log::{info, warn};
 use tokio::{fs, time};
 
 use avservice_types::VideoCodec;
+use libkypc::EventSender;
 use txproto_rs::{Dictionary, Txproto};
 
 use crate::utils;
 use crate::video::{VideoConfig, VideoEncoder};
 use crate::{audio, video};
-use crate::{Context, Error, Result};
+use crate::{Context, Error, Event, Result};
 
 fn create_muxer(
     ctx: &Txproto,
@@ -68,7 +69,7 @@ pub(crate) async fn generate_sdp(
         yuv444,
         intra_refresh,
     };
-    video::configure(&ctx, video_config, muxer)?;
+    video::configure(&ctx, video_config, muxer, None)?;
 
     ctx.commit()?;
 
@@ -109,24 +110,29 @@ pub(crate) async fn generate_sdp(
     Err(Error::RtpVideoSdpParseFailed)
 }
 
-pub(crate) fn start_video(video_config: VideoConfig, ip: String, port: u16) -> Result<Context> {
+pub(crate) fn start_video(
+    video_config: VideoConfig,
+    ip: String,
+    port: u16,
+    sender: EventSender<Event>,
+) -> Result<Context> {
     let ctx = Txproto::new()?;
     ctx.set_epoch(0)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
-    video::configure(&ctx, video_config, muxer)?;
+    video::configure(&ctx, video_config, muxer, Some(sender))?;
 
     ctx.commit()?;
 
     Ok(Context { ctx, events: None })
 }
 
-pub(crate) fn start_audio(ip: String, port: u16) -> Result<Context> {
+pub(crate) fn start_audio(ip: String, port: u16, sender: EventSender<Event>) -> Result<Context> {
     let ctx = Txproto::new()?;
     ctx.set_epoch(0)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
-    audio::configure(&ctx, muxer)?;
+    audio::configure(&ctx, muxer, Some(sender))?;
 
     ctx.commit()?;
 

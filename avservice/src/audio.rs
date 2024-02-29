@@ -1,14 +1,20 @@
 use std::sync::{Arc, Mutex};
 
 use log::{info, warn};
+
+use libkypc::EventSender;
 use txproto_rs::{Dictionary, IOEntryType, IOSysEntry, IOSysType, Txproto};
 
-use crate::{Error, Result};
+use crate::{Error, Event, Result};
 
 const BITRATE: i64 = 128_000;
 const FRAME_DURATION: i64 = 20;
 
-pub(crate) fn configure(ctx: &Txproto, muxer: txproto_rs::Handle) -> Result<()> {
+pub(crate) fn configure(
+    ctx: &Txproto,
+    muxer: txproto_rs::Handle,
+    sender: Option<EventSender<Event>>,
+) -> Result<()> {
     // Find monitor to grab
     let monitor_id = Arc::new(Mutex::new(None));
     let monitor_id_cb = monitor_id.clone();

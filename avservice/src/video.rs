@@ -2,9 +2,10 @@ use log::info;
 use serde::Deserialize;
 
 use avservice_types::VideoCodec;
+use libkypc::EventSender;
 use txproto_rs::{Dictionary, DictionaryEntry, Txproto};
 
-use crate::Result;
+use crate::{Event, Result};
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -297,6 +298,7 @@ pub(crate) fn configure(
     ctx: &Txproto,
     video_config: VideoConfig,
     muxer: txproto_rs::Handle,
+    sender: Option<EventSender<Event>>,
 ) -> Result<()> {
     let io_event = ctx.register_io_cb(|_| {})?;
     drop(io_event);
