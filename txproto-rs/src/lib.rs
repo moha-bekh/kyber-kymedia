@@ -1,5 +1,6 @@
 mod avtypes;
 mod error;
+mod event;
 mod io;
 mod logging;
 
@@ -14,6 +15,7 @@ use txproto_sys as sys;
 
 pub use avtypes::{Dictionary, DictionaryEntry, HWDeviceType, PixelFormat, Rational};
 pub use error::{Error, Result};
+pub use event::Event;
 pub use io::{IOEntryType, IOSysEntry, IOSysType};
 pub use logging::init_logger;
 
@@ -34,26 +36,6 @@ impl<'a> Default for EncoderConfig<'a> {
             init_opts: None,
             pix_fmt: PixelFormat::None,
         }
-    }
-}
-
-pub struct Event {
-    ctx: AtomicPtr<sys::TXMainContext>,
-    event: *mut sys::AVBufferRef,
-}
-
-impl Event {
-    fn new(ctx: &AtomicPtr<sys::TXMainContext>, event: *mut sys::AVBufferRef) -> Self {
-        Self {
-            ctx: AtomicPtr::new(ctx.load(Ordering::Relaxed)),
-            event,
-        }
-    }
-}
-
-impl Drop for Event {
-    fn drop(&mut self) {
-        unsafe { sys::tx_event_destroy(self.ctx.load(Ordering::Relaxed), self.event) };
     }
 }
 
