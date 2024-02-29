@@ -168,7 +168,7 @@ impl Txproto {
             });
         }
 
-        Ok(Event::new(&self.ctx, event))
+        Ok(Event::new_registered(&self.ctx, event))
     }
 
     pub fn create_io(&self, identifier: u32, options: Option<Dictionary>) -> Result<Handle> {
