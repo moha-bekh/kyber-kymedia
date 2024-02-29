@@ -298,8 +298,8 @@ pub(crate) fn configure(
     video_config: VideoConfig,
     muxer: txproto_rs::Handle,
 ) -> Result<()> {
-    let event = ctx.register_io_cb(|_| {})?;
-    drop(event);
+    let io_event = ctx.register_io_cb(|_| {})?;
+    drop(io_event);
 
     // Video source
     info!("Start screen grab on display {}", video_config.display_id);

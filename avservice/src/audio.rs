@@ -40,8 +40,8 @@ pub(crate) fn configure(ctx: &Txproto, muxer: txproto_rs::Handle) -> Result<()> 
         *monitor_id = Some(entry.identifier);
     };
 
-    let event = ctx.register_io_cb(io_cb)?;
-    drop(event);
+    let io_event = ctx.register_io_cb(io_cb)?;
+    drop(io_event);
 
     let Some(monitor_id) = *monitor_id.lock()? else {
         warn!("No default audio monitor found");
