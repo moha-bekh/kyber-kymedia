@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use log::{info, warn};
 
+use avservice_types::{PipelineEvent, PipelineEventType, PipelineStage, PipelineType};
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, IOEntryType, IOSysEntry, IOSysType, Txproto};
 
@@ -9,6 +10,31 @@ use crate::{Error, Event, Result};
 
 const BITRATE: i64 = 128_000;
 const FRAME_DURATION: i64 = 20;
+
+fn plug_error_listener(
+    ctx: &Txproto,
+    handle: &txproto_rs::Handle,
+    stage: PipelineStage,
+    mut sender: EventSender<Event>,
+) -> Result<txproto_rs::Event> {
+    let error_cb = move |event| {
+        info!("Audio acquisition event: {event:?}");
+
+        let ret = sender.blocking_send(Event::PipelineEvent(PipelineEvent {
+            type_: PipelineType::Audio,
+            stage,
+            event: PipelineEventType::Error,
+        }));
+        if let Err(err) = ret {
+            warn!("Failed to send audio acquisition error: {err:?}");
+        }
+    };
+
+    let mut error_event = txproto_rs::Event::new(txproto_rs::EventType::Error, error_cb);
+    ctx.register_event(handle, &mut error_event)?;
+
+    Ok(error_event)
+}
 
 pub(crate) fn configure(
     ctx: &Txproto,
@@ -83,6 +109,22 @@ pub(crate) fn configure(
     // Link everything
     ctx.link(&audio_source, &encoder, 0)?;
     ctx.link(&encoder, &muxer, 0)?;
+
+    // Plug error listeners
+    if let Some(sender) = sender {
+        // Acquisition
+        let event = plug_error_listener(
+            ctx,
+            &audio_source,
+            PipelineStage::Acquisition,
+            sender.clone(),
+        )?;
+        events.push(event);
+
+        // Encoder
+        let event = plug_error_listener(ctx, &encoder, PipelineStage::Encoder, sender.clone())?;
+        events.push(event);
+    }
 
     Ok(events)
 }
