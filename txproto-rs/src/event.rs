@@ -5,7 +5,7 @@ use libc::{c_int, c_void};
 
 use txproto_sys as sys;
 
-use crate::HandleEvent;
+use crate::{Handle, HandleEvent, Result};
 
 pub enum EventType {
     Error,
@@ -100,6 +100,23 @@ impl Event {
         F: FnMut(HandleEvent),
     {
         unsafe { ptr::drop_in_place(callback_ctx as *mut HandleEventCbData<F>) };
+    }
+
+    pub(crate) fn register(
+        &mut self,
+        ctx: &AtomicPtr<sys::TXMainContext>,
+        h: &Handle,
+    ) -> Result<()> {
+        let ret = unsafe { sys::tx_event_register(ctx.load(Ordering::Relaxed), h.h, self.event) };
+        if ret != 0 {
+            return Err(ret.into());
+        }
+
+        self.state = EventState::Registered {
+            ctx: AtomicPtr::new(ctx.load(Ordering::Relaxed)),
+        };
+
+        Ok(())
     }
 }
 

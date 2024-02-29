@@ -285,6 +285,12 @@ impl Txproto {
         Ok(Handle { h })
     }
 
+    pub fn register_event(&self, h: &Handle, event: &mut Event) -> Result<()> {
+        event.register(&self.ctx, h)?;
+
+        Ok(())
+    }
+
     pub fn link(&self, src: &Handle, dst: &Handle, src_stream_id: i32) -> Result<()> {
         let ret = unsafe { sys::tx_link(self.inner(), src.h, dst.h, src_stream_id) };
         if ret != 0 {
