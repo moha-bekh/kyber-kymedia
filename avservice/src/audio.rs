@@ -14,7 +14,9 @@ pub(crate) fn configure(
     ctx: &Txproto,
     muxer: txproto_rs::Handle,
     sender: Option<EventSender<Event>>,
-) -> Result<()> {
+) -> Result<Vec<txproto_rs::Event>> {
+    let mut events = vec![];
+
     // Find monitor to grab
     let monitor_id = Arc::new(Mutex::new(None));
     let monitor_id_cb = monitor_id.clone();
@@ -82,5 +84,5 @@ pub(crate) fn configure(
     ctx.link(&audio_source, &encoder, 0)?;
     ctx.link(&encoder, &muxer, 0)?;
 
-    Ok(())
+    Ok(events)
 }

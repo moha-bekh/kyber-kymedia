@@ -13,11 +13,14 @@ pub(crate) fn start_video(
     ctx.set_epoch(0)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
-    video::configure(&ctx, video_config, packet_sink, Some(sender))?;
+    let events = video::configure(&ctx, video_config, packet_sink, Some(sender))?;
 
     ctx.commit()?;
 
-    Ok(Context { ctx, events: None })
+    Ok(Context {
+        ctx,
+        events: Some(events),
+    })
 }
 
 pub(crate) fn start_audio(uri: &str, sender: EventSender<Event>) -> Result<Context> {
@@ -25,9 +28,12 @@ pub(crate) fn start_audio(uri: &str, sender: EventSender<Event>) -> Result<Conte
     ctx.set_epoch(0)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
-    audio::configure(&ctx, packet_sink, Some(sender))?;
+    let events = audio::configure(&ctx, packet_sink, Some(sender))?;
 
     ctx.commit()?;
 
-    Ok(Context { ctx, events: None })
+    Ok(Context {
+        ctx,
+        events: Some(events),
+    })
 }

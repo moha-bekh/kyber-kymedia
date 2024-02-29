@@ -120,11 +120,14 @@ pub(crate) fn start_video(
     ctx.set_epoch(0)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
-    video::configure(&ctx, video_config, muxer, Some(sender))?;
+    let events = video::configure(&ctx, video_config, muxer, Some(sender))?;
 
     ctx.commit()?;
 
-    Ok(Context { ctx, events: None })
+    Ok(Context {
+        ctx,
+        events: Some(events),
+    })
 }
 
 pub(crate) fn start_audio(ip: String, port: u16, sender: EventSender<Event>) -> Result<Context> {
@@ -132,9 +135,12 @@ pub(crate) fn start_audio(ip: String, port: u16, sender: EventSender<Event>) -> 
     ctx.set_epoch(0)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
-    audio::configure(&ctx, muxer, Some(sender))?;
+    let events = audio::configure(&ctx, muxer, Some(sender))?;
 
     ctx.commit()?;
 
-    Ok(Context { ctx, events: None })
+    Ok(Context {
+        ctx,
+        events: Some(events),
+    })
 }

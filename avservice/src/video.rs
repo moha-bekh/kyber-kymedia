@@ -299,7 +299,9 @@ pub(crate) fn configure(
     video_config: VideoConfig,
     muxer: txproto_rs::Handle,
     sender: Option<EventSender<Event>>,
-) -> Result<()> {
+) -> Result<Vec<txproto_rs::Event>> {
+    let mut events = vec![];
+
     let io_event = ctx.register_io_cb(|_| {})?;
     drop(io_event);
 
@@ -321,5 +323,5 @@ pub(crate) fn configure(
     // Link graph
     ctx.link(&encoder, &muxer, 0)?;
 
-    Ok(())
+    Ok(events)
 }
