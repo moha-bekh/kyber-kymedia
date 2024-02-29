@@ -48,9 +48,35 @@ pub enum Command {
     Stop,
 }
 
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub enum PipelineType {
+    Audio,
+    Video,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub enum PipelineStage {
+    Initialization,
+    Acquisition,
+    Encoder,
+}
+
+#[derive(Clone, Copy, Serialize, Deserialize, Debug)]
+pub enum PipelineEventType {
+    Error,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct PipelineEvent {
+    pub type_: PipelineType,
+    pub stage: PipelineStage,
+    pub event: PipelineEventType,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Event {
     DisplayList { displays: Vec<Display> },
     DisplayListUpdated { displays: Vec<Display> },
     RtpSdpGenerated { sdp: String },
+    PipelineEvent(PipelineEvent),
 }
