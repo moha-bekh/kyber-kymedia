@@ -7,7 +7,7 @@ mod rtp;
 mod utils;
 mod video;
 
-use log::info;
+use log::{error, info};
 
 use avservice_types::{Command, Event, VideoCodec};
 use libkypc::Worker;
@@ -48,18 +48,27 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
             }
             (cmd_id, Command::RtpGenerateVideoSdp { display_id, yuv444 }) => {
                 info!("Generate RTP Video SDP: yuv444: {yuv444}");
-                let sdp = rtp::generate_sdp(
+                let ret = rtp::generate_sdp(
                     display_id,
                     config.encoder,
                     VideoCodec::H264,
                     yuv444,
                     config.intra_refresh(),
                 )
-                .await?;
+                .await;
 
-                receiver
-                    .accept(cmd_id, Some(Event::RtpSdpGenerated { sdp }))
-                    .await?;
+                match ret {
+                    Ok(sdp) => {
+                        receiver
+                            .accept(cmd_id, Some(Event::RtpSdpGenerated { sdp }))
+                            .await?;
+                    }
+                    Err(err) => {
+                        error!("Failed to generate Video SDP: {err:?}");
+
+                        receiver.reject(cmd_id, None).await?;
+                    }
+                }
             }
             (
                 cmd_id,
