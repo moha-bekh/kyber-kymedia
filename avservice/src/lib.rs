@@ -7,10 +7,12 @@ mod rtp;
 mod utils;
 mod video;
 
-use log::{error, info};
+use log::{error, info, warn};
 
-use avservice_types::{Command, Event, VideoCodec};
-use libkypc::Worker;
+use avservice_types::{
+    Command, Event, PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
+};
+use libkypc::{EventSender, Worker};
 use txproto_rs::Txproto;
 
 pub use error::{Error, Result};
@@ -22,10 +24,25 @@ struct Context {
     ctx: Txproto,
 }
 
+async fn forward_init_error(sender: &mut EventSender<Event>, err: Error, type_: PipelineType) {
+    error!("Failed to start {type_:?} pipeline: {err:?}");
+
+    let ret = sender
+        .send(Event::PipelineEvent(PipelineEvent {
+            type_,
+            stage: PipelineStage::Initialization,
+            event: PipelineEventType::Error,
+        }))
+        .await;
+    if let Err(err) = ret {
+        warn!("Failed to send {type_:?} init error: {err:?}");
+    }
+}
+
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
 
-    let (mut receiver, sender) = worker.get_sender_receiver()?;
+    let (mut receiver, mut sender) = worker.get_sender_receiver()?;
 
     let mut _ctx = None;
     let config = config::load().await?;
@@ -92,15 +109,21 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     intra_refresh: config.intra_refresh(),
                 };
 
-                let c = rtp::start_video(video_config, ip, port)?;
-                _ctx = Some(c);
+                let ret = rtp::start_video(video_config, ip, port);
+                match ret {
+                    Ok(c) => _ctx = Some(c),
+                    Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
+                }
             }
             (cmd_id, Command::RtpStartAudio { ip, port }) => {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start RTP Audio: {ip}:{port}");
 
-                let c = rtp::start_audio(ip, port)?;
-                _ctx = Some(c);
+                let ret = rtp::start_audio(ip, port);
+                match ret {
+                    Ok(c) => _ctx = Some(c),
+                    Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
+                }
             }
             (
                 cmd_id,
@@ -124,15 +147,21 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     intra_refresh: config.intra_refresh(),
                 };
 
-                let c = kymux::start_video(video_config, &uri)?;
-                _ctx = Some(c);
+                let ret = kymux::start_video(video_config, &uri);
+                match ret {
+                    Ok(c) => _ctx = Some(c),
+                    Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
+                }
             }
             (cmd_id, Command::KymuxStartAudio { uri }) => {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start Kymux Audio: URI {uri:?}");
 
-                let c = kymux::start_audio(&uri)?;
-                _ctx = Some(c);
+                let ret = kymux::start_audio(&uri);
+                match ret {
+                    Ok(c) => _ctx = Some(c),
+                    Err(err) => forward_init_error(&mut sender, err, PipelineType::Audio).await,
+                }
             }
             (cmd_id, Command::Stop) => {
                 receiver.accept(cmd_id, None).await?;
