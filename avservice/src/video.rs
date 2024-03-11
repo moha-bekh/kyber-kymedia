@@ -67,8 +67,20 @@ fn create_nvenc(
 
             "h264_nvenc"
         }
-        VideoCodec::HEVC => "hevc_nvenc",
-        VideoCodec::AV1 => "av1_nvenc",
+        VideoCodec::HEVC => {
+            if config.yuv444 {
+                options.push(("rgb_mode", "yuv444").into());
+            }
+
+            "hevc_nvenc"
+        }
+        VideoCodec::AV1 => {
+            if config.yuv444 {
+                options.push(("rgb_mode", "yuv444").into());
+            }
+
+            "av1_nvenc"
+        }
     };
 
     print_options("NVENC options", &options);
