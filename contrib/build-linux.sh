@@ -128,6 +128,7 @@ build_ffmpeg() {
     patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen.patch
     patch -p1 < $BASE_DIR/ffmpeg/0001-avcodec-x86-mathops-clip-constants-used-with-shift-i.patch
     patch -p1 < $BASE_DIR/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
+    patch -p1 < $BASE_DIR/ffmpeg/0004-nvenc-Add-an-yuv444p-for-hevc-and-av1-to-force-outpu.patch
 
     mkdir build && cd build
 

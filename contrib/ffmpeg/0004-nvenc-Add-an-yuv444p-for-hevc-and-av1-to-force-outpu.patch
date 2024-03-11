@@ -1,0 +1,127 @@
+From b5a2c644df1286e791d956e2e7b312fe3585b0eb Mon Sep 17 00:00:00 2001
+From: Timo Rothenpieler <timo@rothenpieler.org>
+Date: Tue, 3 Oct 2023 17:31:11 +0200
+Subject: [PATCH 4/4] avcodec/nvenc: add option to control subsampling of
+ packed rgb input
+
+(cherry picked from commit e006680d8ef0c7cdcbc18a4c6d83d5dac48bea75)
+---
+ libavcodec/nvenc.c      | 15 ++++++++++++++-
+ libavcodec/nvenc.h      |  7 +++++++
+ libavcodec/nvenc_av1.c  |  5 +++++
+ libavcodec/nvenc_h264.c |  5 +++++
+ libavcodec/nvenc_hevc.c |  5 +++++
+ 5 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/nvenc.c b/libavcodec/nvenc.c
+index cb60488c6f..a9e489e792 100644
+--- a/libavcodec/nvenc.c
++++ b/libavcodec/nvenc.c
+@@ -89,10 +89,18 @@ const AVCodecHWConfigInternal *const ff_nvenc_hw_configs[] = {
+                             pix_fmt == AV_PIX_FMT_X2BGR10   || \
+                             pix_fmt == AV_PIX_FMT_GBRP16)
+ 
++#define IS_RGB(pix_fmt)    (pix_fmt == AV_PIX_FMT_0RGB32  || \
++                            pix_fmt == AV_PIX_FMT_RGB32   || \
++                            pix_fmt == AV_PIX_FMT_0BGR32  || \
++                            pix_fmt == AV_PIX_FMT_BGR32   || \
++                            pix_fmt == AV_PIX_FMT_X2RGB10 || \
++                            pix_fmt == AV_PIX_FMT_X2BGR10)
++
+ #define IS_YUV444(pix_fmt) (pix_fmt == AV_PIX_FMT_YUV444P   || \
+                             pix_fmt == AV_PIX_FMT_YUV444P16 || \
+                             pix_fmt == AV_PIX_FMT_GBRP      || \
+-                            pix_fmt == AV_PIX_FMT_GBRP16)
++                            pix_fmt == AV_PIX_FMT_GBRP16    || \
++                            (ctx->rgb_mode == NVENC_RGB_MODE_444 && IS_RGB(pix_fmt)))
+ 
+ #define IS_GBRP(pix_fmt) (pix_fmt == AV_PIX_FMT_GBRP || \
+                           pix_fmt == AV_PIX_FMT_GBRP16)
+@@ -1998,6 +2006,11 @@ av_cold int ff_nvenc_encode_init(AVCodecContext *avctx)
+         ctx->data_pix_fmt = avctx->pix_fmt;
+     }
+ 
++    if (ctx->rgb_mode == NVENC_RGB_MODE_DISABLED && IS_RGB(ctx->data_pix_fmt)) {
++        av_log(avctx, AV_LOG_ERROR, "Packed RGB input, but RGB support is disabled.\n");
++        return AVERROR(EINVAL);
++    }
++
+     ctx->frame = av_frame_alloc();
+     if (!ctx->frame)
+         return AVERROR(ENOMEM);
+diff --git a/libavcodec/nvenc.h b/libavcodec/nvenc.h
+index 411c83aa94..cb8ef4092a 100644
+--- a/libavcodec/nvenc.h
++++ b/libavcodec/nvenc.h
+@@ -150,6 +150,12 @@ enum {
+     ANY_DEVICE,
+ };
+ 
++enum {
++    NVENC_RGB_MODE_DISABLED,
++    NVENC_RGB_MODE_420,
++    NVENC_RGB_MODE_444,
++};
++
+ typedef struct NvencContext
+ {
+     AVClass *avclass;
+@@ -240,6 +246,7 @@ typedef struct NvencContext
+     int udu_sei;
+     int timing_info;
+     int highbitdepth;
++    int rgb_mode;
+ } NvencContext;
+ 
+ int ff_nvenc_encode_init(AVCodecContext *avctx);
+diff --git a/libavcodec/nvenc_av1.c b/libavcodec/nvenc_av1.c
+index 2b349c7b61..4f545b16f1 100644
+--- a/libavcodec/nvenc_av1.c
++++ b/libavcodec/nvenc_av1.c
+@@ -96,6 +96,11 @@ static const AVOption options[] = {
+                                                             OFFSET(device),       AV_OPT_TYPE_INT,   { .i64 = ANY_DEVICE }, -2, INT_MAX, VE, "gpu" },
+     { "any",          "Pick the first device available",    0,                    AV_OPT_TYPE_CONST, { .i64 = ANY_DEVICE },        0, 0, VE, "gpu" },
+     { "list",         "List the available devices",         0,                    AV_OPT_TYPE_CONST, { .i64 = LIST_DEVICES },      0, 0, VE, "gpu" },
++    { "rgb_mode",     "Configure how nvenc handles packed RGB input.",
++                                                            OFFSET(rgb_mode),     AV_OPT_TYPE_INT,   { .i64 = NVENC_RGB_MODE_420 }, 0, INT_MAX, VE, "rgb_mode" },
++    { "yuv420",       "Convert to yuv420",                  0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_420 },       0, 0, VE, "rgb_mode" },
++    { "yuv444",       "Convert to yuv444",                  0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_444 },       0, 0, VE, "rgb_mode" },
++    { "disabled",     "Disables support, throws an error.", 0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_DISABLED },  0, 0, VE, "rgb_mode" },
+     { "delay",        "Delay frame output by the given amount of frames",
+                                                             OFFSET(async_depth),  AV_OPT_TYPE_INT,   { .i64 = INT_MAX }, 0, INT_MAX, VE },
+     { "rc-lookahead", "Number of frames to look ahead for rate-control",
+diff --git a/libavcodec/nvenc_h264.c b/libavcodec/nvenc_h264.c
+index 5dc2961c3b..0a4bd084f1 100644
+--- a/libavcodec/nvenc_h264.c
++++ b/libavcodec/nvenc_h264.c
+@@ -118,6 +118,11 @@ static const AVOption options[] = {
+                                                             OFFSET(device),       AV_OPT_TYPE_INT,   { .i64 = ANY_DEVICE },   -2, INT_MAX, VE, "gpu" },
+     { "any",          "Pick the first device available",    0,                    AV_OPT_TYPE_CONST, { .i64 = ANY_DEVICE },          0, 0, VE, "gpu" },
+     { "list",         "List the available devices",         0,                    AV_OPT_TYPE_CONST, { .i64 = LIST_DEVICES },        0, 0, VE, "gpu" },
++    { "rgb_mode",     "Configure how nvenc handles packed RGB input.",
++                                                            OFFSET(rgb_mode),     AV_OPT_TYPE_INT,   { .i64 = NVENC_RGB_MODE_420 }, 0, INT_MAX, VE, "rgb_mode" },
++    { "yuv420",       "Convert to yuv420",                  0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_420 },       0, 0, VE, "rgb_mode" },
++    { "yuv444",       "Convert to yuv444",                  0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_444 },       0, 0, VE, "rgb_mode" },
++    { "disabled",     "Disables support, throws an error.", 0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_DISABLED },  0, 0, VE, "rgb_mode" },
+     { "delay",        "Delay frame output by the given amount of frames",
+                                                             OFFSET(async_depth),  AV_OPT_TYPE_INT,   { .i64 = INT_MAX }, 0, INT_MAX, VE },
+     { "no-scenecut",  "When lookahead is enabled, set this to 1 to disable adaptive I-frame insertion at scene cuts",
+diff --git a/libavcodec/nvenc_hevc.c b/libavcodec/nvenc_hevc.c
+index 1362a927c8..0b025757c8 100644
+--- a/libavcodec/nvenc_hevc.c
++++ b/libavcodec/nvenc_hevc.c
+@@ -107,6 +107,11 @@ static const AVOption options[] = {
+                                                             OFFSET(device),       AV_OPT_TYPE_INT,   { .i64 = ANY_DEVICE }, -2, INT_MAX, VE, "gpu" },
+     { "any",          "Pick the first device available",    0,                    AV_OPT_TYPE_CONST, { .i64 = ANY_DEVICE },        0, 0, VE, "gpu" },
+     { "list",         "List the available devices",         0,                    AV_OPT_TYPE_CONST, { .i64 = LIST_DEVICES },      0, 0, VE, "gpu" },
++    { "rgb_mode",     "Configure how nvenc handles packed RGB input.",
++                                                            OFFSET(rgb_mode),     AV_OPT_TYPE_INT,   { .i64 = NVENC_RGB_MODE_420 }, 0, INT_MAX, VE, "rgb_mode" },
++    { "yuv420",       "Convert to yuv420",                  0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_420 },       0, 0, VE, "rgb_mode" },
++    { "yuv444",       "Convert to yuv444",                  0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_444 },       0, 0, VE, "rgb_mode" },
++    { "disabled",     "Disables support, throws an error.", 0,                    AV_OPT_TYPE_CONST, { .i64 = NVENC_RGB_MODE_DISABLED },  0, 0, VE, "rgb_mode" },
+     { "delay",        "Delay frame output by the given amount of frames",
+                                                             OFFSET(async_depth),  AV_OPT_TYPE_INT,   { .i64 = INT_MAX }, 0, INT_MAX, VE },
+     { "no-scenecut",  "When lookahead is enabled, set this to 1 to disable adaptive I-frame insertion at scene cuts",
+-- 
+2.39.2
+

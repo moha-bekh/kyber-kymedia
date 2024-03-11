@@ -217,6 +217,7 @@ build_ffmpeg() {
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-avcodec-x86-mathops-clip-constants-used-with-shift-i.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0004-nvenc-Add-an-yuv444p-for-hevc-and-av1-to-force-outpu.patch
 
     mkdir build && cd build
 
