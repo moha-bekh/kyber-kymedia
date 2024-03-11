@@ -1,7 +1,7 @@
-From c393b625d395e7fda097227f720a4076a3e24fea Mon Sep 17 00:00:00 2001
+From 46307f422485c393635aec3b4ed8a3bae5eba10c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
 Date: Thu, 25 Jan 2024 15:59:15 +0100
-Subject: [PATCH] nvenc: Patch SPS when zerolatency is enabled
+Subject: [PATCH 1/2] nvenc: Patch SPS when zerolatency is enabled
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -36,7 +36,7 @@ profiles. This avoid to modify the VUI param directly.
  1 file changed, 61 insertions(+)
 
 diff --git a/libavcodec/nvenc.c b/libavcodec/nvenc.c
-index 8a28454042..cb60488c6f 100644
+index 626f10d20a..094456d6fc 100644
 --- a/libavcodec/nvenc.c
 +++ b/libavcodec/nvenc.c
 @@ -22,6 +22,8 @@
@@ -48,7 +48,7 @@ index 8a28454042..cb60488c6f 100644
  #include "nvenc.h"
  #include "hevc_sei.h"
  #if CONFIG_AV1_NVENC_ENCODER
-@@ -1800,6 +1802,58 @@ fail:
+@@ -1817,6 +1819,58 @@ fail:
      return res;
  }
  
@@ -107,7 +107,7 @@ index 8a28454042..cb60488c6f 100644
  static av_cold int nvenc_setup_extradata(AVCodecContext *avctx)
  {
      NvencContext *ctx = avctx->priv_data;
-@@ -1831,6 +1885,13 @@ static av_cold int nvenc_setup_extradata(AVCodecContext *avctx)
+@@ -1848,6 +1902,13 @@ static av_cold int nvenc_setup_extradata(AVCodecContext *avctx)
  
      memcpy(avctx->extradata, tmpHeader, outSize);
  

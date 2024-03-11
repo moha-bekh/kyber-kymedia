@@ -1,14 +1,14 @@
-From e528440081a537abec56034f3d9f8ce7b480a2e6 Mon Sep 17 00:00:00 2001
+From 8f142ecccb897c84faeaffa2fffce3d4d56e93c1 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Romain=20Roff=C3=A9?= <rofferom@gmail.com>
 Date: Thu, 9 Feb 2023 13:18:31 +0100
-Subject: [PATCH] libavcodec/amfenc: Add mapping for AV_PIX_FMT_BGRA
+Subject: [PATCH 2/2] libavcodec/amfenc: Add mapping for AV_PIX_FMT_BGRA
 
 ---
  libavcodec/amfenc.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/libavcodec/amfenc.c b/libavcodec/amfenc.c
-index c487fc48aa..06bd2a45db 100644
+index 061859f85c..bc2e00efc4 100644
 --- a/libavcodec/amfenc.c
 +++ b/libavcodec/amfenc.c
 @@ -73,6 +73,7 @@ static const FormatMap format_map[] =
@@ -20,5 +20,5 @@ index c487fc48aa..06bd2a45db 100644
      { AV_PIX_FMT_GRAY8,      AMF_SURFACE_GRAY8 },
      { AV_PIX_FMT_YUV420P,    AMF_SURFACE_YUV420P },
 -- 
-2.30.2
+2.39.2
 

@@ -111,11 +111,11 @@ build_x264() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="6.0"
+    local version="6.1.1"
 
     local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
     local archive_root="ffmpeg-$version"
-    local sha256="57be87c22d9b49c112b6d24bc67d42508660e6b718b3db89c44e47e289137082"
+    local sha256="8684f4b00f94b85461884c3719382f1261f0d9eb3d59640a1f4ac0873616f968"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
@@ -125,10 +125,7 @@ build_ffmpeg() {
 
     # Build
     cd "$work_dir/$archive_root"
-    patch -p1 < $BASE_DIR/ffmpeg/0001-rtpenc-Log-AVPacket-pts-RTP-timestamp-mapping-at-sen.patch
-    patch -p1 < $BASE_DIR/ffmpeg/0001-avcodec-x86-mathops-clip-constants-used-with-shift-i.patch
     patch -p1 < $BASE_DIR/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
-    patch -p1 < $BASE_DIR/ffmpeg/0004-nvenc-Add-an-yuv444p-for-hevc-and-av1-to-force-outpu.patch
 
     mkdir build && cd build
 
