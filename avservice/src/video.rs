@@ -146,11 +146,7 @@ fn create_vaapi(
     Ok(encoder)
 }
 
-fn create_qsv(
-    ctx: &Txproto,
-    config: &VideoConfig,
-    video_source: &txproto_rs::Handle,
-) -> Result<txproto_rs::Handle> {
+fn create_qsv_nv12_filter(ctx: &Txproto) -> Result<txproto_rs::Handle> {
     let options = Dictionary::from_entries(&[("dump_graph", false).into()])?;
 
     let filter = ctx.create_filtergraph(
@@ -159,6 +155,14 @@ fn create_qsv(
         Some(options),
     )?;
 
+    Ok(filter)
+}
+
+fn create_qsv(
+    ctx: &Txproto,
+    config: &VideoConfig,
+    video_source: &txproto_rs::Handle,
+) -> Result<txproto_rs::Handle> {
     // Configure Codec
     let mut options = vec![
         ("preset", "veryfast").into(),
@@ -169,14 +173,32 @@ fn create_qsv(
         ("flags", "+global_header").into(),
     ];
 
-    let enc_name = match config.codec {
+    let (enc_name, filter) = match config.codec {
         VideoCodec::H264 => {
             options.push(("profile", "high").into());
 
-            "h264_qsv"
+            let filter = create_qsv_nv12_filter(ctx)?;
+
+            ("h264_qsv", Some(filter))
         }
-        VideoCodec::HEVC => "hevc_qsv",
-        VideoCodec::AV1 => "av1_qsv",
+        VideoCodec::HEVC => {
+            let filter = if config.yuv444 {
+                options.push(("profile", "rext").into());
+
+                None
+            } else {
+                let filter = create_qsv_nv12_filter(ctx)?;
+
+                Some(filter)
+            };
+
+            ("hevc_qsv", filter)
+        }
+        VideoCodec::AV1 => {
+            let filter = create_qsv_nv12_filter(ctx)?;
+
+            ("av1_qsv", Some(filter))
+        }
     };
 
     print_options("QSV options", &options);
@@ -195,8 +217,12 @@ fn create_qsv(
     info!("Creating encoder {enc_name}");
     let encoder = ctx.create_encoder(config)?;
 
-    ctx.link(video_source, &filter, 0)?;
-    ctx.link(&filter, &encoder, 0)?;
+    if let Some(filter) = filter {
+        ctx.link(video_source, &filter, 0)?;
+        ctx.link(&filter, &encoder, 0)?;
+    } else {
+        ctx.link(video_source, &encoder, 0)?;
+    }
 
     Ok(encoder)
 }
