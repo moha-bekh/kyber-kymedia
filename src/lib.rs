@@ -1,14 +1,6 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+mod average;
+mod buffer;
+mod compensator;
+mod regulator;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+pub use regulator::{audio_regulator_new, AudioRegulatorPull, AudioRegulatorPush};
