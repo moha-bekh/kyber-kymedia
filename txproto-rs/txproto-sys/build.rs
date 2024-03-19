@@ -17,7 +17,7 @@ fn main() {
         .allowlist_type("SPLogLevel.*")
         .allowlist_type("IOType.*")
         .allowlist_type("IOSysEntry.*")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks));
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
 
     // Set header include paths
     let libraries = ["txproto", "libavutil"];

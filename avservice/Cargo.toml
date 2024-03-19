@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-log = "0.4.14"
-serde = "1.0.152"
-serde_json = "1.0"
-thiserror = "1.0.37"
-tokio = { version = "1.21.2", features = ["fs", "time"] }
-toml = "0.7.2"
+log = "0.4.21"
+serde = "1.0.197"
+serde_json = "1.0.114"
+thiserror = "1.0.58"
+tokio = { version = "1.36.0", features = ["fs", "time"] }
+toml = "0.8.12"
 
 libkypc = "0.1.0"
 avservice-types = { path = "../avservice-types" }
