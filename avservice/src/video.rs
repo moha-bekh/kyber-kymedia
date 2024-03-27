@@ -232,14 +232,6 @@ fn create_amf(
     config: &VideoConfig,
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
-    let options = Dictionary::from_entries(&[("dump_graph", false).into()])?;
-
-    let filter = ctx.create_filtergraph(
-        "hwdownload,format=bgra,hwupload",
-        txproto_rs::HWDeviceType::D3D11VA,
-        Some(options),
-    )?;
-
     // Configure Codec
     let mut options = vec![
         ("preset", "veryfast").into(),
@@ -283,8 +275,7 @@ fn create_amf(
     info!("Creating encoder {enc_name}");
     let encoder = ctx.create_encoder(config)?;
 
-    ctx.link(video_source, &filter, 0)?;
-    ctx.link(&filter, &encoder, 0)?;
+    ctx.link(video_source, &encoder, 0)?;
 
     Ok(encoder)
 }
