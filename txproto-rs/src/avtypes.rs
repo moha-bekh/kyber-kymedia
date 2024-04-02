@@ -112,17 +112,23 @@ impl From<&str> for DictionaryValue {
 }
 
 pub struct DictionaryEntry {
-    pub key: &'static str,
+    pub key: String,
     pub value: DictionaryValue,
 }
 
-impl<T> From<(&'static str, T)> for DictionaryEntry
+impl DictionaryEntry {
+    pub fn new(key: String, value: DictionaryValue) -> Self {
+        Self { key, value }
+    }
+}
+
+impl<T> From<(&str, T)> for DictionaryEntry
 where
     DictionaryValue: From<T>,
 {
-    fn from(value: (&'static str, T)) -> Self {
+    fn from(value: (&str, T)) -> Self {
         Self {
-            key: value.0,
+            key: value.0.into(),
             value: value.1.into(),
         }
     }
@@ -143,13 +149,13 @@ impl Dictionary {
         for entry in entries {
             match &entry.value {
                 DictionaryValue::Bool(b) => {
-                    this.set_int(entry.key, (*b).into())?;
+                    this.set_int(&entry.key, (*b).into())?;
                 }
                 DictionaryValue::Int(i) => {
-                    this.set_int(entry.key, *i)?;
+                    this.set_int(&entry.key, *i)?;
                 }
                 DictionaryValue::String(s) => {
-                    this.set_str(entry.key, s)?;
+                    this.set_str(&entry.key, s)?;
                 }
             }
         }
