@@ -9,6 +9,7 @@ use avservice_types::VideoCodec;
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, Txproto};
 
+use crate::config;
 use crate::utils;
 use crate::video::{VideoConfig, VideoEncoder};
 use crate::{audio, video};
@@ -42,6 +43,7 @@ pub(crate) async fn generate_sdp(
     codec: VideoCodec,
     yuv444: bool,
     intra_refresh: bool,
+    encoder_config: &Option<config::EncoderConfig>,
 ) -> Result<String> {
     // Prepare target file
     let sdp_path = env::temp_dir().join("video.sdp");
@@ -68,6 +70,7 @@ pub(crate) async fn generate_sdp(
         codec,
         yuv444,
         intra_refresh,
+        encoder_config: encoder_config.clone(),
     };
     video::configure(&ctx, video_config, muxer, None)?;
 

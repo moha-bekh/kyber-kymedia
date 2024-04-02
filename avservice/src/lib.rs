@@ -71,6 +71,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     VideoCodec::H264,
                     yuv444,
                     config.intra_refresh(),
+                    &config.video_encoder_config,
                 )
                 .await;
 
@@ -107,6 +108,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     codec: VideoCodec::H264,
                     yuv444,
                     intra_refresh: config.intra_refresh(),
+                    encoder_config: config.video_encoder_config.clone(),
                 };
 
                 let ret = rtp::start_video(video_config, ip, port, sender.clone());
@@ -145,6 +147,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     codec,
                     yuv444,
                     intra_refresh: config.intra_refresh(),
+                    encoder_config: config.video_encoder_config.clone(),
                 };
 
                 let ret = kymux::start_video(video_config, &uri, sender.clone());

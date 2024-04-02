@@ -9,6 +9,8 @@ use txproto_rs::{DictionaryEntry, DictionaryValue};
 use crate::utils;
 use crate::{Error, Result, VideoEncoder};
 
+pub(crate) type EncoderConfig = HashMap<String, toml::Value>;
+
 #[allow(dead_code)]
 pub(crate) enum EncoderType {
     Audio,
@@ -19,6 +21,7 @@ pub(crate) enum EncoderType {
 pub(crate) struct Config {
     pub(crate) encoder: VideoEncoder,
     intra_refresh: Option<bool>,
+    pub(crate) video_encoder_config: Option<EncoderConfig>,
 }
 
 impl Default for Config {
@@ -26,6 +29,7 @@ impl Default for Config {
         Self {
             encoder: VideoEncoder::NVENC,
             intra_refresh: None,
+            video_encoder_config: None,
         }
     }
 }
