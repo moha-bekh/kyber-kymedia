@@ -13,7 +13,9 @@ use log::warn;
 
 use txproto_sys as sys;
 
-pub use avtypes::{Dictionary, DictionaryEntry, HWDeviceType, PixelFormat, Rational};
+pub use avtypes::{
+    Dictionary, DictionaryEntry, DictionaryValue, HWDeviceType, PixelFormat, Rational,
+};
 pub use error::{Error, Result};
 pub use event::{Event, EventType};
 pub use io::{IOEntryType, IOSysEntry, IOSysType};
