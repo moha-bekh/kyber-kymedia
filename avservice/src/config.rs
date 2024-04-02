@@ -1,9 +1,19 @@
+use std::collections::HashMap;
+
 use log::{error, info};
 use serde::Deserialize;
 use tokio::fs;
 
+use txproto_rs::{DictionaryEntry, DictionaryValue};
+
 use crate::utils;
 use crate::{Error, Result, VideoEncoder};
+
+#[allow(dead_code)]
+pub(crate) enum EncoderType {
+    Audio,
+    Video,
+}
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
@@ -54,4 +64,35 @@ pub(crate) async fn load() -> Result<Config> {
         .clone()
         .try_into()
         .map_err(|err| Error::ConfigLoadFail { reason: err })
+}
+
+pub(crate) fn dump_encoder_config(
+    encoder_type: EncoderType,
+    entries: &[DictionaryEntry],
+) -> Result<(String, String)> {
+    let encoder_type = match encoder_type {
+        EncoderType::Audio => "audio",
+        EncoderType::Video => "video",
+    };
+
+    let map: HashMap<_, _> = entries
+        .iter()
+        .map(|entry| {
+            let value = match &entry.value {
+                DictionaryValue::Bool(b) => toml::value::Value::Boolean(*b),
+                DictionaryValue::Int(i) => toml::value::Value::Integer(*i),
+                DictionaryValue::String(s) => toml::value::Value::String(s.into()),
+            };
+
+            (entry.key.to_string(), value)
+        })
+        .collect();
+
+    let encoder_config =
+        toml::to_string(&map).map_err(|err| Error::ConfigWriteFail { reason: err })?;
+
+    Ok((
+        format!("avserver.{encoder_type}_encoder_config"),
+        encoder_config,
+    ))
 }

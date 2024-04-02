@@ -5,6 +5,7 @@ use avservice_types::{PipelineEvent, PipelineEventType, PipelineStage, PipelineT
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, DictionaryEntry, Txproto};
 
+use crate::config;
 use crate::{Event, Result};
 
 #[derive(Clone, Copy, Debug, Deserialize)]
@@ -27,11 +28,18 @@ pub(crate) struct VideoConfig {
     pub(crate) intra_refresh: bool,
 }
 
-fn print_options(header: &str, options: &[DictionaryEntry]) {
-    info!("{header}");
-
-    for o in options {
-        info!("\t{}: {:?}", o.key, o.value);
+fn print_options(encoder: &str, options: &[DictionaryEntry]) {
+    match config::dump_encoder_config(config::EncoderType::Video, options) {
+        Ok((section, options)) => {
+            info!(
+                r#"{encoder} encoder configuration dump:
+[{section}]
+{options}"#
+            );
+        }
+        Err(err) => {
+            warn!("Fail to dump encoder config: {err:?}");
+        }
     }
 }
 
@@ -83,7 +91,7 @@ fn create_nvenc(
         }
     };
 
-    print_options("NVENC options", &options);
+    print_options("nvenc", &options);
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
@@ -125,7 +133,7 @@ fn create_vaapi(
         VideoCodec::AV1 => "av1_vaapi",
     };
 
-    print_options("VAAPI options", &options);
+    print_options("vaapi", &options);
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
@@ -201,7 +209,7 @@ fn create_qsv(
         }
     };
 
-    print_options("QSV options", &options);
+    print_options("qsv", &options);
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
@@ -259,7 +267,7 @@ fn create_amf(
         }
     };
 
-    print_options("AMF options", &options);
+    print_options("amf", &options);
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
@@ -301,7 +309,7 @@ fn create_x264(
         ("flags", "+global_header").into(),
     ];
 
-    print_options("libx264 options", options);
+    print_options("libx264", options);
 
     let options = Dictionary::from_entries(options)?;
 

@@ -26,6 +26,8 @@ pub enum Error {
     ConfigParseFail,
     #[error("Fail to load configuration: {reason:?}")]
     ConfigLoadFail { reason: toml::de::Error },
+    #[error("Fail to write configuration: {reason:?}")]
+    ConfigWriteFail { reason: toml::ser::Error },
     #[error("Thread has panicked")]
     ThreadPanicked,
 }
