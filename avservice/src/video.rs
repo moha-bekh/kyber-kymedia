@@ -145,26 +145,35 @@ fn create_vaapi(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let mut options = vec![
-        ("bf", 0).into(),
-        ("b", config.bitrate as i64).into(),
-        ("flags", "+global_header").into(),
-    ];
+    let options = if let Some(encoder_config) = &config.encoder_config {
+        encoder_config_to_dict(encoder_config)
+    } else {
+        let mut options = vec![
+            ("bf", 0).into(),
+            ("b", config.bitrate as i64).into(),
+            ("flags", "+global_header").into(),
+        ];
 
-    let enc_name = match config.codec {
-        VideoCodec::H264 => {
-            options.push(("profile", "high").into());
+        match config.codec {
+            VideoCodec::H264 => {
+                options.push(("profile", "high").into());
+            }
+            VideoCodec::HEVC | VideoCodec::AV1 => {}
+        };
 
-            "h264_vaapi"
-        }
-        VideoCodec::HEVC => "hevc_vaapi",
-        VideoCodec::AV1 => "av1_vaapi",
+        options
     };
 
     print_options("vaapi", &options);
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
+    let enc_name = match config.codec {
+        VideoCodec::H264 => "h264_vaapi",
+        VideoCodec::HEVC => "hevc_vaapi",
+        VideoCodec::AV1 => "av1_vaapi",
+    };
+
     let init_opts = Dictionary::from_entries(&[("fifo_size", 2).into()])?;
 
     let config = txproto_rs::EncoderConfig {
