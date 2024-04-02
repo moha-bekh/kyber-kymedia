@@ -71,46 +71,46 @@ fn create_nvenc(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let mut options = vec![
-        ("preset", "p2").into(),
-        ("tune", "ull").into(),
-        ("zerolatency", true).into(),
-        ("delay", 1).into(),
-        ("bf", 0).into(),
-        ("b_ref_mode", 0).into(),
-        ("b", config.bitrate as i64).into(),
-        ("flags", "+global_header").into(),
-    ];
+    let options = if let Some(encoder_config) = &config.encoder_config {
+        encoder_config_to_dict(encoder_config)
+    } else {
+        let mut options = vec![
+            ("preset", "p2").into(),
+            ("tune", "ull").into(),
+            ("zerolatency", true).into(),
+            ("delay", 1).into(),
+            ("bf", 0).into(),
+            ("b_ref_mode", 0).into(),
+            ("b", config.bitrate as i64).into(),
+            ("flags", "+global_header").into(),
+        ];
 
-    if config.intra_refresh {
-        options.push(("intra-refresh", 1).into());
-        options.push(("g", 120).into());
-    }
-
-    let enc_name = match config.codec {
-        VideoCodec::H264 => {
-            if config.yuv444 {
-                options.push(("profile", "high444p").into());
-            } else {
-                options.push(("profile", "high").into());
-            }
-
-            "h264_nvenc"
+        if config.intra_refresh {
+            options.push(("intra-refresh", 1).into());
+            options.push(("g", 120).into());
         }
-        VideoCodec::HEVC => {
-            if config.yuv444 {
-                options.push(("rgb_mode", "yuv444").into());
-            }
 
-            "hevc_nvenc"
-        }
-        VideoCodec::AV1 => {
-            if config.yuv444 {
-                options.push(("rgb_mode", "yuv444").into());
+        match config.codec {
+            VideoCodec::H264 => {
+                if config.yuv444 {
+                    options.push(("profile", "high444p").into());
+                } else {
+                    options.push(("profile", "high").into());
+                }
             }
-
-            "av1_nvenc"
+            VideoCodec::HEVC => {
+                if config.yuv444 {
+                    options.push(("rgb_mode", "yuv444").into());
+                }
+            }
+            VideoCodec::AV1 => {
+                if config.yuv444 {
+                    options.push(("rgb_mode", "yuv444").into());
+                }
+            }
         }
+
+        options
     };
 
     print_options("nvenc", &options);
@@ -118,6 +118,12 @@ fn create_nvenc(
 
     // Encoder
     let init_opts = Dictionary::from_entries(&[("fifo_size", 1).into()])?;
+
+    let enc_name = match config.codec {
+        VideoCodec::H264 => "h264_nvenc",
+        VideoCodec::HEVC => "hevc_nvenc",
+        VideoCodec::AV1 => "av1_nvenc",
+    };
 
     let config = txproto_rs::EncoderConfig {
         enc_name,
