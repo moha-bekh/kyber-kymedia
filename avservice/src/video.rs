@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 use avservice_types::{PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec};
 use libkypc::EventSender;
-use txproto_rs::{Dictionary, DictionaryEntry, Txproto};
+use txproto_rs::{Dictionary, DictionaryEntry, DictionaryValue, Txproto};
 
 use crate::config;
 use crate::{Event, Result};
@@ -42,6 +42,27 @@ fn print_options(encoder: &str, options: &[DictionaryEntry]) {
             warn!("Fail to dump encoder config: {err:?}");
         }
     }
+}
+
+fn encoder_config_to_dict(encoder_config: &config::EncoderConfig) -> Vec<DictionaryEntry> {
+    warn!("Using custom video encoder configuration");
+
+    encoder_config
+        .iter()
+        .filter_map(|(k, v)| {
+            let v = match v {
+                toml::value::Value::Boolean(b) => Some(DictionaryValue::Bool(*b)),
+                toml::value::Value::Integer(i) => Some(DictionaryValue::Int(*i)),
+                toml::value::Value::String(s) => Some(DictionaryValue::String(s.clone())),
+                _ => {
+                    warn!("Encoder config '{k}': Unhandled type for value {v:?}");
+                    None
+                }
+            };
+
+            v.map(|v| (k.as_str(), v).into())
+        })
+        .collect()
 }
 
 fn create_nvenc(
