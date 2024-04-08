@@ -63,14 +63,21 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
 
                 _ctx = Some(c);
             }
-            (cmd_id, Command::RtpGenerateVideoSdp { display_id, yuv444 }) => {
-                info!("Generate RTP Video SDP: yuv444: {yuv444}");
+            (
+                cmd_id,
+                Command::RtpGenerateVideoSdp {
+                    display_id,
+                    yuv444,
+                    intra_refresh,
+                },
+            ) => {
+                info!("Generate RTP Video SDP: yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
                 let ret = rtp::generate_sdp(
                     display_id,
                     config.encoder,
                     VideoCodec::H264,
                     yuv444,
-                    config.intra_refresh(),
+                    intra_refresh.unwrap_or(config.intra_refresh()),
                     &config.video_encoder_config,
                 )
                 .await;
@@ -96,10 +103,11 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     port,
                     bitrate,
                     yuv444,
+                    intra_refresh,
                 },
             ) => {
                 receiver.accept(cmd_id, None).await?;
-                info!("Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}");
+                info!("Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
 
                 let video_config = VideoConfig {
                     display_id,
@@ -107,7 +115,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     bitrate,
                     codec: VideoCodec::H264,
                     yuv444,
-                    intra_refresh: config.intra_refresh(),
+                    intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
                 };
 
@@ -135,10 +143,11 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     bitrate,
                     codec,
                     yuv444,
+                    intra_refresh,
                 },
             ) => {
                 receiver.accept(cmd_id, None).await?;
-                info!("Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}");
+                info!("Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
 
                 let video_config = VideoConfig {
                     display_id,
@@ -146,7 +155,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     bitrate,
                     codec,
                     yuv444,
-                    intra_refresh: config.intra_refresh(),
+                    intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
                 };
 

@@ -23,6 +23,7 @@ pub enum Command {
     RtpGenerateVideoSdp {
         display_id: u32,
         yuv444: bool,
+        intra_refresh: Option<bool>,
     },
     RtpStartVideo {
         display_id: u32,
@@ -30,6 +31,7 @@ pub enum Command {
         port: u16,
         bitrate: u32,
         yuv444: bool,
+        intra_refresh: Option<bool>,
     },
     RtpStartAudio {
         ip: String,
@@ -41,6 +43,7 @@ pub enum Command {
         bitrate: u32,
         codec: VideoCodec,
         yuv444: bool,
+        intra_refresh: Option<bool>,
     },
     KymuxStartAudio {
         uri: String,
