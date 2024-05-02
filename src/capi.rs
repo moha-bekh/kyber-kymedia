@@ -1,7 +1,7 @@
 use crate::regulator::{audio_regulator_new, AudioRegulatorPull, AudioRegulatorPush};
 
-use std::sync::atomic::{AtomicPtr, Ordering};
 use std::ffi;
+use std::sync::atomic::{AtomicPtr, Ordering};
 
 #[repr(C)]
 pub enum KyAudioRegLogLevel {
@@ -67,12 +67,20 @@ impl log::Log for Logger {
     }
 
     fn log(&self, record: &log::Record) {
-        let file = ffi::CString::new(record.file().unwrap_or("<unknown file>")).expect("Invalid log file reference");
+        let file = ffi::CString::new(record.file().unwrap_or("<unknown file>"))
+            .expect("Invalid log file reference");
         let line = record.line().unwrap_or(0) as ffi::c_uint;
         let target = ffi::CString::new(record.target()).expect("Invalid log target");
         let msg = ffi::CString::new(format!("{}", record.args())).expect("Invalid log msg");
         let userdata = self.userdata.load(Ordering::Relaxed);
-        (self.log_cb)(record.level().into(), file.as_ptr(), line, target.as_ptr(), msg.as_ptr(), userdata);
+        (self.log_cb)(
+            record.level().into(),
+            file.as_ptr(),
+            line,
+            target.as_ptr(),
+            msg.as_ptr(),
+            userdata,
+        );
     }
 
     fn flush(&self) {}
