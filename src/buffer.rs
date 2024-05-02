@@ -74,6 +74,15 @@ impl AudioBuffer {
     }
 }
 
+impl Drop for AudioBuffer {
+    fn drop(&mut self) {
+        let layout =
+            std::alloc::Layout::from_size_align((self.alloc_size * self.sample_size) as usize, 8)
+                .unwrap();
+        unsafe { std::alloc::dealloc(self.data, layout) }
+    }
+}
+
 impl AudioBufferRead {
     pub(crate) fn read(&self, dst: &mut [u8]) -> u32 {
         let dst_len: u32 = dst.len().try_into().unwrap();
