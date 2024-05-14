@@ -1,4 +1,5 @@
-use crate::regulator::{audio_regulator_new, AudioRegulatorPull, AudioRegulatorPush};
+use crate::memory::AudioRegulatorSharedMemory;
+use crate::regulator::{AudioRegulatorPull, AudioRegulatorPush};
 
 use std::ffi;
 use std::sync::atomic::{AtomicPtr, Ordering};
@@ -112,10 +113,12 @@ pub struct KyAudioRegulator {
 pub unsafe extern "C" fn kyaudioreg_new(
     sample_rate: u32,
     sample_size: u32,
-    capacity: u32,
+    alloc_size: u32,
     target_buffering: u32,
 ) -> Box<KyAudioRegulator> {
-    let (push, pull) = audio_regulator_new(sample_rate, sample_size, capacity, target_buffering);
+    let memory = AudioRegulatorSharedMemory::native(alloc_size, sample_size);
+    let push = AudioRegulatorPush::new(memory.clone(), sample_rate, target_buffering);
+    let pull = AudioRegulatorPull::new(memory, target_buffering);
     Box::new(KyAudioRegulator { push, pull })
 }
 

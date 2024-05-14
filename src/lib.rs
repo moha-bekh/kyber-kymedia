@@ -6,4 +6,6 @@ mod regulator;
 #[cfg(feature = "capi")]
 mod capi;
 
-pub use regulator::{audio_regulator_new, AudioRegulatorPull, AudioRegulatorPush};
+pub mod memory;
+
+pub use regulator::{AudioRegulatorPull, AudioRegulatorPush};
