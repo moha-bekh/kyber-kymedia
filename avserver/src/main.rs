@@ -4,6 +4,24 @@ use log::LevelFilter;
 
 use avservice::Result;
 
+#[cfg(target_os = "windows")]
+fn set_process_dpi_aware() {
+    use log::{info, warn};
+    use windows_sys::Win32::{
+        Foundation::{GetLastError, TRUE},
+        UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
+    };
+
+    let ret = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
+    if ret == TRUE {
+        info!("Process is now DPI aware");
+    } else {
+        warn!("Failed to make process DPI aware: 0x{:X}", unsafe {
+            GetLastError()
+        });
+    }
+}
+
 fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
     use std::path::Path;
 
@@ -58,6 +76,9 @@ fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
 #[tokio::main]
 async fn main() -> Result<()> {
     let _log_handle = setup_logs("avserver", LevelFilter::Info);
+
+    #[cfg(target_os = "windows")]
+    set_process_dpi_aware();
 
     txproto_rs::init_logger();
 
