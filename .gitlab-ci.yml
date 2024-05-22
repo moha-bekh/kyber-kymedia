@@ -1,0 +1,179 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  DEBIAN_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-bookworm:20240226122118
+  WIN64_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-win64:20240226123357
+  MACOS_RUST_VERSION: 1.76.0
+
+stages:
+  - lint
+  - build
+  - test
+  - misc
+
+.variables-macos-x86_64: &variables-macos-x86_64
+  CARGO_TARGET: x86_64-apple-darwin
+
+.variables-macos-arm64: &variables-macos-arm64
+  CARGO_TARGET: aarch64-apple-darwin
+
+lint:
+  stage: lint
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script:
+    - cargo fmt -- --check
+  cache: []
+
+build-debian-bookworm-x86_64:
+  stage: build
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    cargo cinstall \
+        --release \
+        --prefix="$(pwd)/rootfs"
+
+test-debian-bookworm-x86_64:
+  stage: test
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - build-debian-bookworm-x86_64
+  script: |
+    cargo test \
+        --release
+
+clippy-debian-bookworm-x86_64:
+  stage: misc
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - build-debian-bookworm-x86_64
+  script: |
+    cargo clippy \
+        --features capi \
+        -- -D warnings
+
+build-windows-x86_64:
+  stage: build
+  image: $WIN64_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    cargo cinstall \
+        --release \
+        --prefix="$(pwd)/rootfs" \
+        --target=x86_64-pc-windows-gnu \
+        --dlltool=x86_64-w64-mingw32-dlltool
+
+clippy-windows-x86_64:
+  stage: misc
+  image: $WIN64_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - build-windows-x86_64
+  script: |
+    cargo clippy \
+        --target x86_64-pc-windows-gnu \
+        --features capi \
+        -- -D warnings
+
+.macos-common:
+  before_script: |
+    rustup override set $MACOS_RUST_VERSION
+
+.build-macos-common:
+  extends: .macos-common
+  stage: build
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    cargo cinstall --prefix="$(pwd)/rootfs" \
+        --target=$CARGO_TARGET \
+        --release
+
+.clippy-macos-common:
+  extends: .macos-common
+  stage: misc
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    cargo clippy \
+        --target=$CARGO_TARGET \
+        --features capi \
+        -- -D warnings
+
+build-macos-x86_64:
+  extends: .build-macos-common
+  variables: *variables-macos-x86_64
+
+clippy-macos-x86_64:
+  extends: .clippy-macos-common
+  variables: *variables-macos-x86_64
+  needs:
+    - build-macos-x86_64
+
+build-macos-arm64:
+  extends: .build-macos-common
+  variables: *variables-macos-arm64
+
+test-macos-arm64:
+  extends: .macos-common
+  variables: *variables-macos-arm64
+  stage: test
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - build-macos-arm64
+  script: |
+    cargo test \
+        --target=$CARGO_TARGET \
+        --release \
+        --features capi
+
+clippy-macos-arm64:
+  extends: .clippy-macos-common
+  variables: *variables-macos-arm64
+  needs:
+    - build-macos-arm64
