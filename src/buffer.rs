@@ -99,6 +99,9 @@ impl AudioBufferRead {
 
         let can_read = (alloc_size + head - tail) % alloc_size;
         let samples_count = std::cmp::min(dst_len / sample_size, can_read);
+        if samples_count == 0 {
+            return 0;
+        }
 
         let right_count = std::cmp::min(alloc_size - tail, samples_count);
         let right_bytes = (right_count * sample_size) as usize;
@@ -167,6 +170,9 @@ impl AudioBufferWrite {
 
         let can_write = (alloc_size + tail - head - 1) % alloc_size;
         let samples_count = std::cmp::min(src_len / sample_size, can_write);
+        if samples_count == 0 {
+            return 0;
+        }
 
         let right_count = std::cmp::min(alloc_size - head, samples_count);
         let right_bytes = (right_count * sample_size) as usize;
@@ -202,6 +208,9 @@ impl AudioBufferWrite {
 
         let can_write = (alloc_size + tail - head - 1) % alloc_size;
         let samples_count = std::cmp::min(samples, can_write);
+        if samples_count == 0 {
+            return 0;
+        }
 
         let right_count = std::cmp::min(alloc_size - head, samples_count);
         let right_bytes = (right_count * sample_size) as usize;
