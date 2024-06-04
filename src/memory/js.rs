@@ -12,14 +12,14 @@ pub(crate) struct AudioRegulatorJSSharedMemoryDriver {
     // Circular buffer
     data: js_sys::Uint8Array,
 
-    mutex: JSMutex,
+    spinlock: JSSpinLock,
     sample_size: u32,
     alloc_size: u32, // in samples
 }
 
 impl AudioRegulatorJSSharedMemoryDriver {
     #[allow(unused)] // Reimplemented in the AudioWorklet
-    const FIELD_MUTEX: u32 = 0;
+    const FIELD_SPINLOCK: u32 = 0;
 
     const FIELD_HEAD: u32 = 1;
     const FIELD_TAIL: u32 = 2;
@@ -38,7 +38,8 @@ impl AudioRegulatorJSSharedMemoryDriver {
     pub(crate) fn from(sab: js_sys::SharedArrayBuffer, alloc_size: u32, sample_size: u32) -> Self {
         let fields =
             js_sys::Int32Array::new_with_byte_offset_and_length(&sab, 0, Self::FIELDS as _);
-        let mutex = JSMutex::new(fields.subarray(0, 1));
+        let spinlock =
+            JSSpinLock::new(fields.subarray(Self::FIELD_SPINLOCK, Self::FIELD_SPINLOCK + 1));
         let data = js_sys::Uint8Array::new_with_byte_offset_and_length(
             &sab,
             Self::FIELDS_SIZE as _,
@@ -49,7 +50,7 @@ impl AudioRegulatorJSSharedMemoryDriver {
             _sab: sab,
             fields,
             data,
-            mutex,
+            spinlock,
             sample_size,
             alloc_size,
         }
@@ -180,17 +181,17 @@ impl AudioRegulatorSharedMemoryDriver for AudioRegulatorJSSharedMemoryDriver {
     }
 
     fn lock(&self) -> AudioRegulatorMutexGuard<'_> {
-        let mutex_guard = JSMutexGuard::lock(&self.mutex);
-        AudioRegulatorMutexGuard::new(mutex_guard)
+        let guard = JSSpinLockGuard::lock(&self.spinlock);
+        AudioRegulatorMutexGuard::new(guard)
     }
 }
 
 #[derive(Debug)]
-pub(crate) struct JSMutex {
+pub(crate) struct JSSpinLock {
     data: js_sys::Int32Array,
 }
 
-impl JSMutex {
+impl JSSpinLock {
     const UNLOCKED: i32 = 0;
     const LOCKED: i32 = 1;
 
@@ -199,41 +200,38 @@ impl JSMutex {
     }
 
     pub(crate) fn lock(&self) {
-        // spinlock
-        loop {
-            if js_sys::Atomics::compare_exchange(&self.data, 0, Self::UNLOCKED, Self::LOCKED)
-                .unwrap()
-                == Self::UNLOCKED
-            {
-                return;
-            }
-        }
+        while js_sys::Atomics::compare_exchange(&self.data, 0, Self::UNLOCKED, Self::LOCKED)
+            .unwrap()
+            != Self::UNLOCKED
+        {}
     }
 
     pub(crate) fn unlock(&self) {
         if js_sys::Atomics::compare_exchange(&self.data, 0, Self::LOCKED, Self::UNLOCKED).unwrap()
             != Self::LOCKED
         {
-            panic!("Inconsistent mutex state: unlock() unlocked mutex");
+            panic!("Inconsistent spinlock state: unlock() unlocked spinlock");
         }
     }
 }
 
-pub(crate) struct JSMutexGuard<'a> {
-    mutex: &'a JSMutex,
+pub(crate) struct JSSpinLockGuard<'a> {
+    spinlock: &'a JSSpinLock,
 }
 
-impl<'a> JSMutexGuard<'a> {
-    pub(crate) fn lock(mutex: &'a JSMutex) -> Self {
-        mutex.lock();
-        Self { mutex: &mutex }
+impl<'a> JSSpinLockGuard<'a> {
+    pub(crate) fn lock(spinlock: &'a JSSpinLock) -> Self {
+        spinlock.lock();
+        Self {
+            spinlock: &spinlock,
+        }
     }
 }
 
-impl Drop for JSMutexGuard<'_> {
+impl Drop for JSSpinLockGuard<'_> {
     fn drop(&mut self) {
-        self.mutex.unlock();
+        self.spinlock.unlock();
     }
 }
 
-impl AudioRegulatorMutexGuardDriver for JSMutexGuard<'_> {}
+impl AudioRegulatorMutexGuardDriver for JSSpinLockGuard<'_> {}
