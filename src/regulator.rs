@@ -159,31 +159,13 @@ impl AudioRegulatorPush {
 
         let mut skipped_samples = 0;
 
-        let mut written = self.buf.write(packet);
+        let written = self.buf.write(packet);
         if written < samples {
-            let mut remaining = samples - written;
-
-            let _lock = self.memory.lock();
-
-            // Retry with the lock
-            written += self.buf.write(
-                &packet
-                    [written as usize * sample_size..(written + remaining) as usize * sample_size],
-            );
-
-            if written < samples {
-                remaining = samples - written;
-                // Still insufficient, drop old samples to make space
-                skipped_samples = self.buf.skip(remaining);
-                assert_eq!(skipped_samples, remaining);
-
-                // Now there is enough space
-                let w = self.buf.write(
-                    &packet[written as usize * sample_size
-                        ..(written + remaining) as usize * sample_size],
-                );
-                assert_eq!(w, remaining);
-            }
+            // Should never happen in practice, samples are already dropped if
+            // buffering exceeds a threshold which is very small compared to
+            // the whole buffer size
+            let dropped = samples - written;
+            warn!("Audio buffer full, {dropped} samples dropped");
         }
 
         let mut underflow = 0;
