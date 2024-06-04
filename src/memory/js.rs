@@ -199,6 +199,7 @@ impl JSMutex {
     }
 
     pub(crate) fn lock(&self) {
+        // spinlock
         loop {
             if js_sys::Atomics::compare_exchange(&self.data, 0, Self::UNLOCKED, Self::LOCKED)
                 .unwrap()
@@ -206,7 +207,6 @@ impl JSMutex {
             {
                 return;
             }
-            js_sys::Atomics::wait(&self.data, 0, Self::LOCKED).unwrap();
         }
     }
 
@@ -216,7 +216,6 @@ impl JSMutex {
         {
             panic!("Inconsistent mutex state: unlock() unlocked mutex");
         }
-        js_sys::Atomics::notify_with_count(&self.data, 0, 1).unwrap();
     }
 }
 
