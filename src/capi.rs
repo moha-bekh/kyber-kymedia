@@ -131,7 +131,7 @@ pub unsafe extern "C" fn kyaudioreg_push(
     src: *const u8,
     len: libc::size_t,
 ) {
-    let data = std::slice::from_raw_parts(src, len as usize);
+    let data = std::slice::from_raw_parts(src, len);
     audioreg.push.push(data);
 }
 
@@ -141,6 +141,6 @@ pub unsafe extern "C" fn kyaudioreg_pull(
     dst: *mut u8,
     len: libc::size_t,
 ) {
-    let data = std::slice::from_raw_parts_mut(dst, len as usize);
+    let data = std::slice::from_raw_parts_mut(dst, len);
     audioreg.pull.pull(data);
 }
