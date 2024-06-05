@@ -54,7 +54,7 @@ pub fn audio_regulator_new(
         played: AtomicBool::new(false),
     });
 
-    let (buf_read, buf_write) = AudioBuffer::new(sample_size, capacity);
+    let (buf_read, buf_write) = AudioBuffer::create(sample_size, capacity);
     let push = AudioRegulatorPush::new(reg.clone(), buf_write, sample_size);
     let pull = AudioRegulatorPull::new(reg, buf_read);
     (push, pull)

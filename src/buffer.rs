@@ -26,7 +26,7 @@ pub(crate) struct AudioBufferWrite {
 impl AudioBuffer {
     // There is only 1 writer (the producer), but 2 readers (the producer, in
     // corner cases, to discard old samples, and the consumer)
-    pub(crate) fn new(
+    pub(crate) fn create(
         sample_size: u32,
         capacity: u32,
     ) -> (Arc<Mutex<AudioBufferRead>>, AudioBufferWrite) {
