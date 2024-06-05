@@ -9,6 +9,10 @@ pub(crate) struct AudioBuffer {
     tail: AtomicU32,
 }
 
+// The raw pointer is internal to AudioBuffer
+unsafe impl Send for AudioBuffer {}
+unsafe impl Sync for AudioBuffer {}
+
 pub(crate) struct AudioBufferRead {
     buf: Arc<AudioBuffer>,
 }
