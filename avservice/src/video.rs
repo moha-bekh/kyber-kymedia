@@ -290,36 +290,42 @@ fn create_amf(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let mut options = vec![
-        ("preset", "veryfast").into(),
-        ("bf", 0).into(),
-        ("b", config.bitrate as i64).into(),
-        ("flags", "+global_header").into(),
-    ];
+    let options = if let Some(encoder_config) = &config.encoder_config {
+        encoder_config_to_dict(encoder_config)
+    } else {
+        let mut options = vec![
+            ("preset", "veryfast").into(),
+            ("bf", 0).into(),
+            ("b", config.bitrate as i64).into(),
+            ("flags", "+global_header").into(),
+        ];
 
-    let enc_name = match config.codec {
-        VideoCodec::H264 => {
-            options.push(("usage", "ultralowlatency").into());
-            options.push(("profile", "high").into());
+        match config.codec {
+            VideoCodec::H264 => {
+                options.push(("usage", "ultralowlatency").into());
+                options.push(("profile", "high").into());
+            }
+            VideoCodec::HEVC => {
+                options.push(("usage", "ultralowlatency").into());
+            }
+            VideoCodec::AV1 => {
+                options.push(("usage", "lowlatency").into());
+            }
+        };
 
-            "h264_amf"
-        }
-        VideoCodec::HEVC => {
-            options.push(("usage", "ultralowlatency").into());
-
-            "hevc_amf"
-        }
-        VideoCodec::AV1 => {
-            options.push(("usage", "lowlatency").into());
-
-            "av1_amf"
-        }
+        options
     };
 
     print_options("amf", &options);
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
+    let enc_name = match config.codec {
+        VideoCodec::H264 => "h264_amf",
+        VideoCodec::HEVC => "hevc_amf",
+        VideoCodec::AV1 => "av1_amf",
+    };
+
     let init_opts = Dictionary::from_entries(&[("fifo_size", 1).into()])?;
 
     let config = txproto_rs::EncoderConfig {
