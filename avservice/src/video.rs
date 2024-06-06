@@ -208,33 +208,49 @@ fn create_qsv(
     config: &VideoConfig,
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
-    // Configure Codec
-    let mut options = vec![
-        ("preset", "veryfast").into(),
-        ("bf", 0).into(),
-        ("g", 600).into(),
-        ("b", config.bitrate as i64).into(),
-        ("async_depth", 1).into(),
-        ("flags", "+global_header").into(),
-    ];
+    // Configure Codec options
+    let options = if let Some(encoder_config) = &config.encoder_config {
+        encoder_config_to_dict(encoder_config)
+    } else {
+        let mut options = vec![
+            ("preset", "veryfast").into(),
+            ("bf", 0).into(),
+            ("g", 600).into(),
+            ("b", config.bitrate as i64).into(),
+            ("async_depth", 1).into(),
+            ("flags", "+global_header").into(),
+        ];
 
+        match config.codec {
+            VideoCodec::H264 => {
+                options.push(("profile", "high").into());
+            }
+            VideoCodec::HEVC => {
+                if config.yuv444 {
+                    options.push(("profile", "rext").into());
+                }
+            }
+            VideoCodec::AV1 => {}
+        }
+
+        options
+    };
+
+    print_options("qsv", &options);
+    let options = Dictionary::from_entries(&options)?;
+
+    // Encoder
     let (enc_name, filter) = match config.codec {
         VideoCodec::H264 => {
-            options.push(("profile", "high").into());
-
             let filter = create_qsv_nv12_filter(ctx)?;
 
             ("h264_qsv", Some(filter))
         }
         VideoCodec::HEVC => {
             let filter = if config.yuv444 {
-                options.push(("profile", "rext").into());
-
                 None
             } else {
-                let filter = create_qsv_nv12_filter(ctx)?;
-
-                Some(filter)
+                Some(create_qsv_nv12_filter(ctx)?)
             };
 
             ("hevc_qsv", filter)
@@ -246,10 +262,6 @@ fn create_qsv(
         }
     };
 
-    print_options("qsv", &options);
-    let options = Dictionary::from_entries(&options)?;
-
-    // Encoder
     let init_opts = Dictionary::from_entries(&[("fifo_size", 1).into()])?;
 
     let config = txproto_rs::EncoderConfig {
