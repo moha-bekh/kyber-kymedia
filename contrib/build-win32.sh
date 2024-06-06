@@ -226,6 +226,7 @@ build_ffmpeg() {
         --disable-doc \
         --enable-gpl --enable-libx264 \
         --enable-libopus \
+        --disable-vulkan \
         --enable-nonfree --enable-nvenc \
         --enable-amf \
         --enable-libvpl

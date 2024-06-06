@@ -135,6 +135,7 @@ build_ffmpeg() {
         --enable-libdrm \
         --enable-gpl --enable-libx264 \
         --enable-libopus \
+        --disable-vulkan \
         --enable-nonfree --enable-nvenc
 
     make -j $NJOBS
