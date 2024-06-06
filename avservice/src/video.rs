@@ -339,16 +339,20 @@ fn create_x264(
     )?;
 
     // Configure Codec
-    let options = &[
-        ("preset", "ultrafast").into(),
-        ("tune", "zerolatency").into(),
-        ("b", config.bitrate as i64).into(),
-        ("flags", "+global_header").into(),
-    ];
+    let options = if let Some(encoder_config) = &config.encoder_config {
+        encoder_config_to_dict(encoder_config)
+    } else {
+        vec![
+            ("preset", "ultrafast").into(),
+            ("tune", "zerolatency").into(),
+            ("b", config.bitrate as i64).into(),
+            ("flags", "+global_header").into(),
+        ]
+    };
 
-    print_options("libx264", options);
+    print_options("libx264", &options);
 
-    let options = Dictionary::from_entries(options)?;
+    let options = Dictionary::from_entries(&options)?;
 
     // Encoder
     let enc_name = "libx264";
