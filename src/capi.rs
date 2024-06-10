@@ -131,11 +131,12 @@ pub unsafe extern "C" fn kyaudioreg_delete(audioreg: Box<KyAudioRegulator>) {
 #[no_mangle]
 pub unsafe extern "C" fn kyaudioreg_push(
     audioreg: &mut KyAudioRegulator,
+    missing_samples: u32,
     src: *const u8,
     len: libc::size_t,
 ) {
     let data = std::slice::from_raw_parts(src, len);
-    audioreg.push.push(data);
+    audioreg.push.push(missing_samples, data);
 }
 
 #[no_mangle]

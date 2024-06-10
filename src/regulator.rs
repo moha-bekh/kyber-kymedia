@@ -109,7 +109,7 @@ impl AudioRegulatorPush {
         }
     }
 
-    pub fn push(&mut self, data: &[u8]) {
+    pub fn push(&mut self, missing_samples: u32, data: &[u8]) {
         let sample_size = self.memory.get_sample_size() as usize;
         assert!(data.len() % sample_size == 0);
         let input_samples = (data.len() / sample_size) as u32;
