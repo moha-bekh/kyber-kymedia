@@ -103,9 +103,8 @@ build_nvcodecheaders() {
     local work_dir="$BUILD_DIR/nv-codec-headers"
 
     # Get sources
-    mkdir -p $work_dir && cd $work_dir
-    git clone $uri
-    cd nv-codec-headers
+    git -C "$work_dir" fetch || git clone "$uri" "$work_dir"
+    cd "$work_dir"
     git checkout $sha1
 
     # Build
