@@ -159,15 +159,6 @@ impl AudioRegulatorPush {
 
         let mut skipped_samples = 0;
 
-        let written = self.buf.write(packet);
-        if written < samples {
-            // Should never happen in practice, samples are already dropped if
-            // buffering exceeds a threshold which is very small compared to
-            // the whole buffer size
-            let dropped = samples - written;
-            warn!("Audio buffer full, {dropped} samples dropped");
-        }
-
         let mut underflow = 0;
         let played = self.memory.get_played(Ordering::Relaxed);
         let max_buffered_samples = if played {
@@ -178,6 +169,29 @@ impl AudioRegulatorPush {
             // cause unnecessary delay (and glitches to compensate) on start
             self.target_buffering + 10 * 48
         };
+
+        if missing_samples > 0 {
+            let preconsumed = std::cmp::min(missing_samples, underflow);
+            let missing_samples = missing_samples - preconsumed;
+            underflow -= preconsumed;
+            debug!("Audio preconsumed missing samples = {preconsumed}");
+
+            let can_read = self.buf.can_read();
+            if can_read + samples < self.target_buffering {
+                let silence =
+                    std::cmp::min(missing_samples, self.target_buffering - can_read - samples);
+                self.buf.write_silence(silence);
+            }
+        }
+
+        let written = self.buf.write(packet);
+        if written < samples {
+            // Should never happen in practice, samples are already dropped if
+            // buffering exceeds a threshold which is very small compared to
+            // the whole buffer size
+            let dropped = samples - written;
+            warn!("Audio buffer full, {dropped} samples dropped");
+        }
 
         let mut can_read = self.buf.can_read();
         if can_read > max_buffered_samples {
