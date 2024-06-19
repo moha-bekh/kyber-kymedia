@@ -78,7 +78,8 @@ build_x264() {
 
     # Get sources
     download_tarball $uri $sha256 || panic "Fail to get x264 sources"
-    mkdir -p $work_dir
+    rm -rf "$work_dir"
+    mkdir "$work_dir"
     unzip "$SRC_DIR/$(basename $uri)" -d $work_dir
 
     # Build
