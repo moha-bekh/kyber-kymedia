@@ -217,7 +217,8 @@ build_ffmpeg() {
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0002-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
 
-    mkdir build && cd build
+    mkdir -p build
+    cd build
 
     ../configure --prefix=$OUT_DIR \
         --arch=x86_64 --target-os=mingw32 --cross-prefix=$CROSS_PREFIX- --pkg-config=pkg-config \

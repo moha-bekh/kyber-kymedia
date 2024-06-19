@@ -127,7 +127,8 @@ build_ffmpeg() {
     cd "$work_dir/$archive_root"
     patch -p1 < $BASE_DIR/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
 
-    mkdir build && cd build
+    mkdir -p build
+    cd build
 
     ../configure --prefix=$OUT_DIR \
         --enable-shared \
