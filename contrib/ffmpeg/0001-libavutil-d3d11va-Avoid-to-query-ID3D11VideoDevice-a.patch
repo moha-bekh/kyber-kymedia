@@ -1,0 +1,38 @@
+From bb8e1377c3dcc5daccfa26c4893d51a95d1d55df Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Tue, 25 Jun 2024 17:49:07 +0200
+Subject: [PATCH] libavutil/d3d11va: Avoid to query ID3D11VideoDevice and
+ ID3D11VideoContext
+
+---
+ libavutil/hwcontext_d3d11va.c | 14 --------------
+ 1 file changed, 14 deletions(-)
+
+diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
+index cc8c97d..379d31a 100644
+--- a/libavutil/hwcontext_d3d11va.c
++++ b/libavutil/hwcontext_d3d11va.c
+@@ -504,20 +504,6 @@ static int d3d11va_device_init(AVHWDeviceContext *hwdev)
+             return AVERROR_UNKNOWN;
+     }
+ 
+-    if (!device_hwctx->video_device) {
+-        hr = ID3D11DeviceContext_QueryInterface(device_hwctx->device, &IID_ID3D11VideoDevice,
+-                                                (void **)&device_hwctx->video_device);
+-        if (FAILED(hr))
+-            return AVERROR_UNKNOWN;
+-    }
+-
+-    if (!device_hwctx->video_context) {
+-        hr = ID3D11DeviceContext_QueryInterface(device_hwctx->device_context, &IID_ID3D11VideoContext,
+-                                                (void **)&device_hwctx->video_context);
+-        if (FAILED(hr))
+-            return AVERROR_UNKNOWN;
+-    }
+-
+     return 0;
+ }
+ 
+-- 
+2.39.2
+
