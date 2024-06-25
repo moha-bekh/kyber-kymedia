@@ -367,11 +367,13 @@ fn create_x264(
 ) -> Result<txproto_rs::Handle> {
     let options = Dictionary::from_entries(&[("dump_graph", false).into()])?;
 
-    let filter = ctx.create_filtergraph(
-        "scale=w=1920:h=-1,format=nv12",
-        txproto_rs::HWDeviceType::NONE,
-        Some(options),
-    )?;
+    #[cfg(target_os = "windows")]
+    let filter_desc = "hwdownload,format=bgra,format=nv12";
+    #[cfg(not(target_os = "windows"))]
+    let filter_desc = "scale=w=1920:h=-1,format=nv12";
+
+    let filter =
+        ctx.create_filtergraph(filter_desc, txproto_rs::HWDeviceType::NONE, Some(options))?;
 
     // Configure Codec
     let options = if let Some(encoder_config) = &config.encoder_config {
@@ -382,6 +384,10 @@ fn create_x264(
             ("tune", "zerolatency").into(),
             ("b", config.bitrate as i64).into(),
             ("flags", "+global_header").into(),
+            // On AWS EC2 (Windows Server 2023), sometimes x264 is broken and just
+            // return empty frames. Set this setting to workaround this issue.
+            // It seems to add between 1 and 2 latency frames
+            ("x264-params", "force-cfr=0").into(),
         ]
     };
 
@@ -390,11 +396,14 @@ fn create_x264(
     let options = Dictionary::from_entries(&options)?;
 
     // Encoder
+    let init_opts = Dictionary::from_entries(&[("fifo_size", 1).into()])?;
+
     let enc_name = "libx264";
 
     let config = txproto_rs::EncoderConfig {
         enc_name,
         options: Some(options),
+        init_opts: Some(init_opts),
         ..Default::default()
     };
 
