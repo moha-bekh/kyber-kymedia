@@ -154,6 +154,7 @@ build_txproto() {
     meson \
         --buildtype=release \
         --prefix=$OUT_DIR \
+        --libdir=$OUT_DIR/lib \
         -Dinterface=disabled \
         $TXPROTO_SRCDIR
 

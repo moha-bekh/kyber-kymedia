@@ -303,6 +303,7 @@ build_txproto() {
     meson \
         --buildtype=release \
         --prefix=$OUT_DIR \
+        --libdir=$OUT_DIR/lib \
         --cross-file=$WORKSPACE_ROOT/contrib/mingw-w64-meson-toolchain.ini \
         $TXPROTO_SRCDIR
 
