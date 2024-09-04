@@ -26,6 +26,8 @@ pub struct AudioRegulatorPush {
     compensation_active: bool,
     tmp: Vec<u8>,
     next_expected_push: Option<Instant>,
+    underflow_occurences: u32,
+    underflow_samples: u32,
 }
 
 pub struct AudioRegulatorPull {
@@ -106,6 +108,8 @@ impl AudioRegulatorPush {
             compensation_active: false,
             tmp,
             next_expected_push: None,
+            underflow_occurences: 0,
+            underflow_samples: 0,
         }
     }
 
@@ -220,7 +224,8 @@ impl AudioRegulatorPush {
 
         if played {
             if underflow > 0 {
-                info!("[Audio] Buffer underflow: {underflow} samples");
+                self.underflow_occurences += 1;
+                self.underflow_samples += underflow;
             }
 
             let instant_compensation = written as i32 - input_samples as i32;
@@ -270,9 +275,13 @@ impl AudioRegulatorPush {
                 let abs_max_diff = distance as i32 / 50;
                 let diff = std::cmp::max(-abs_max_diff, std::cmp::min(abs_max_diff, diff));
                 info!(
-                    "[Audio] Buffering: target={} avg={} cur={} compensation={}",
-                    self.target_buffering, self.avg_buffering.avg, can_read, diff
+                    "[Audio] Buffering: target={} avg={} cur={} compensation={} underflow_occurences={} underflow_samples={}",
+                    self.target_buffering, self.avg_buffering.avg, can_read, diff, self.underflow_occurences,
+                    self.underflow_samples
                 );
+
+                self.underflow_occurences = 0;
+                self.underflow_samples = 0;
 
                 self.compensator.set_compensation(diff, distance);
                 self.compensation_active = diff != 0;
