@@ -111,11 +111,11 @@ build_x264() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="6.1.2"
+    local version="7.1.2"
 
     local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
     local archive_root="ffmpeg-$version"
-    local sha256="3b624649725ecdc565c903ca6643d41f33bd49239922e45c9b1442c63dca4e38"
+    local sha256="089bc60fb59d6aecc5d994ff530fd0dcb3ee39aa55867849a2bbc4e555f9c304"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources

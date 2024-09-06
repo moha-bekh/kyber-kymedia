@@ -221,11 +221,11 @@ build_vpl() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="6.1.2"
+    local version="7.1.2"
 
     local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
     local archive_root="ffmpeg-$version"
-    local sha256="3b624649725ecdc565c903ca6643d41f33bd49239922e45c9b1442c63dca4e38"
+    local sha256="089bc60fb59d6aecc5d994ff530fd0dcb3ee39aa55867849a2bbc4e555f9c304"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
@@ -237,7 +237,7 @@ build_ffmpeg() {
     cd "$work_dir/$archive_root"
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0002-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
-    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavutil-Implement-monotonic-av_gettime_relative-on.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0003-libavutil-Implement-monotonic-av_gettime_relative-on.patch
 
     mkdir -p build
     cd build

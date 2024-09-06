@@ -1,24 +1,24 @@
-From 8f142ecccb897c84faeaffa2fffce3d4d56e93c1 Mon Sep 17 00:00:00 2001
-From: =?UTF-8?q?Romain=20Roff=C3=A9?= <rofferom@gmail.com>
-Date: Thu, 9 Feb 2023 13:18:31 +0100
-Subject: [PATCH 2/2] libavcodec/amfenc: Add mapping for AV_PIX_FMT_BGRA
+From 405cec4f90acf43c2366a0cfd8c4d98cc6452642 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Mon, 16 Dec 2024 12:58:33 +0100
+Subject: [PATCH 2/4] libavcodec/amfenc: Add mapping for AV_PIX_FMT_BGRA
 
 ---
  libavcodec/amfenc.c | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/libavcodec/amfenc.c b/libavcodec/amfenc.c
-index 061859f85c..bc2e00efc4 100644
+index a47aea6108..9e3b898215 100644
 --- a/libavcodec/amfenc.c
 +++ b/libavcodec/amfenc.c
-@@ -73,6 +73,7 @@ static const FormatMap format_map[] =
-     { AV_PIX_FMT_NONE,       AMF_SURFACE_UNKNOWN },
+@@ -126,6 +126,7 @@ static const FormatMap format_map[] =
      { AV_PIX_FMT_NV12,       AMF_SURFACE_NV12 },
+     { AV_PIX_FMT_P010,       AMF_SURFACE_P010 },
      { AV_PIX_FMT_BGR0,       AMF_SURFACE_BGRA },
 +    { AV_PIX_FMT_BGRA,       AMF_SURFACE_BGRA },
      { AV_PIX_FMT_RGB0,       AMF_SURFACE_RGBA },
      { AV_PIX_FMT_GRAY8,      AMF_SURFACE_GRAY8 },
      { AV_PIX_FMT_YUV420P,    AMF_SURFACE_YUV420P },
 -- 
-2.39.2
+2.39.5
 

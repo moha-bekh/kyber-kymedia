@@ -1,14 +1,15 @@
-From 52635e67de739272d7fb764a0089e49c0f3743c5 Mon Sep 17 00:00:00 2001
+From 925fabed6dc1396c4c74bf9b24cff2a61743011c Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
-Date: Tue, 22 Oct 2024 14:54:37 +0200
-Subject: [PATCH] libavutil: Implement monotonic av_gettime_relative() on Win32
+Date: Mon, 16 Dec 2024 12:59:49 +0100
+Subject: [PATCH 3/4] libavutil: Implement monotonic av_gettime_relative() on
+ Win32
 
 ---
  libavutil/time.c | 35 +++++++++++++++++++++++++++++++++++
  1 file changed, 35 insertions(+)
 
 diff --git a/libavutil/time.c b/libavutil/time.c
-index 740afc4..7b5966c 100644
+index 740afc4785..7b5966c0c7 100644
 --- a/libavutil/time.c
 +++ b/libavutil/time.c
 @@ -34,7 +34,9 @@
