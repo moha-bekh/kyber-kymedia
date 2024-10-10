@@ -10,7 +10,7 @@ pub(crate) fn start_video(
     sender: EventSender<Event>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch(0)?;
+    ctx.set_epoch_offset(0)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
     let events = video::configure(&ctx, video_config, packet_sink, Some(sender))?;
@@ -25,7 +25,7 @@ pub(crate) fn start_video(
 
 pub(crate) fn start_audio(uri: &str, sender: EventSender<Event>) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch(0)?;
+    ctx.set_epoch_offset(0)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
     let events = audio::configure(&ctx, packet_sink, Some(sender))?;

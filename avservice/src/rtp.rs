@@ -58,7 +58,7 @@ pub(crate) async fn generate_sdp(
 
     // Run txproto
     let ctx = Txproto::new()?;
-    ctx.set_epoch(0)?;
+    ctx.set_epoch_offset(0)?;
 
     let sdp_path_str = utils::path_to_string(&sdp_path)?;
     let muxer = create_muxer(&ctx, "localhost", 30_000, Some(&sdp_path_str))?;
@@ -120,7 +120,7 @@ pub(crate) fn start_video(
     sender: EventSender<Event>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch(0)?;
+    ctx.set_epoch_offset(0)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
     let events = video::configure(&ctx, video_config, muxer, Some(sender))?;
@@ -135,7 +135,7 @@ pub(crate) fn start_video(
 
 pub(crate) fn start_audio(ip: String, port: u16, sender: EventSender<Event>) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch(0)?;
+    ctx.set_epoch_offset(0)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
     let events = audio::configure(&ctx, muxer, Some(sender))?;

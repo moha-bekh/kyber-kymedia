@@ -85,8 +85,17 @@ impl Txproto {
         self.ctx.load(Ordering::Relaxed)
     }
 
-    pub fn set_epoch(&self, value: i64) -> Result<()> {
-        let ret = unsafe { sys::tx_epoch_set(self.inner(), value) };
+    pub fn set_epoch_offset(&self, value: i64) -> Result<()> {
+        let ret = unsafe { sys::tx_epoch_set_offset(self.inner(), value) };
+        if ret != 0 {
+            return Err(ret.into());
+        }
+
+        Ok(())
+    }
+
+    pub fn set_epoch_system(&self) -> Result<()> {
+        let ret = unsafe { sys::tx_epoch_set_system(self.inner()) };
         if ret != 0 {
             return Err(ret.into());
         }
