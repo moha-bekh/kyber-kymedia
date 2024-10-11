@@ -51,6 +51,7 @@ pub enum Command {
     VideoSetBitrate {
         bitrate: i32,
     },
+    VideoForceIdr,
     Stop,
 }
 

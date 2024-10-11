@@ -70,6 +70,35 @@ async fn handle_video_set_bitrate(
     Ok(())
 }
 
+async fn handle_video_force_idr(
+    ctx: &mut Option<Context>,
+    receiver: &mut CommandReceiver<Command, Event>,
+    cmd_id: u32,
+) -> Result<()> {
+    info!("Video force IDR");
+
+    let Some(ctx) = &ctx else {
+        info!("No session started");
+        receiver.reject(cmd_id, None).await?;
+
+        return Ok(());
+    };
+
+    let Some(encoder) = &ctx.encoder else {
+        info!("No active encoder");
+        receiver.reject(cmd_id, None).await?;
+
+        return Ok(());
+    };
+
+    receiver.accept(cmd_id, None).await?;
+
+    ctx.ctx.encoder_force_idr(encoder)?;
+    ctx.ctx.commit()?;
+
+    Ok(())
+}
+
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
 
@@ -210,6 +239,9 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
             }
             (cmd_id, Command::VideoSetBitrate { bitrate }) => {
                 handle_video_set_bitrate(&mut ctx, &mut receiver, cmd_id, bitrate).await?;
+            }
+            (cmd_id, Command::VideoForceIdr) => {
+                handle_video_force_idr(&mut ctx, &mut receiver, cmd_id).await?;
             }
             (cmd_id, Command::Stop) => {
                 receiver.accept(cmd_id, None).await?;
