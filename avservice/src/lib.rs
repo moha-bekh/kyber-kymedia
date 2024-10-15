@@ -50,6 +50,8 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     while let Ok(msg) = receiver.recv().await {
         match msg {
             (cmd_id, Command::EnumerateDisplays) => {
+                info!("Start display enumeration");
+
                 let (c, display_list) = displays::enumerate(sender.clone())?;
 
                 receiver
