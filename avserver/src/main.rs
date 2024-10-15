@@ -32,7 +32,8 @@ fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
     };
 
     // Setup pattern
-    let pattern_encoder = PatternEncoder::new("{d(%Y-%m-%dT%H:%M:%S.%3f)} {h({l})} {t} - {m}{n}");
+    let pattern_encoder =
+        PatternEncoder::new("{d(%Y-%m-%dT%H:%M:%S.%3f)}[{P}] {h({l})} {t} - {m}{n}");
 
     // Setup Console output
     let stdout = ConsoleAppender::builder()
