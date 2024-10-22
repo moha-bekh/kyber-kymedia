@@ -17,11 +17,18 @@ pub(crate) enum EncoderType {
     Video,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub(crate) enum ClockType {
+    ZeroedOrigin,
+    System,
+}
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
     pub(crate) encoder: VideoEncoder,
     intra_refresh: Option<bool>,
     pub(crate) video_encoder_config: Option<EncoderConfig>,
+    clock_type: Option<ClockType>,
 }
 
 impl Default for Config {
@@ -30,6 +37,7 @@ impl Default for Config {
             encoder: VideoEncoder::NVENC,
             intra_refresh: None,
             video_encoder_config: None,
+            clock_type: None,
         }
     }
 }
@@ -37,6 +45,10 @@ impl Default for Config {
 impl Config {
     pub(crate) fn intra_refresh(&self) -> bool {
         self.intra_refresh.unwrap_or(true)
+    }
+
+    pub(crate) fn clock_type(&self) -> ClockType {
+        *self.clock_type.as_ref().unwrap_or(&ClockType::ZeroedOrigin)
     }
 }
 

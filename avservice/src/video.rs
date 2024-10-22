@@ -27,6 +27,7 @@ pub(crate) struct VideoConfig {
     pub(crate) yuv444: bool,
     pub(crate) intra_refresh: bool,
     pub(crate) encoder_config: Option<config::EncoderConfig>,
+    pub(crate) clock_type: config::ClockType,
 }
 
 fn print_options(encoder: &str, options: &[DictionaryEntry]) {

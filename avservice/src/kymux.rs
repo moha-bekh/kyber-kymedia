@@ -1,7 +1,10 @@
+use log::info;
+
 use libkypc::EventSender;
 use txproto_rs::Txproto;
 
-use crate::{audio, video};
+use crate::config::ClockType;
+use crate::{audio, configure_clock, video};
 use crate::{Context, Event, Result, VideoConfig};
 
 pub(crate) fn start_video(
@@ -10,7 +13,9 @@ pub(crate) fn start_video(
     sender: EventSender<Event>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch_offset(0)?;
+
+    info!("Start video, using clock {:?}", video_config.clock_type);
+    configure_clock(&ctx, &video_config.clock_type)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
     let video_pipeline = video::configure(&ctx, video_config, packet_sink, Some(sender))?;
@@ -24,9 +29,15 @@ pub(crate) fn start_video(
     })
 }
 
-pub(crate) fn start_audio(uri: &str, sender: EventSender<Event>) -> Result<Context> {
+pub(crate) fn start_audio(
+    uri: &str,
+    clock_type: ClockType,
+    sender: EventSender<Event>,
+) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch_offset(0)?;
+
+    info!("Start audio, using clock {:?}", clock_type);
+    configure_clock(&ctx, &clock_type)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
     let events = audio::configure(&ctx, packet_sink, Some(sender))?;

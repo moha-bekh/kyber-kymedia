@@ -1,4 +1,5 @@
 mod audio;
+mod clock;
 mod config;
 mod displays;
 mod error;
@@ -15,6 +16,7 @@ use avservice_types::{
 use libkypc::{CommandReceiver, EventSender, Worker};
 use txproto_rs::Txproto;
 
+pub(crate) use clock::configure_clock;
 pub use error::{Error, Result};
 pub(crate) use video::{VideoConfig, VideoEncoder};
 
@@ -179,6 +181,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     yuv444,
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
+                    clock_type: config.clock_type(),
                 };
 
                 let ret = rtp::start_video(video_config, ip, port, sender.clone());
@@ -191,7 +194,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start RTP Audio: {ip}:{port}");
 
-                let ret = rtp::start_audio(ip, port, sender.clone());
+                let ret = rtp::start_audio(ip, port, config.clock_type(), sender.clone());
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
@@ -219,6 +222,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     yuv444,
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
+                    clock_type: config.clock_type(),
                 };
 
                 let ret = kymux::start_video(video_config, &uri, sender.clone());
@@ -231,7 +235,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 receiver.accept(cmd_id, None).await?;
                 info!("Start Kymux Audio: URI {uri:?}");
 
-                let ret = kymux::start_audio(&uri, sender.clone());
+                let ret = kymux::start_audio(&uri, config.clock_type(), sender.clone());
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Audio).await,

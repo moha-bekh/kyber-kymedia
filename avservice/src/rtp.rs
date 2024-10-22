@@ -9,10 +9,9 @@ use avservice_types::VideoCodec;
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, Txproto};
 
-use crate::config;
-use crate::utils;
+use crate::config::{self, ClockType};
 use crate::video::{VideoConfig, VideoEncoder};
-use crate::{audio, video};
+use crate::{audio, configure_clock, utils, video};
 use crate::{Context, Error, Event, Result};
 
 fn create_muxer(
@@ -71,6 +70,7 @@ pub(crate) async fn generate_sdp(
         yuv444,
         intra_refresh,
         encoder_config: encoder_config.clone(),
+        clock_type: config::ClockType::ZeroedOrigin,
     };
     video::configure(&ctx, video_config, muxer, None)?;
 
@@ -120,7 +120,9 @@ pub(crate) fn start_video(
     sender: EventSender<Event>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch_offset(0)?;
+
+    info!("Start video, using clock {:?}", video_config.clock_type);
+    configure_clock(&ctx, &video_config.clock_type)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
     let video_pipeline = video::configure(&ctx, video_config, muxer, Some(sender))?;
@@ -134,9 +136,16 @@ pub(crate) fn start_video(
     })
 }
 
-pub(crate) fn start_audio(ip: String, port: u16, sender: EventSender<Event>) -> Result<Context> {
+pub(crate) fn start_audio(
+    ip: String,
+    port: u16,
+    clock_type: ClockType,
+    sender: EventSender<Event>,
+) -> Result<Context> {
     let ctx = Txproto::new()?;
-    ctx.set_epoch_offset(0)?;
+
+    info!("Start audio, using clock {:?}", clock_type);
+    configure_clock(&ctx, &clock_type)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
     let events = audio::configure(&ctx, muxer, Some(sender))?;
