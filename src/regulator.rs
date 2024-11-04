@@ -274,10 +274,8 @@ impl AudioRegulatorPush {
                     self.target_buffering, self.avg_buffering.avg, can_read, diff
                 );
 
-                if diff != self.compensation {
-                    self.compensator.set_compensation(diff, distance);
-                    self.compensation = diff;
-                }
+                self.compensator.set_compensation(diff, distance);
+                self.compensation = diff;
             }
         }
     }
