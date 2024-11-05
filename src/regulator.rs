@@ -23,7 +23,7 @@ pub struct AudioRegulatorPush {
     compensator: AudioCompensator,
     avg_buffering: Average,
     samples_since_resync: u32,
-    compensation: i32,
+    compensation_active: bool,
     tmp: Vec<u8>,
     next_expected_push: Option<Instant>,
 }
@@ -103,7 +103,7 @@ impl AudioRegulatorPush {
             compensator,
             avg_buffering,
             samples_since_resync: 0,
-            compensation: 0,
+            compensation_active: false,
             tmp,
             next_expected_push: None,
         }
@@ -131,7 +131,7 @@ impl AudioRegulatorPush {
                 // Reset state
                 self.avg_buffering.avg = self.target_buffering as f32;
                 self.compensator.set_compensation(0, 0);
-                self.compensation = 0;
+                self.compensation_active = false;
                 self.samples_since_resync = 0;
                 self.memory.reset_underflow(Ordering::Relaxed);
             }
@@ -251,7 +251,7 @@ impl AudioRegulatorPush {
                 self.samples_since_resync = 0;
 
                 let mut diff = self.target_buffering as i32 - self.avg_buffering.avg as i32;
-                let threshold = if self.compensation != 0 {
+                let threshold = if self.compensation_active {
                     self.sample_rate / 1000 // 1ms
                 } else {
                     self.sample_rate * 4 / 1000 // 4ms
@@ -275,7 +275,7 @@ impl AudioRegulatorPush {
                 );
 
                 self.compensator.set_compensation(diff, distance);
-                self.compensation = diff;
+                self.compensation_active = diff != 0;
             }
         }
     }
