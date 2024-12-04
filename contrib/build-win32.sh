@@ -189,6 +189,7 @@ build_vpl() {
     cmake .. \
         -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
         -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release \
         -DBUILD_PREVIEW=OFF \
         -DBUILD_TOOLS=OFF \
         -DBUILD_TOOLS_ONEVPL_EXPERIMENTAL=OFF \
@@ -294,7 +295,8 @@ build_lua() {
     mkdir build && cd build
     cmake .. \
         -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
-        -DCMAKE_INSTALL_PREFIX=$OUT_DIR
+        -DCMAKE_INSTALL_PREFIX=$OUT_DIR \
+        -DCMAKE_BUILD_TYPE=Release
     make -j$NJOBS
     make install
 
