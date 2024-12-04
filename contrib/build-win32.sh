@@ -187,8 +187,12 @@ build_vpl() {
     mkdir build && cd build
 
     cmake .. \
-        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
-        -DBUILD_PREVIEW=OFF -DBUILD_TOOLS=OFF -DBUILD_TOOLS_ONEVPL_EXPERIMENTAL=OFF -DINSTALL_EXAMPLE_CODE=OFF \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DBUILD_PREVIEW=OFF \
+        -DBUILD_TOOLS=OFF \
+        -DBUILD_TOOLS_ONEVPL_EXPERIMENTAL=OFF \
+        -DINSTALL_EXAMPLE_CODE=OFF \
         -DBUILD_SHARED_LIBS=OFF
 
     make -j$NJOBS
@@ -288,7 +292,9 @@ build_lua() {
     patch -p1 < $BASE_DIR/lua/0001-Add-CMakeLists.txt.patch
 
     mkdir build && cd build
-    cmake .. -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake -DCMAKE_INSTALL_PREFIX=$OUT_DIR
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX=$OUT_DIR
     make -j$NJOBS
     make install
 
