@@ -1,0 +1,28 @@
+From 3304f1d5c597c50fe3f95da2f6e2908b7c737ab1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Thu, 5 Dec 2024 10:21:25 +0100
+Subject: [PATCH 2/3] cmake: Link to spirv-tools
+
+---
+ glslang/CMakeLists.txt | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/glslang/CMakeLists.txt b/glslang/CMakeLists.txt
+index a22a34e..bab6b3d 100644
+--- a/glslang/CMakeLists.txt
++++ b/glslang/CMakeLists.txt
+@@ -188,6 +188,11 @@ if(WIN32 AND BUILD_SHARED_LIBS)
+     set_target_properties(glslang PROPERTIES PREFIX "")
+ endif()
+ 
++target_include_directories(glslang PUBLIC ${SPIRV_TOOLS_INCLUDE_DIRS})
++target_compile_options(glslang PUBLIC ${SPIRV_TOOLS_CFLAGS_OTHER})
++target_link_directories(glslang PUBLIC ${SPIRV_TOOLS_LIBRARY_DIRS})
++target_link_libraries(glslang ${SPIRV_TOOLS_LIBRARIES})
++
+ if(ENABLE_SPIRV)
+     if(ENABLE_OPT)
+         target_include_directories(glslang PUBLIC
+-- 
+2.39.5
+

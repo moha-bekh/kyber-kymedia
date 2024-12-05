@@ -16,6 +16,8 @@ PLATFORM_NAME="x86_64-linux-gnu"
 BUILD_DIR="$BASE_DIR/work/$PLATFORM_NAME"
 SRC_DIR="$BASE_DIR/work/src"
 
+VULKAN_SDK_VERSION="1.4.313"
+
 panic() {
     echo $1
     exit 1
@@ -103,6 +105,166 @@ build_x264() {
 
     ./configure --disable-cli --enable-shared --prefix=$OUT_DIR
     make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_vulkanheaders() {
+    local init_cwd=$(pwd)
+
+    local uri="https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v$VULKAN_SDK_VERSION.tar.gz"
+    local archive_root="Vulkan-Headers-$VULKAN_SDK_VERSION"
+    local sha256="f3298b8dc620530493296759858a69b622f98ececa0e8c75488ad2000778148f"
+    local work_dir="$BUILD_DIR/Vulkan-Headers"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get Vulkan-Headers sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+    rm "$SRC_DIR/$(basename $uri)"
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    mkdir build && cd build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_vulkanloader() {
+    local init_cwd=$(pwd)
+
+    local uri="https://github.com/KhronosGroup/Vulkan-Loader/archive/refs/tags/v$VULKAN_SDK_VERSION.tar.gz"
+    local archive_root="Vulkan-Loader-$VULKAN_SDK_VERSION"
+    local sha256="0c2436993597f5bd0ee420b6b27632758ed3ab439043d251795fd13d4e70a2f3"
+    local work_dir="$BUILD_DIR/Vulkan-Loader"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get Vulkan-Loader sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    export CFLAGS=-DWIN32_LEAN_AND_MEAN
+
+    mkdir build && cd build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+# Requires spirv-tools libglade2-dev
+build_glslang() {
+    local init_cwd=$(pwd)
+
+    local version="15.0.0"
+
+    local uri="https://github.com/KhronosGroup/glslang/archive/refs/tags/$version.tar.gz"
+    local archive_root="glslang-$version"
+    local sha256="c31c8c2e89af907507c0631273989526ee7d5cdf7df95ececd628fd7b811e064"
+    local work_dir="$BUILD_DIR/glslang"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get glslang sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    mkdir build && cd build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DALLOW_EXTERNAL_SPIRV_TOOLS=TRUE \
+        -DGLSLANG_TESTS=OFF \
+        -DENABLE_GLSLANG_BINARIES=OFF \ 
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_libplacebo() {
+    local init_cwd=$(pwd)
+
+    local version="7.351.0"
+
+    local uri="https://github.com/haasn/libplacebo/archive/refs/tags/v$version.tar.gz"
+    local archive_root="libplacebo-$version"
+    local sha256="716954501d9b76e6906fddda66febc5886493d0673dd265ec1e6e52f4e5cd7c6"
+    local work_dir="$BUILD_DIR/libplacebo"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get libplacebo sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0005-utils-libav-fix-component-mapping-order-for-BGR-formats.patch
+
+    mkdir build && cd build
+
+    export CFLAGS="-I$OUT_DIR/include"
+
+    meson setup \
+        --prefix="$OUT_DIR" \
+        -Dshaderc=disabled \
+        -Dlcms=disabled \
+        -Dvulkan=enabled \
+        -Dopengl=disabled \
+        -Ddemos=false \
+        -Dprefer_static=false \
+        ..
+
+    ninja install
+
+    unset CFLAGS
+
+    cd $init_cwd
+}
+
+build_lua() {
+    local init_cwd=$(pwd)
+
+    local version="5.4.6"
+
+    local uri="https://www.lua.org/ftp/lua-$version.tar.gz"
+    local archive_root="lua-$version"
+    local sha256="7d5ea1b9cb6aa0b59ca3dde1c6adcb57ef83a1ba8e5432c0ecd06bf439b3ad88"
+    local work_dir="$BUILD_DIR/lua"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get lua sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+    patch -p1 < $BASE_DIR/lua/0001-Add-CMakeLists.txt.patch
+
+    mkdir -p build && cd build
+    cmake .. \
+        -DCMAKE_INSTALL_PREFIX=$OUT_DIR \
+        -DCMAKE_BUILD_TYPE=Release
+    make -j$NJOBS
     make install
 
     cd $init_cwd
@@ -213,5 +375,10 @@ export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgc
 # Build dependencies
 build_nvcodecheaders
 build_x264
+build_vulkanheaders
+build_vulkanloader
+build_glslang
+build_libplacebo
 build_ffmpeg
+build_lua
 build_txproto

@@ -1,0 +1,23 @@
+From ba07886403e77a6c01228fcff76b0a0463dd2e1f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Thu, 5 Dec 2024 11:22:09 +0100
+Subject: [PATCH 2/4] vulkan: Disable stub
+
+---
+ src/vulkan/meson.build | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/vulkan/meson.build b/src/vulkan/meson.build
+index d22883ce..ea43d613 100644
+--- a/src/vulkan/meson.build
++++ b/src/vulkan/meson.build
+@@ -52,6 +52,4 @@ if vulkan_build.allowed()
+     build_deps += vulkan_loader
+     tests += 'vulkan.c'
+   endif
+-else
+-  sources += 'vulkan/stubs.c'
+ endif
+-- 
+2.39.5
+

@@ -1,0 +1,160 @@
+From c778e33d6470aad599a4c92e8c4014ff5dc7fc2e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Jan=20Ekstr=C3=B6m?= <jeebjp@gmail.com>
+Date: Sun, 14 Aug 2022 18:14:57 +0300
+Subject: [PATCH 3/4] utils/libav: initial attempt at d3d11 hwframe mapping
+
+(cherry picked from commit 50c7c326de526d005a82cb0ed5cde7a2c262a297)
+---
+ src/include/libplacebo/utils/libav_internal.h | 108 ++++++++++++++++++
+ 1 file changed, 108 insertions(+)
+
+diff --git a/src/include/libplacebo/utils/libav_internal.h b/src/include/libplacebo/utils/libav_internal.h
+index 57696186..26096cee 100644
+--- a/src/include/libplacebo/utils/libav_internal.h
++++ b/src/include/libplacebo/utils/libav_internal.h
+@@ -48,6 +48,11 @@
+ # include <libplacebo/vulkan.h>
+ #endif
+ 
++#if defined(PL_HAVE_D3D11)
++# include <libavutil/hwcontext_d3d11va.h>
++# include <libplacebo/d3d11.h>
++#endif
++
+ PL_LIBAV_API enum pl_color_system pl_system_from_av(enum AVColorSpace spc)
+ {
+     switch (spc) {
+@@ -595,6 +600,11 @@ PL_LIBAV_API bool pl_test_pixfmt_caps(pl_gpu gpu, enum AVPixelFormat pixfmt,
+         return pl_vulkan_get(gpu);
+ #endif
+ 
++#ifdef PL_HAVE_D3D11
++    case AV_PIX_FMT_D3D11:
++        return pl_d3d11_get(gpu);
++#endif
++
+     default: break;
+     }
+ 
+@@ -1242,6 +1252,93 @@ static void pl_unmap_avframe_vulkan(pl_gpu gpu, struct pl_frame *frame)
+ }
+ #endif
+ 
++#ifdef PL_HAVE_D3D11
++static bool pl_d3d11_view_format_override_required(const enum AVPixelFormat sw_fmt,
++                                                   DXGI_FORMAT (*dxgi_format)[4])
++{
++    switch (sw_fmt) {
++#ifdef AV_PIX_FMT_VUYA
++    case AV_PIX_FMT_VUYA:
++#endif
++#ifdef AV_PIX_FMT_VUYX
++    case AV_PIX_FMT_VUYX:
++#endif
++    case AV_PIX_FMT_YUYV422:
++        (*dxgi_format)[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
++        return true;
++    case AV_PIX_FMT_NV12:
++        (*dxgi_format)[0] = DXGI_FORMAT_R8_UNORM;
++        (*dxgi_format)[1] = DXGI_FORMAT_R8G8_UNORM;
++        return true;
++    case AV_PIX_FMT_P016:
++#ifdef AV_PIX_FMT_P012
++    case AV_PIX_FMT_P012:
++#endif
++    case AV_PIX_FMT_P010:
++        (*dxgi_format)[0] = DXGI_FORMAT_R16_UNORM;
++        (*dxgi_format)[1] = DXGI_FORMAT_R16G16_UNORM;
++        return true;
++#ifdef AV_PIX_FMT_Y212
++    case AV_PIX_FMT_Y212:
++#endif
++    case AV_PIX_FMT_Y210:
++#ifdef AV_PIX_FMT_XV36
++    case AV_PIX_FMT_XV36: // Y412
++#endif
++#ifdef AV_PIX_FMT_XV30
++    case AV_PIX_FMT_XV30: // Y410
++#endif
++        (*dxgi_format)[0] = DXGI_FORMAT_R16G16B16A16_UNORM;
++        return true;
++    default:
++        return false;
++    }
++}
++
++static bool pl_map_avframe_d3d11(pl_gpu gpu, struct pl_frame *out,
++                                 const AVFrame *frame)
++{
++    const AVHWFramesContext *hwfc = (AVHWFramesContext *) frame->hw_frames_ctx->data;
++    const AVPixFmtDescriptor *desc = av_pix_fmt_desc_get(hwfc->sw_format);
++    ID3D11Texture2D *d3d11_frame = (ID3D11Texture2D *)frame->data[0];
++    intptr_t tex_array_index = (intptr_t)frame->data[1];
++    pl_d3d11 d3d11 = pl_d3d11_get(gpu);
++    DXGI_FORMAT dxgi_format[4] = { 0 };
++    bool fmt_needed = pl_d3d11_view_format_override_required(hwfc->sw_format,
++                                                             &dxgi_format);
++
++    assert(frame->format == AV_PIX_FMT_D3D11);
++    if (!d3d11 || !d3d11_frame)
++        return false;
++
++    for (int n = 0; n < out->num_planes; n++) {
++        struct pl_plane *plane = &out->planes[n];
++        bool chroma = n == 1 || n == 2;
++        struct pl_d3d11_wrap_params params = {
++            .w = AV_CEIL_RSHIFT(frame->width, chroma ? desc->log2_chroma_w : 0),
++            .h = AV_CEIL_RSHIFT(frame->height, chroma ? desc->log2_chroma_h : 0),
++            .tex = (ID3D11Resource *)d3d11_frame,
++            .array_slice = tex_array_index,
++        };
++
++        if (fmt_needed)
++            params.fmt = dxgi_format[n];
++
++        plane->texture = pl_d3d11_wrap(gpu, &params);
++        if (!plane->texture)
++            return false;
++    }
++
++    return true;
++}
++
++static void pl_unmap_avframe_d3d11(pl_gpu gpu, struct pl_frame *frame)
++{
++    for (int n = 0; n < frame->num_planes; n++)
++        pl_tex_destroy(gpu, &frame->planes[n].texture);
++}
++#endif
++
+ PL_LIBAV_API bool pl_map_avframe_ex(pl_gpu gpu, struct pl_frame *out,
+                                     const struct pl_avframe_params *params)
+ {
+@@ -1297,6 +1394,12 @@ PL_LIBAV_API bool pl_map_avframe_ex(pl_gpu gpu, struct pl_frame *out,
+         return true;
+ #endif
+ 
++#ifdef PL_HAVE_D3D11
++    case AV_PIX_FMT_D3D11:
++        if (!pl_map_avframe_d3d11(gpu, out, frame))
++            goto error;
++        return true;
++#endif
+     default: break;
+     }
+ 
+@@ -1372,6 +1475,11 @@ PL_LIBAV_API void pl_unmap_avframe(pl_gpu gpu, struct pl_frame *frame)
+         pl_unmap_avframe_vulkan(gpu, frame);
+ #endif
+ 
++#ifdef PL_HAVE_D3D11
++    if (priv->avframe->format == AV_PIX_FMT_D3D11)
++        pl_unmap_avframe_d3d11(gpu, frame);
++#endif
++
+     desc = av_pix_fmt_desc_get(priv->avframe->format);
+     if (desc->flags & AV_PIX_FMT_FLAG_HWACCEL) {
+         for (int i = 0; i < 4; i++)
+-- 
+2.39.5
+

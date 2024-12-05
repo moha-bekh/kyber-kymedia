@@ -1,0 +1,53 @@
+From 6f3b5f5714ba973a62ac7ab7e9cd519cfe8c4958 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kacper=20Michaj=C5=82ow?= <kasper93@gmail.com>
+Date: Tue, 15 Aug 2023 18:53:09 +0200
+Subject: [PATCH 4/4] utils/libav: init proper d3d11 texture size when mapping
+
+It is padded and we have to use real texture size, not frame size.
+
+(cherry picked from commit 314fe11cacfb13bdb40e6b330edd83ee668c4a94)
+---
+ src/include/libplacebo/utils/libav_internal.h | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/include/libplacebo/utils/libav_internal.h b/src/include/libplacebo/utils/libav_internal.h
+index 26096cee..cba228bc 100644
+--- a/src/include/libplacebo/utils/libav_internal.h
++++ b/src/include/libplacebo/utils/libav_internal.h
+@@ -49,6 +49,9 @@
+ #endif
+ 
+ #if defined(PL_HAVE_D3D11)
++# ifndef COBJMACROS
++#  define COBJMACROS
++# endif
+ # include <libavutil/hwcontext_d3d11va.h>
+ # include <libplacebo/d3d11.h>
+ #endif
+@@ -1304,6 +1307,7 @@ static bool pl_map_avframe_d3d11(pl_gpu gpu, struct pl_frame *out,
+     intptr_t tex_array_index = (intptr_t)frame->data[1];
+     pl_d3d11 d3d11 = pl_d3d11_get(gpu);
+     DXGI_FORMAT dxgi_format[4] = { 0 };
++    D3D11_TEXTURE2D_DESC desc2d;
+     bool fmt_needed = pl_d3d11_view_format_override_required(hwfc->sw_format,
+                                                              &dxgi_format);
+ 
+@@ -1311,12 +1315,13 @@ static bool pl_map_avframe_d3d11(pl_gpu gpu, struct pl_frame *out,
+     if (!d3d11 || !d3d11_frame)
+         return false;
+ 
++    ID3D11Texture2D_GetDesc(d3d11_frame, &desc2d);
+     for (int n = 0; n < out->num_planes; n++) {
+         struct pl_plane *plane = &out->planes[n];
+         bool chroma = n == 1 || n == 2;
+         struct pl_d3d11_wrap_params params = {
+-            .w = AV_CEIL_RSHIFT(frame->width, chroma ? desc->log2_chroma_w : 0),
+-            .h = AV_CEIL_RSHIFT(frame->height, chroma ? desc->log2_chroma_h : 0),
++            .w = AV_CEIL_RSHIFT((int)desc2d.Width, chroma ? desc->log2_chroma_w : 0),
++            .h = AV_CEIL_RSHIFT((int)desc2d.Height, chroma ? desc->log2_chroma_h : 0),
+             .tex = (ID3D11Resource *)d3d11_frame,
+             .array_slice = tex_array_index,
+         };
+-- 
+2.39.5
+

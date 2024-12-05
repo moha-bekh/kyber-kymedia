@@ -1,0 +1,25 @@
+From 2d29d0f0424160a2e36bb0f53efcb31792b8a7ca Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
+Date: Thu, 5 Dec 2024 10:26:45 +0100
+Subject: [PATCH 3/3] pkgconfig: Adjust linked libs
+
+---
+ glslang/glslang.pc.cmake.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/glslang/glslang.pc.cmake.in b/glslang/glslang.pc.cmake.in
+index 5a21c01..5ea6b66 100644
+--- a/glslang/glslang.pc.cmake.in
++++ b/glslang/glslang.pc.cmake.in
+@@ -18,7 +18,7 @@
+     Description: OpenGL and OpenGL ES shader front end and validator
+     Requires:
+     Version: @VERSION@
+-    Libs: -L${libdir} -lglslang -lOSDependent -lHLSL -lOGLCompiler
++    Libs: -L${libdir} -lglslang -lOSDependent -lglslang-default-resource-limits -lpthread
+     Cflags: -I${includedir}
+     prefix=@CMAKE_INSTALL_PREFIX@
+     exec_prefix=@CMAKE_INSTALL_PREFIX@
+-- 
+2.39.5
+

@@ -34,6 +34,8 @@ CROSS_PREFIX="x86_64-w64-mingw32"
 BUILD_DIR="$BASE_DIR/work/$PLATFORM_NAME"
 SRC_DIR="$BASE_DIR/work/src"
 
+VULKAN_SDK_VERSION="1.4.313.0"
+
 panic() {
     echo $1
     exit 1
@@ -43,6 +45,8 @@ test_sha256() {
     local local_path=$1
     local expected_hash=$2
 
+    echo "Expecting hash: $expected_hash"
+    echo "Current hash: $(sha256sum $local_path | awk '{print $1}')"
     local real_hash=$(sha256sum $local_path | awk '{print $1}')
 
     if [[ $real_hash == $expected_hash ]]; then
@@ -200,7 +204,7 @@ build_vpl() {
     patch -p1 < $WORKSPACE_ROOT/contrib/vpl/0001-Force-static-libstdc-link.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/vpl/0002-cmake-Fix-.pc-generated-file.patch
 
-    mkdir build && cd build
+    mkdir -p build && cd build
 
     cmake .. \
         -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
@@ -214,6 +218,190 @@ build_vpl() {
 
     make -j$NJOBS
     make install
+
+    cd $init_cwd
+}
+
+build_spirvheaders() {
+    local init_cwd=$(pwd)
+
+    local uri="https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-$VULKAN_SDK_VERSION.tar.gz"
+    local archive_root="SPIRV-Headers-vulkan-sdk-$VULKAN_SDK_VERSION"
+    local sha256="f68be549d74afb61600a1e3a7d1da1e6b7437758c8e77d664909f88f302c5ac1"
+    local work_dir="$BUILD_DIR/SPIRV-Headers"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get SPIRV-Headers sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    mkdir -p build && cd build
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DSPIRV_HEADERS_ENABLE_TESTS=OFF \
+        -DCMAKE_BUILD_TYPE=Release
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_spirvtools() {
+    local init_cwd=$(pwd)
+
+    local uri="https://github.com/KhronosGroup/SPIRV-Tools/archive/refs/tags/vulkan-sdk-$VULKAN_SDK_VERSION.tar.gz"
+    local archive_root="SPIRV-Tools-vulkan-sdk-$VULKAN_SDK_VERSION"
+    local sha256="6b60f723345ceed5291cceebbcfacf7fea9361a69332261fa08ae57e2a562005"
+    local work_dir="$BUILD_DIR/SPIRV-Tools"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get SPIRV-Tools sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    mkdir -p build && cd build
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release \
+	    -DSPIRV_TOOLS_BUILD_STATIC=OFF \
+        -DSPIRV-Headers_SOURCE_DIR="$OUT_DIR" \
+	    -DSPIRV_SKIP_EXECUTABLES=ON \
+        -DSPIRV_SKIP_TESTS=ON
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_spirvcross() {
+    local init_cwd=$(pwd)
+
+    local uri="https://github.com/KhronosGroup/SPIRV-Cross/archive/refs/tags/vulkan-sdk-$VULKAN_SDK_VERSION.tar.gz"
+    local archive_root="SPIRV-Cross-vulkan-sdk-$VULKAN_SDK_VERSION"
+    local sha256="7d1de24918bea9897753f7561d4d154f68ec89c36bb70c13598222b8039d4212"
+    local work_dir="$BUILD_DIR/SPIRV-Cross"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get SPIRV-Cross sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    mkdir -p build && cd build
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DSPIRV_CROSS_SHARED=ON \
+        -DSPIRV_CROSS_STATIC=OFF \
+        -DSPIRV_CROSS_CLI=OFF \
+        -DSPIRV_CROSS_ENABLE_TESTS=OFF \
+        -DSPIRV_CROSS_ENABLE_CPP=OFF \
+        -DSPIRV_CROSS_ENABLE_REFLECT=OFF
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_glslang() {
+    local init_cwd=$(pwd)
+
+    local version="16.0.0"
+
+    local uri="https://github.com/KhronosGroup/glslang/archive/refs/tags/$version.tar.gz"
+    local archive_root="glslang-$version"
+    local sha256="172385478520335147d3b03a1587424af0935398184095f24beab128a254ecc7"
+    local work_dir="$BUILD_DIR/glslang"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get glslang sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    patch -p1 < $WORKSPACE_ROOT/contrib/glslang/0001-cmake-Add-pkg-config-support.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/glslang/0002-cmake-Link-to-spirv-tools.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/glslang/0003-pkgconfig-Adjust-linked-libs.patch
+
+    mkdir -p build && cd build
+    cmake .. \
+        -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
+        -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGLSLANG_TESTS=OFF \
+        -DENABLE_GLSLANG_BINARIES=OFF \
+
+    make -j $NJOBS
+    make install
+
+    cd $init_cwd
+}
+
+build_libplacebo() {
+    local init_cwd=$(pwd)
+
+    PATH_BAK=$PATH
+    export PATH=/usr/x86_64-w64-mingw32/bin:$PATH
+
+    local version="7.351.0"
+
+    local uri="https://github.com/haasn/libplacebo/archive/refs/tags/v$version.tar.gz"
+    local archive_root="libplacebo-$version"
+    local sha256="716954501d9b76e6906fddda66febc5886493d0673dd265ec1e6e52f4e5cd7c6"
+    local work_dir="$BUILD_DIR/libplacebo"
+
+    # Get sources
+    download_tarball $uri $sha256 || panic "Fail to get libplacebo sources"
+    mkdir -p $work_dir
+    tar xf "$SRC_DIR/$(basename $uri)" -C $work_dir
+
+    # Build
+    cd "$work_dir/$archive_root"
+
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0001-glsl-Make-it-build-with-mingw-w64.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0002-vulkan-Disable-stub.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0003-utils-libav-initial-attempt-at-d3d11-hwframe-mapping.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0004-utils-libav-init-proper-d3d11-texture-size-when-mapp.patch
+
+    mkdir -p build && cd build
+
+    export CFLAGS="-I$OUT_DIR/include"
+    export WINDRES=x86_64-w64-mingw32-windres
+
+    meson setup \
+        --prefix="$OUT_DIR" \
+        --cross-file=$WORKSPACE_ROOT/contrib/mingw-w64-meson-toolchain.ini \
+        -Dshaderc=disabled \
+        -Dd3d11=enabled \
+        -Dlcms=disabled \
+        -Dvulkan=disabled \
+        -Dopengl=disabled \
+        -Ddemos=false \
+        -Dprefer_static=false \
+        ..
+
+    ninja install
+
+    unset WINDRES
+    unset CFLAGS
+
+    export PATH=$PATH_BAK
 
     cd $init_cwd
 }
@@ -308,7 +496,7 @@ build_lua() {
     cd "$work_dir/$archive_root"
     patch -p1 < $BASE_DIR/lua/0001-Add-CMakeLists.txt.patch
 
-    mkdir build && cd build
+    mkdir -p build && cd build
     cmake .. \
         -DCMAKE_TOOLCHAIN_FILE=$WORKSPACE_ROOT/contrib/mingw-w64-toolchain.cmake \
         -DCMAKE_INSTALL_PREFIX=$OUT_DIR \
@@ -385,11 +573,16 @@ export PKG_CONFIG_ALLOW_CROSS=1
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 
 # Build dependencies
-build_x264
 build_nvcodecheaders
+build_x264
 build_amf
 build_vpl
 build_opus
+build_spirvheaders
+build_spirvtools
+build_spirvcross
+build_glslang
+build_libplacebo
 build_ffmpeg
 build_lua
 build_zlib

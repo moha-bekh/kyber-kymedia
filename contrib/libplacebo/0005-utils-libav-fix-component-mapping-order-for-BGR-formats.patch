@@ -1,0 +1,44 @@
+diff --git a/src/include/libplacebo/utils/libav_internal.h b/src/include/libplacebo/utils/libav_internal.h
+index 67eafe42..59015b5a 100644
+--- a/src/include/libplacebo/utils/libav_internal.h
++++ b/src/include/libplacebo/utils/libav_internal.h
+@@ -765,12 +765,36 @@ PL_LIBAV_API void pl_frame_from_avframe(struct pl_frame *out,
+     for (int p = 0; p < out->num_planes; p++) {
+         struct pl_plane *plane = &out->planes[p];
+
+-        // Fill in the component mapping array
++        // Collect components for this plane with their memory offsets
++        struct { int idx; int offset; } comps[4];
++        int num_comps = 0;
+         for (int c = 0; c < desc->nb_components; c++) {
+-            if (desc->comp[c].plane == p)
+-                plane->component_mapping[plane->components++] = c;
++            if (desc->comp[c].plane == p) {
++                comps[num_comps].idx = c;
++                comps[num_comps].offset = desc->comp[c].offset * 8 + desc->comp[c].shift;
++                num_comps++;
++            }
++        }
++
++        // Sort by offset to get correct memory order (for BGR formats etc.)
++        for (int i = 0; i < num_comps - 1; i++) {
++            for (int j = i + 1; j < num_comps; j++) {
++                if (comps[j].offset < comps[i].offset) {
++                    int tmp_idx = comps[i].idx;
++                    int tmp_offset = comps[i].offset;
++                    comps[i].idx = comps[j].idx;
++                    comps[i].offset = comps[j].offset;
++                    comps[j].idx = tmp_idx;
++                    comps[j].offset = tmp_offset;
++                }
++            }
+         }
+
++        // Build component_mapping in memory order
++        plane->components = num_comps;
++        for (int i = 0; i < num_comps; i++)
++            plane->component_mapping[i] = comps[i].idx;
++
+         // Clear the superfluous components
+         for (int c = plane->components; c < 4; c++)
+             plane->component_mapping[c] = PL_CHANNEL_NONE;
