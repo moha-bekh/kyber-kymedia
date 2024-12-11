@@ -297,7 +297,6 @@ fn create_amf(
         encoder_config_to_dict(encoder_config)
     } else {
         let mut options = vec![
-            ("preset", "veryfast").into(),
             ("bf", 0).into(),
             ("b", config.bitrate as i64).into(),
             ("flags", "+global_header").into(),
