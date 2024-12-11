@@ -127,7 +127,6 @@ impl Txproto {
                     sample_rate: entry.sample_rate,
                     sample_fmt: entry.sample_fmt,
                     channels: entry.channels,
-                    channel_layout: entry.channel_layout,
                     volume: entry.volume,
                 }
             }

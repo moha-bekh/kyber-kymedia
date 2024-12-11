@@ -39,7 +39,6 @@ pub enum IOEntryType {
         sample_rate: i32,
         sample_fmt: i32,
         channels: i32,
-        channel_layout: u64,
         volume: f32,
     },
 }
