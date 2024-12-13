@@ -46,6 +46,47 @@ impl<'a> Default for EncoderConfig<'a> {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct LinkConfig<'a> {
+    pub autostart: bool,
+    pub src_pad: Option<&'a str>,
+    pub dst_pad: Option<&'a str>,
+    pub src_stream_id: i32,
+    pub src_stream_desc: Option<&'a str>,
+}
+
+impl Default for LinkConfig<'_> {
+    fn default() -> Self {
+        Self {
+            autostart: true,
+            src_stream_id: -1,
+            src_pad: None,
+            dst_pad: None,
+            src_stream_desc: None,
+        }
+    }
+}
+
+impl From<i32> for LinkConfig<'_> {
+    fn from(value: i32) -> Self {
+        Self {
+            src_stream_id: value,
+            ..Default::default()
+        }
+    }
+}
+
+impl<'a> From<&'a str> for LinkConfig<'a> {
+    fn from(value: &'a str) -> Self {
+        Self {
+            src_pad: Some(value),
+            dst_pad: Some(value),
+            src_stream_desc: Some(value),
+            ..Default::default()
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Handle {
     h: *mut sys::AVBufferRef,
@@ -301,8 +342,33 @@ impl Txproto {
         Ok(())
     }
 
-    pub fn link(&self, src: &Handle, dst: &Handle, src_stream_id: i32) -> Result<()> {
-        let ret = unsafe { sys::tx_link(self.inner(), src.h, dst.h, src_stream_id) };
+    pub fn link<'a>(
+        &self,
+        src: &Handle,
+        dst: &Handle,
+        cfg: impl Into<LinkConfig<'a>>,
+    ) -> Result<()> {
+        let cfg: LinkConfig<'_> = cfg.into();
+        let src_pad_name = cfg.src_pad.map(CString::new).transpose()?;
+        let dst_pad_name = cfg.dst_pad.map(CString::new).transpose()?;
+        let src_stream_desc = cfg.src_stream_desc.map(CString::new).transpose()?;
+        let options = sys::TXLinkOptions {
+            autostart: cfg.autostart as i32,
+            src_stream_id: cfg.src_stream_id,
+            src_pad: src_pad_name
+                .as_ref()
+                .map(|s| s.as_ptr())
+                .unwrap_or(ptr::null()),
+            dst_pad: dst_pad_name
+                .as_ref()
+                .map(|s| s.as_ptr())
+                .unwrap_or(ptr::null()),
+            src_stream_desc: src_stream_desc
+                .as_ref()
+                .map(|s| s.as_ptr())
+                .unwrap_or(ptr::null()),
+        };
+        let ret = unsafe { sys::tx_link(self.inner(), src.h, dst.h, &options) };
         if ret != 0 {
             return Err(ret.into());
         }
