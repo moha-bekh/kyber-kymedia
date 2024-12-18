@@ -131,6 +131,7 @@ dependencies = [
  "js-sys",
  "libc",
  "log",
+ "wasm-bindgen",
  "wasmtimer",
 ]
 

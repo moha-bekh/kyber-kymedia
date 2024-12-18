@@ -4,6 +4,13 @@ use super::{
 
 use std::sync::atomic::Ordering;
 
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    pub type GlobalScope;
+}
+
 #[derive(Debug)]
 pub(crate) struct AudioRegulatorJSSharedMemoryDriver {
     _sab: js_sys::SharedArrayBuffer,

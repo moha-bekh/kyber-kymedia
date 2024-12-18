@@ -3,6 +3,9 @@ use std::ops::Deref;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
+#[allow(unused_imports)]
+use crate::NotAvailable;
+
 #[cfg(all(feature = "js", target_family = "wasm"))]
 mod js;
 mod native;
@@ -26,8 +29,35 @@ impl AudioRegulatorSharedMemory {
     }
 
     #[cfg(all(feature = "js", target_family = "wasm"))]
-    pub fn create_sab(alloc_size: u32, sample_size: u32) -> js_sys::SharedArrayBuffer {
-        js::AudioRegulatorJSSharedMemoryDriver::create_sab(alloc_size, sample_size)
+    pub fn available() -> bool {
+        use js_sys::wasm_bindgen::JsCast;
+
+        let global = js_sys::global();
+        let global_scope = global.unchecked_ref::<js::GlobalScope>();
+
+        match js_sys::Reflect::has(global_scope, &"SharedArrayBuffer".into()) {
+            Ok(defined) => defined,
+            Err(err) => {
+                log::warn!("Failed to check if SharedArrayBuffer is defined: {err:?}");
+                false
+            }
+        }
+    }
+
+    #[cfg(all(feature = "js", target_family = "wasm"))]
+    pub fn create_sab(
+        alloc_size: u32,
+        sample_size: u32,
+    ) -> std::result::Result<js_sys::SharedArrayBuffer, NotAvailable> {
+        if !Self::available() {
+            log::warn!("SharedArrayBuffer is undefined");
+            return Err(NotAvailable);
+        }
+
+        Ok(js::AudioRegulatorJSSharedMemoryDriver::create_sab(
+            alloc_size,
+            sample_size,
+        ))
     }
 
     #[cfg(all(feature = "js", target_family = "wasm"))]
