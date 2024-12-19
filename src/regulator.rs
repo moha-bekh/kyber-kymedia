@@ -12,7 +12,7 @@ use std::time::Duration;
 use std::time::Instant;
 
 #[cfg(target_family = "wasm")]
-use wasmtimer::std::Instant;
+use kywasmtime::Instant;
 
 pub struct AudioRegulatorPush {
     memory: AudioRegulatorSharedMemory,
