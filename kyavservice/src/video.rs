@@ -39,6 +39,7 @@ pub(crate) enum VideoEncoder {
     QSV,
     VAAPI,
     X264,
+    VIDEOTOOLBOX,
 }
 
 pub(crate) struct VideoConfig {
@@ -498,6 +499,56 @@ fn create_x264(
     Ok(encoder)
 }
 
+fn create_videotoolbox(
+    ctx: &Txproto,
+    config: &VideoConfig,
+    video_source: &txproto_rs::Handle,
+) -> Result<txproto_rs::Handle> {
+    // Configure Codec
+    let options = if let Some(encoder_config) = &config.encoder_config {
+        encoder_config_to_dict(encoder_config)
+    } else {
+        vec![
+            ("preset", "medium").into(),
+            ("hardware", true).into(),
+            ("pix_fmt", "nv12").into(),
+            ("flags", "+global_header").into(),
+            ("prio_speed", true).into(),
+            ("realtime", true).into(),
+            ("power_efficient", 0).into(),
+            ("low_delay", true).into(),
+            ("bf", 0).into(),
+            ("b_ref_mode", 0).into(),
+            ("b", config.bitrate as i64).into(),
+        ]
+    };
+
+    print_options("videotoolbox", &options);
+    let options = Dictionary::from_entries(&options)?;
+
+    // Encoder
+    let init_opts = Dictionary::from_entries(&[("fifo_size", 1).into()])?;
+
+    let enc_name = match config.codec {
+        VideoCodec::H264 => "h264_videotoolbox",
+        VideoCodec::HEVC => "hevc_videotoolbox",
+        VideoCodec::AV1 => "av1_videotoolbox",
+    };
+
+    let config = txproto_rs::EncoderConfig {
+        enc_name,
+        options: Some(options),
+        init_opts: Some(init_opts),
+        ..Default::default()
+    };
+
+    info!("Create encoder {enc_name}");
+    let encoder = ctx.create_encoder(config)?;
+    ctx.link(video_source, &encoder, 0)?;
+
+    Ok(encoder)
+}
+
 fn plug_error_listener(
     ctx: &Txproto,
     handle: &txproto_rs::Handle,
@@ -585,6 +636,7 @@ pub(crate) fn configure(
         VideoEncoder::QSV => create_qsv,
         VideoEncoder::VAAPI => create_vaapi,
         VideoEncoder::X264 => create_x264,
+        VideoEncoder::VIDEOTOOLBOX => create_videotoolbox,
     };
 
     let encoder = create_encoder(ctx, &video_config, &video_source)?;
