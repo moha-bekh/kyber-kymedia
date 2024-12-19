@@ -28,9 +28,9 @@ use txproto_sys as sys;
 
 use crate::Result;
 
-#[cfg(target_os = "windows")]
+#[cfg(all(target_os = "macos", target_arch = "x86_64"))]
 mod bindgen_extras {
-    pub type Valist = crate::sys::va_list;
+    pub type Valist = *mut crate::sys::__va_list_tag;
 
     unsafe extern "C" {
         pub fn vsnprintf(
@@ -42,9 +42,9 @@ mod bindgen_extras {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 mod bindgen_extras {
-    pub type Valist = *mut crate::sys::__va_list_tag;
+    pub type Valist = crate::sys::va_list;
 
     unsafe extern "C" {
         pub fn vsnprintf(
