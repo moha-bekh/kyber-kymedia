@@ -222,9 +222,7 @@ pub(crate) struct JSSpinLockGuard<'a> {
 impl<'a> JSSpinLockGuard<'a> {
     pub(crate) fn lock(spinlock: &'a JSSpinLock) -> Self {
         spinlock.lock();
-        Self {
-            spinlock: &spinlock,
-        }
+        Self { spinlock }
     }
 }
 
