@@ -271,6 +271,15 @@ impl Txproto {
         Ok(Handle { h })
     }
 
+    pub fn encoder_set_bitrate(&self, encoder: &Handle, bitrate: i32) -> Result<()> {
+        let ret = unsafe { sys::tx_encoder_set_bitrate(self.inner(), encoder.h, bitrate) };
+        if ret != 0 {
+            return Err(ret.into());
+        }
+
+        Ok(())
+    }
+
     pub fn create_muxer(
         &self,
         out_url: &str,
