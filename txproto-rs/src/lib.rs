@@ -280,6 +280,15 @@ impl Txproto {
         Ok(())
     }
 
+    pub fn encoder_force_idr(&self, encoder: &Handle) -> Result<()> {
+        let ret = unsafe { sys::tx_encoder_force_idr(self.inner(), encoder.h) };
+        if ret != 0 {
+            return Err(ret.into());
+        }
+
+        Ok(())
+    }
+
     pub fn create_muxer(
         &self,
         out_url: &str,
