@@ -1,8 +1,10 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
   DEBIAN_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-bookworm:20240226122118
+  WASM_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-wasm:20240226153230
   WIN64_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-win64:20240226123357
   MACOS_RUST_VERSION: 1.76.0
+  WEB_FEATURES: js
 
 stages:
   - lint
@@ -177,3 +179,36 @@ clippy-macos-arm64:
   variables: *variables-macos-arm64
   needs:
     - build-macos-arm64
+
+build-wasm:
+  stage: build
+  image: $WASM_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    cargo build \
+        --target wasm32-unknown-unknown \
+        --features $WEB_FEATURES
+
+clippy-wasm:
+  stage: misc
+  image: $WASM_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - build-wasm
+  script: |
+    cargo clippy \
+        --target wasm32-unknown-unknown \
+        --features $WEB_FEATURES \
+        -- -D warnings
