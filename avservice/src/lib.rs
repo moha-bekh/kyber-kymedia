@@ -12,7 +12,7 @@ use log::{error, info, warn};
 use avservice_types::{
     Command, Event, PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
 };
-use libkypc::{EventSender, Worker};
+use libkypc::{CommandReceiver, EventSender, Worker};
 use txproto_rs::Txproto;
 
 pub use error::{Error, Result};
@@ -21,6 +21,7 @@ pub(crate) use video::{VideoConfig, VideoEncoder};
 #[allow(unused)]
 struct Context {
     events: Option<Vec<txproto_rs::Event>>,
+    encoder: Option<txproto_rs::Handle>,
     ctx: Txproto,
 }
 
@@ -39,12 +40,42 @@ async fn forward_init_error(sender: &mut EventSender<Event>, err: Error, type_: 
     }
 }
 
+async fn handle_video_set_bitrate(
+    ctx: &mut Option<Context>,
+    receiver: &mut CommandReceiver<Command, Event>,
+    cmd_id: u32,
+    bitrate: i32,
+) -> Result<()> {
+    info!("Set bitrate to {bitrate}");
+
+    let Some(ctx) = &ctx else {
+        info!("No session started");
+        receiver.reject(cmd_id, None).await?;
+
+        return Ok(());
+    };
+
+    let Some(encoder) = &ctx.encoder else {
+        info!("No active encoder");
+        receiver.reject(cmd_id, None).await?;
+
+        return Ok(());
+    };
+
+    receiver.accept(cmd_id, None).await?;
+
+    ctx.ctx.encoder_set_bitrate(encoder, bitrate)?;
+    ctx.ctx.commit()?;
+
+    Ok(())
+}
+
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
 
     let (mut receiver, mut sender) = worker.get_sender_receiver()?;
 
-    let mut _ctx = None;
+    let mut ctx = None;
     let config = config::load().await?;
 
     while let Ok(msg) = receiver.recv().await {
@@ -63,7 +94,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     )
                     .await?;
 
-                _ctx = Some(c);
+                ctx = Some(c);
             }
             (
                 cmd_id,
@@ -123,7 +154,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
 
                 let ret = rtp::start_video(video_config, ip, port, sender.clone());
                 match ret {
-                    Ok(c) => _ctx = Some(c),
+                    Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
                 }
             }
@@ -133,7 +164,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
 
                 let ret = rtp::start_audio(ip, port, sender.clone());
                 match ret {
-                    Ok(c) => _ctx = Some(c),
+                    Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
                 }
             }
@@ -163,7 +194,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
 
                 let ret = kymux::start_video(video_config, &uri, sender.clone());
                 match ret {
-                    Ok(c) => _ctx = Some(c),
+                    Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
                 }
             }
@@ -173,14 +204,17 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
 
                 let ret = kymux::start_audio(&uri, sender.clone());
                 match ret {
-                    Ok(c) => _ctx = Some(c),
+                    Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Audio).await,
                 }
+            }
+            (cmd_id, Command::VideoSetBitrate { bitrate }) => {
+                handle_video_set_bitrate(&mut ctx, &mut receiver, cmd_id, bitrate).await?;
             }
             (cmd_id, Command::Stop) => {
                 receiver.accept(cmd_id, None).await?;
 
-                _ctx = None;
+                drop(ctx);
 
                 worker.stop().await?;
                 break;

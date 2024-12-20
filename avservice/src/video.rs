@@ -415,12 +415,17 @@ fn plug_error_listener(
     Ok(error_event)
 }
 
+pub(crate) struct VideoPipeline {
+    pub(crate) encoder: Option<txproto_rs::Handle>,
+    pub(crate) events: Vec<txproto_rs::Event>,
+}
+
 pub(crate) fn configure(
     ctx: &Txproto,
     video_config: VideoConfig,
     muxer: txproto_rs::Handle,
     sender: Option<EventSender<Event>>,
-) -> Result<Vec<txproto_rs::Event>> {
+) -> Result<VideoPipeline> {
     let mut events = vec![];
 
     let io_event = ctx.register_io_cb(|_| {})?;
@@ -460,5 +465,8 @@ pub(crate) fn configure(
         events.push(event);
     }
 
-    Ok(events)
+    Ok(VideoPipeline {
+        encoder: Some(encoder),
+        events,
+    })
 }

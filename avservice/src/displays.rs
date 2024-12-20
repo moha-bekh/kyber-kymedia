@@ -85,6 +85,7 @@ pub(crate) fn enumerate(mut sender: EventSender<Event>) -> Result<(Context, Vec<
 
     let ctx = Context {
         ctx,
+        encoder: None,
         events: Some(vec![event]),
     };
 

@@ -48,6 +48,9 @@ pub enum Command {
     KymuxStartAudio {
         uri: String,
     },
+    VideoSetBitrate {
+        bitrate: i32,
+    },
     Stop,
 }
 
