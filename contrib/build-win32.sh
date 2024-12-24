@@ -583,7 +583,7 @@ build_spirvtools
 build_spirvcross
 build_glslang
 build_libplacebo
+build_zlib # must be before FFmpeg
 build_ffmpeg
 build_lua
-build_zlib
 build_txproto

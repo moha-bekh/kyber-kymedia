@@ -30,6 +30,7 @@ pub(crate) struct Config {
     minimum_bitrate: Option<u32>,
     pub(crate) video_encoder_config: Option<EncoderConfig>,
     clock_type: Option<ClockType>,
+    pub(crate) watermark: Option<String>,
 }
 
 impl Default for Config {
@@ -40,6 +41,7 @@ impl Default for Config {
             minimum_bitrate: None,
             video_encoder_config: None,
             clock_type: None,
+            watermark: None,
         }
     }
 }

@@ -28,6 +28,7 @@ pub(crate) struct VideoConfig {
     pub(crate) intra_refresh: bool,
     pub(crate) encoder_config: Option<config::EncoderConfig>,
     pub(crate) clock_type: config::ClockType,
+    pub(crate) watermark: Option<String>,
 }
 
 fn print_options(encoder: &str, options: &[DictionaryEntry]) {
@@ -436,6 +437,27 @@ pub(crate) fn configure(
     // Video source
     info!("Start screen grab on display {}", video_config.display_id);
     let video_source = ctx.create_io(video_config.display_id, None)?;
+
+    // Watermark
+    let video_source = if let Some(watermark) = &video_config.watermark {
+        let watermark = ctx.watermark_filter_create(watermark)?;
+        ctx.link(&video_source, &watermark, 0)?;
+
+        #[cfg(target_os = "linux")]
+        {
+            let filter =
+                ctx.create_filtergraph("hwupload", txproto_rs::HWDeviceType::CUDA, None)?;
+
+            ctx.link(&watermark, &filter, 0)?;
+
+            filter
+        }
+
+        #[cfg(target_os = "windows")]
+        watermark
+    } else {
+        video_source
+    };
 
     // Encoder
     let create_encoder = match video_config.encoder {

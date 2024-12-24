@@ -367,6 +367,19 @@ impl Txproto {
         Ok(Handle { h })
     }
 
+    pub fn watermark_filter_create(&self, image_path: &str) -> Result<Handle> {
+        let image_path = CString::new(image_path)?;
+
+        let h = unsafe { sys::tx_watermark_filter_create(self.inner(), image_path.as_ptr()) };
+        if h.is_null() {
+            return Err(Error::TxprotoComponentCreateFailed {
+                name: "WatermarkFilter".into(),
+            });
+        }
+
+        Ok(Handle { h })
+    }
+
     pub fn register_event(&self, h: &Handle, event: &mut Event) -> Result<()> {
         event.register(&self.ctx, h)?;
 

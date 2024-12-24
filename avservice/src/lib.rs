@@ -194,6 +194,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
                     clock_type: config.clock_type(),
+                    watermark: None,
                 };
 
                 let ret = rtp::start_video(video_config, ip, port, sender.clone());
@@ -236,6 +237,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
                     clock_type: config.clock_type(),
+                    watermark: config.watermark.clone(),
                 };
 
                 let ret =
