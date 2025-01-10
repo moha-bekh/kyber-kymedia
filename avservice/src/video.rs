@@ -89,6 +89,8 @@ fn create_nvenc(
         if config.intra_refresh {
             options.push(("intra-refresh", 1).into());
             options.push(("g", 120).into());
+        } else {
+            options.push(("g", 600).into());
         }
 
         match config.codec {
