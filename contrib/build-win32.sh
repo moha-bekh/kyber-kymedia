@@ -308,7 +308,7 @@ build_txproto() {
     mkdir -p $BUILD_DIR/txproto
     cd $BUILD_DIR/txproto
 
-    meson \
+    meson setup \
         --buildtype=release \
         --prefix=$OUT_DIR \
         --libdir=$OUT_DIR/lib \
