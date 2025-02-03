@@ -16,6 +16,7 @@ use avservice_types::{
 use libkypc::{CommandReceiver, EventSender, Worker};
 use txproto_rs::Txproto;
 
+use crate::config::Config;
 pub(crate) use clock::configure_clock;
 pub use error::{Error, Result};
 pub(crate) use video::{VideoConfig, VideoEncoder};
@@ -101,6 +102,16 @@ async fn handle_video_force_idr(
     Ok(())
 }
 
+fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
+    let min_bitrate = config.minimum_bitrate();
+    if bitrate < min_bitrate {
+        warn!("Bitrate too low. Reconfigure it: {bitrate} -> {min_bitrate}");
+        min_bitrate
+    } else {
+        bitrate
+    }
+}
+
 pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service started");
 
@@ -176,7 +187,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 let video_config = VideoConfig {
                     display_id,
                     encoder: config.encoder,
-                    bitrate,
+                    bitrate: ajust_min_bitrate(&config, bitrate),
                     codec: VideoCodec::H264,
                     yuv444,
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
@@ -217,7 +228,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 let video_config = VideoConfig {
                     display_id,
                     encoder: config.encoder,
-                    bitrate,
+                    bitrate: ajust_min_bitrate(&config, bitrate),
                     codec,
                     yuv444,
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),

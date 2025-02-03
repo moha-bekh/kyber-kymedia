@@ -27,6 +27,7 @@ pub(crate) enum ClockType {
 pub(crate) struct Config {
     pub(crate) encoder: VideoEncoder,
     intra_refresh: Option<bool>,
+    minimum_bitrate: Option<u32>,
     pub(crate) video_encoder_config: Option<EncoderConfig>,
     clock_type: Option<ClockType>,
 }
@@ -36,6 +37,7 @@ impl Default for Config {
         Self {
             encoder: VideoEncoder::NVENC,
             intra_refresh: None,
+            minimum_bitrate: None,
             video_encoder_config: None,
             clock_type: None,
         }
@@ -49,6 +51,10 @@ impl Config {
 
     pub(crate) fn clock_type(&self) -> ClockType {
         *self.clock_type.as_ref().unwrap_or(&ClockType::ZeroedOrigin)
+    }
+
+    pub(crate) fn minimum_bitrate(&self) -> u32 {
+        self.minimum_bitrate.unwrap_or(5_000_000)
     }
 }
 
