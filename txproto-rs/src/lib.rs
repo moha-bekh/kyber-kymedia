@@ -87,6 +87,12 @@ impl<'a> From<&'a str> for LinkConfig<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct Metrics<'a> {
+    pub key: &'a str,
+    pub value: i64,
+}
+
 #[derive(Clone)]
 pub struct Handle {
     h: *mut sys::AVBufferRef,
@@ -95,6 +101,13 @@ pub struct Handle {
 struct IoCbData<F>
 where
     F: FnMut(IOSysEntry),
+{
+    cb: F,
+}
+
+struct MetricsCbData<F>
+where
+    F: FnMut(&[Metrics]),
 {
     cb: F,
 }
@@ -396,6 +409,50 @@ impl Txproto {
 
     pub fn commit(&self) -> Result<()> {
         let ret = unsafe { sys::tx_commit(self.inner()) };
+        if ret != 0 {
+            return Err(ret.into());
+        }
+
+        Ok(())
+    }
+
+    unsafe extern "C" fn metrics_cb<Cb>(
+        entries: *const sys::tx_metrics_entry,
+        count: usize,
+        userdata: *mut libc::c_void,
+    ) -> libc::c_int
+    where
+        Cb: FnMut(&[Metrics]),
+    {
+        let data: &mut MetricsCbData<Cb> = unsafe { &mut *(userdata as *mut _) };
+
+        let slice = std::slice::from_raw_parts(entries, count);
+
+        let slice: Vec<_> = slice
+            .iter()
+            .map(|entry| {
+                let key = CStr::from_ptr(entry.key).to_str().unwrap();
+                Metrics {
+                    key,
+                    value: entry.value,
+                }
+            })
+            .collect();
+
+        (data.cb)(&slice);
+
+        0
+    }
+
+    pub fn set_metrics_cb<Cb>(&self, cb: Cb) -> Result<()>
+    where
+        Cb: FnMut(&[Metrics]),
+    {
+        let data = Box::into_raw(Box::new(MetricsCbData { cb }));
+
+        let ret = unsafe {
+            sys::tx_set_metrics_cb(self.inner(), Some(Self::metrics_cb::<Cb>), data as *mut _)
+        };
         if ret != 0 {
             return Err(ret.into());
         }
