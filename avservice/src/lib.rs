@@ -4,6 +4,7 @@ mod config;
 mod displays;
 mod error;
 mod kymux;
+mod metrics;
 mod rtp;
 mod utils;
 mod video;
@@ -220,6 +221,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     codec,
                     yuv444,
                     intra_refresh,
+                    metrics_uri,
                 },
             ) => {
                 receiver.accept(cmd_id, None).await?;
@@ -236,7 +238,8 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     clock_type: config.clock_type(),
                 };
 
-                let ret = kymux::start_video(video_config, &uri, sender.clone());
+                let ret =
+                    kymux::start_video(video_config, &uri, metrics_uri.as_deref(), sender.clone());
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,

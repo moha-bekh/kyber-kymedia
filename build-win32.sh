@@ -103,12 +103,17 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
         git_clone "kyber-labs/kyber-streamer/libkypc.git"
     fi
 
+    if [[ ! -d kymux ]]; then
+        git_clone "kyber-labs/kyber-streamer/kymux.git"
+    fi
+
     # Cargo config
-    echo "Add extra cargo configuration to find libkypc"
+    echo "Add extra cargo configuration to find libkypc and kymux"
 
     mkdir -p .cargo
     echo '[patch.crates-io]' > .cargo/config.toml
     echo 'libkypc = { path = "libkypc" }' >> .cargo/config.toml
+    echo 'kymux_client = { path = "kymux/kymux_client" }' >> .cargo/config.toml
 fi
 
 # Build dependencies

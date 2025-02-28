@@ -30,6 +30,26 @@ pub enum Error {
     ConfigWriteFail { reason: toml::ser::Error },
     #[error("Thread has panicked")]
     ThreadPanicked,
+    #[error("IO Error: {source:?}")]
+    IO {
+        #[from]
+        source: std::io::Error,
+    },
+    #[error("kymux_client error: {source:?}")]
+    KymuxClient {
+        #[from]
+        source: kymux_client::Error,
+    },
+    #[error("Integer conversion error: {source:?}")]
+    TryFromInt {
+        #[from]
+        source: std::num::TryFromIntError,
+    },
+    #[error("rmp encode error: {source:?}")]
+    RmpEncode {
+        #[from]
+        source: rmp_serde::encode::Error,
+    },
 }
 
 impl<T> From<std::sync::PoisonError<T>> for Error {

@@ -44,6 +44,7 @@ pub enum Command {
         codec: VideoCodec,
         yuv444: bool,
         intra_refresh: Option<bool>,
+        metrics_uri: Option<String>,
     },
     KymuxStartAudio {
         uri: String,
