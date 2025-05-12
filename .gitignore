@@ -1,3 +1,4 @@
+.cargo
 contrib/work
 libkypc
 rootfs*
