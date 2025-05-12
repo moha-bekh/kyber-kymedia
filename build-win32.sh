@@ -12,11 +12,6 @@ NJOBS=$(grep -c ^processor /proc/cpuinfo)
 PLATFORM_NAME="x86_64-w64-mingw32"
 CROSS_PREFIX="x86_64-w64-mingw32"
 
-# Intermediate directories
-WORK_DIR="$BASE_DIR/work/$PLATFORM_NAME"
-BUILD_DIR="$WORK_DIR/build"
-SRC_DIR="$WORK_DIR/src"
-
 usage()
 {
 cat << EOF
@@ -94,7 +89,6 @@ if [ -z ${OUT_DIR} ]; then
 fi
 
 # Create folders
-mkdir -p $SRC_DIR $BUILD_DIR
 mkdir -p $OUT_DIR
 
 # Build kyber dependencies
