@@ -19,6 +19,19 @@ fn main() {
         .allowlist_type("IOSysEntry.*")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
 
+    // Try to guess the mingw-w64 include path on mac
+    #[cfg(target_os = "macos")]
+    if let Some(output) = env::var("CARGO_CFG_WINDOWS").ok().and_then(|_| {
+        std::process::Command::new("brew")
+            .args(["--prefix", "mingw-w64"])
+            .output()
+            .ok()
+    }) {
+        let prefix = String::from_utf8(output.stdout).expect("brew output not utf8");
+        let prefix = prefix.trim();
+        bindings = bindings.clang_arg(format!("-I{prefix}/toolchain-x86_64/mingw/include"));
+    }
+
     // Set header include paths
     let libraries = ["txproto", "libavutil"];
 
