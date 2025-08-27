@@ -18,6 +18,20 @@ stages:
 .variables-macos-arm64: &variables-macos-arm64
   CARGO_TARGET: aarch64-apple-darwin
 
+.variables-ios: &variables-ios
+  RUST_TARGET: aarch64-apple-ios
+  RUST_VERSION: 1.89.0
+
+.variables-tvos: &variables-tvos
+  RUST_TARGET: aarch64-apple-tvos
+  RUST_VERSION: nightly-2025-08-24
+  CARGOC_FLAGS: -Zbuild-std=std,panic_abort
+
+.variables-visionos: &variables-visionos
+  RUST_TARGET: aarch64-apple-visionos
+  RUST_VERSION: nightly-2025-08-24
+  CARGOC_FLAGS: -Zbuild-std=std,panic_abort
+
 lint:
   stage: lint
   image: $DEBIAN_IMAGE
@@ -212,3 +226,35 @@ clippy-wasm:
         --target wasm32-unknown-unknown \
         --features $WEB_FEATURES \
         -- -D warnings
+
+.build-ios-common:
+  stage: build
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    rustup override set $RUST_VERSION
+    cargo cinstall --prefix="$(pwd)/rootfs" \
+      --target=$RUST_TARGET \
+      $CARGOC_FLAGS \
+      --release \
+      --library-type=staticlib
+
+  needs:
+    - lint
+  when: manual
+
+build-ios:
+  extends: .build-ios-common
+  variables: *variables-ios
+
+build-tvos:
+  extends: .build-ios-common
+  variables: *variables-tvos
+
+build-visionos:
+  extends: .build-ios-common
+  variables: *variables-visionos
