@@ -89,7 +89,7 @@ build_x264() {
 
     local uri="https://code.videolan.org/videolan/x264/-/archive/a8b68ebfaa68621b5ac8907610d3335971839d52/x264-a8b68ebfaa68621b5ac8907610d3335971839d52.zip"
     local archive_root='x264-a8b68ebfaa68621b5ac8907610d3335971839d52'
-    local sha256="113c3ca73da52be3f3dc9ad78a3af945ee7a1059ee1f9ee34caa2e18504eb245"
+    local sha256="a2146359710182ae252f2125264d564ec82f2b947497b6b03da520bed1e0914b"
     local work_dir="$BUILD_DIR/x264"
 
     # Get sources
