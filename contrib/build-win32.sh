@@ -9,24 +9,7 @@ WORKSPACE_ROOT=$BASE_DIR/..
 TXPROTO_SRCDIR="$WORKSPACE_ROOT/external/txproto"
 
 # Build configuration
-NJOBS=
-case "$(uname)" in
-    Linux|MINGW32*|MINGW64*|*MSYS*)
-        NJOBS="$(getconf _NPROCESSORS_ONLN 2>&1)"
-        ;;
-    Darwin|FreeBSD|NetBSD)
-        NJOBS="$(getconf NPROCESSORS_ONLN 2>&1)"
-        ;;
-    OpenBSD)
-        NJOBS="$(sysctl -n hw.ncpu 2>&1)"
-        ;;
-    SunOS)
-        NJOBS="$(psrinfo | wc -l 2>&1)"
-        ;;
-    *)
-        NJOBS=1 # default
-        ;;
-esac
+NJOBS=$(grep -c ^processor /proc/cpuinfo)
 PLATFORM_NAME="x86_64-w64-mingw32"
 CROSS_PREFIX="x86_64-w64-mingw32"
 

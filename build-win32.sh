@@ -8,6 +8,7 @@ BASE_DIR=$(realpath $(dirname $0))
 WORKSPACE_ROOT=$BASE_DIR/..
 
 # Build configuration
+NJOBS=$(grep -c ^processor /proc/cpuinfo)
 PLATFORM_NAME="x86_64-w64-mingw32"
 CROSS_PREFIX="x86_64-w64-mingw32"
 
