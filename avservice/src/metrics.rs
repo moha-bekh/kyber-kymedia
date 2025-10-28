@@ -1,6 +1,7 @@
+use kycom::ProtocolEndpoint;
 use log::warn;
 use serde::Serialize;
-use tokio::{io::AsyncWriteExt, sync::mpsc, task};
+use tokio::{sync::mpsc, task};
 
 use crate::Result;
 
@@ -12,15 +13,16 @@ pub(crate) struct Metrics {
 }
 
 async fn forward_task(mut rx: mpsc::Receiver<Vec<Metrics>>, uri: String) -> Result<()> {
-    let client = kymux_client::Client::connect(&uri).await?;
-    let mut client = client.into_tcp_stream();
+    let addr = uri.parse::<kycom::KyComAddr>()?;
+    let kycom_client = kycom::MetricsServerEndpoint::connect(addr).await?;
+    let mut ipc = kycom_client.ready().await?;
 
     while let Some(metrics) = rx.recv().await {
         let buf = rmp_serde::to_vec(&metrics)?;
-        let len = u16::try_from(buf.len())?;
-
-        client.write_all(&len.to_be_bytes()).await?;
-        client.write_all(&buf).await?;
+        let packet = kycom::MetricsPacket {
+            payload: buf.into(),
+        };
+        ipc.send(packet).await?;
     }
 
     Ok(())

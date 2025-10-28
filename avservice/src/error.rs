@@ -35,10 +35,10 @@ pub enum Error {
         #[from]
         source: std::io::Error,
     },
-    #[error("kymux_client error: {source:?}")]
-    KymuxClient {
+    #[error("kycom client error: {source:?}")]
+    KycomClient {
         #[from]
-        source: kymux_client::Error,
+        source: kycom::ProtocolError,
     },
     #[error("Integer conversion error: {source:?}")]
     TryFromInt {

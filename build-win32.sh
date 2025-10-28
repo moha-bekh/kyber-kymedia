@@ -106,7 +106,7 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     mkdir -p .cargo
     echo '[patch.crates-io]' > .cargo/config.toml
     echo 'libkypc = { path = "libkypc" }' >> .cargo/config.toml
-    echo 'kymux_client = { path = "kymux/kymux_client" }' >> .cargo/config.toml
+    echo 'kycom = { path = "kymux/kycom" }' >> .cargo/config.toml
 fi
 
 # Build dependencies
