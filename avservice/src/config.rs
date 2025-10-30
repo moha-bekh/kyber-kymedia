@@ -23,6 +23,28 @@ pub(crate) enum ClockType {
     System,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct WatermarkConfig {
+    pub file: String,
+    #[serde(default = "default_position")]
+    pub x: f32, // Horizontal position [-1.0 = left, 0.0 = center, 1.0 = right]
+    #[serde(default = "default_position")]
+    pub y: f32, // Vertical position [-1.0 = top, 0.0 = center, 1.0 = bottom]
+}
+
+fn default_position() -> f32 {
+    0.0 // Center
+}
+
+impl WatermarkConfig {
+    pub(crate) fn position(&self) -> txproto_rs::TxWatermarkPosition {
+        txproto_rs::TxWatermarkPosition {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
     pub(crate) encoder: VideoEncoder,
@@ -30,7 +52,7 @@ pub(crate) struct Config {
     minimum_bitrate: Option<u32>,
     pub(crate) video_encoder_config: Option<EncoderConfig>,
     clock_type: Option<ClockType>,
-    pub(crate) watermark: Option<String>,
+    pub(crate) watermark: Option<WatermarkConfig>,
 }
 
 impl Default for Config {

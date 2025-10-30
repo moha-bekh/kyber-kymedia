@@ -21,6 +21,21 @@ pub use event::{Event, EventType};
 pub use io::{IOEntryType, IOSysEntry, IOSysType};
 pub use logging::init_logger;
 
+#[derive(Clone, Copy, Debug)]
+pub struct TxWatermarkPosition {
+    pub x: f32, // Horizontal position [-1.0 = left, 0.0 = center, 1.0 = right]
+    pub y: f32, // Vertical position [-1.0 = top, 0.0 = center, 1.0 = bottom]
+}
+
+impl TxWatermarkPosition {
+    fn to_sys(self) -> sys::TxWatermarkPosition {
+        sys::TxWatermarkPosition {
+            x: self.x,
+            y: self.y,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum HandleEvent {
     Error,
@@ -367,10 +382,16 @@ impl Txproto {
         Ok(Handle { h })
     }
 
-    pub fn watermark_filter_create(&self, image_path: &str) -> Result<Handle> {
+    pub fn watermark_filter_create(
+        &self,
+        image_path: &str,
+        position: TxWatermarkPosition,
+    ) -> Result<Handle> {
         let image_path = CString::new(image_path)?;
 
-        let h = unsafe { sys::tx_watermark_filter_create(self.inner(), image_path.as_ptr()) };
+        let h = unsafe {
+            sys::tx_watermark_filter_create(self.inner(), image_path.as_ptr(), position.to_sys())
+        };
         if h.is_null() {
             return Err(Error::TxprotoComponentCreateFailed {
                 name: "WatermarkFilter".into(),

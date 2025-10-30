@@ -17,6 +17,7 @@ fn main() {
         .allowlist_type("SPLogLevel.*")
         .allowlist_type("IOType.*")
         .allowlist_type("IOSysEntry.*")
+        .allowlist_type("TxWatermarkPosition")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
 
     // Try to guess the mingw-w64 include path on mac

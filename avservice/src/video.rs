@@ -28,7 +28,7 @@ pub(crate) struct VideoConfig {
     pub(crate) intra_refresh: bool,
     pub(crate) encoder_config: Option<config::EncoderConfig>,
     pub(crate) clock_type: config::ClockType,
-    pub(crate) watermark: Option<String>,
+    pub(crate) watermark: Option<config::WatermarkConfig>,
 }
 
 fn print_options(encoder: &str, options: &[DictionaryEntry]) {
@@ -439,8 +439,9 @@ pub(crate) fn configure(
     let video_source = ctx.create_io(video_config.display_id, None)?;
 
     // Watermark
-    let video_source = if let Some(watermark) = &video_config.watermark {
-        let watermark = ctx.watermark_filter_create(watermark)?;
+    let video_source = if let Some(watermark_config) = &video_config.watermark {
+        let watermark =
+            ctx.watermark_filter_create(&watermark_config.file, watermark_config.position())?;
         ctx.link(&video_source, &watermark, 0)?;
 
         #[cfg(target_os = "linux")]
