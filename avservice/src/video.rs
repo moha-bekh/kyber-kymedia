@@ -29,6 +29,8 @@ pub(crate) struct VideoConfig {
     pub(crate) encoder_config: Option<config::EncoderConfig>,
     pub(crate) clock_type: config::ClockType,
     pub(crate) watermark: Option<config::WatermarkConfig>,
+    #[cfg(target_os = "linux")]
+    pub(crate) grab_backend: Option<config::GrabBackend>,
 }
 
 fn print_options(encoder: &str, options: &[DictionaryEntry]) {
@@ -65,6 +67,18 @@ fn encoder_config_to_dict(encoder_config: &config::EncoderConfig) -> Vec<Diction
             v.map(|v| (k.as_str(), v).into())
         })
         .collect()
+}
+
+#[cfg(target_os = "linux")]
+fn grab_backend_to_dict(backend: config::GrabBackend) -> Result<Dictionary> {
+    let entries = match backend {
+        config::GrabBackend::NvFBC => {
+            info!("Using NvFBC grab backend");
+            vec![("grab_backend", "nvfbc").into()]
+        }
+    };
+
+    Ok(Dictionary::from_entries(&entries)?)
 }
 
 fn create_nvenc(
@@ -436,7 +450,17 @@ pub(crate) fn configure(
 
     // Video source
     info!("Start screen grab on display {}", video_config.display_id);
-    let video_source = ctx.create_io(video_config.display_id, None)?;
+    #[cfg(target_os = "linux")]
+    let grab_options = if let Some(backend) = &video_config.grab_backend {
+        Some(grab_backend_to_dict(*backend)?)
+    } else {
+        None
+    };
+
+    #[cfg(not(target_os = "linux"))]
+    let grab_options = None;
+
+    let video_source = ctx.create_io(video_config.display_id, grab_options)?;
 
     // Watermark
     let video_source = if let Some(watermark_config) = &video_config.watermark {

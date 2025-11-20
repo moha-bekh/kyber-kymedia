@@ -45,6 +45,13 @@ impl WatermarkConfig {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum GrabBackend {
+    #[cfg(target_os = "linux")]
+    NvFBC,
+}
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
     pub(crate) encoder: VideoEncoder,
@@ -53,6 +60,8 @@ pub(crate) struct Config {
     pub(crate) video_encoder_config: Option<EncoderConfig>,
     clock_type: Option<ClockType>,
     pub(crate) watermark: Option<WatermarkConfig>,
+    #[cfg(target_os = "linux")]
+    pub(crate) grab_backend: Option<GrabBackend>,
 }
 
 impl Default for Config {
@@ -64,6 +73,8 @@ impl Default for Config {
             video_encoder_config: None,
             clock_type: None,
             watermark: None,
+            #[cfg(target_os = "linux")]
+            grab_backend: Some(GrabBackend::NvFBC),
         }
     }
 }
@@ -79,6 +90,11 @@ impl Config {
 
     pub(crate) fn minimum_bitrate(&self) -> u32 {
         self.minimum_bitrate.unwrap_or(5_000_000)
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(crate) fn grab_backend(&self) -> Option<GrabBackend> {
+        self.grab_backend
     }
 }
 

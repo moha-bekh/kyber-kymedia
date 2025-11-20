@@ -195,6 +195,8 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     encoder_config: config.video_encoder_config.clone(),
                     clock_type: config.clock_type(),
                     watermark: None,
+                    #[cfg(target_os = "linux")]
+                    grab_backend: config.grab_backend(),
                 };
 
                 let ret = rtp::start_video(video_config, ip, port, sender.clone());
@@ -238,6 +240,8 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                     encoder_config: config.video_encoder_config.clone(),
                     clock_type: config.clock_type(),
                     watermark: config.watermark.clone(),
+                    #[cfg(target_os = "linux")]
+                    grab_backend: config.grab_backend(),
                 };
 
                 let ret =

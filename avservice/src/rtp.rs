@@ -72,6 +72,8 @@ pub(crate) async fn generate_sdp(
         encoder_config: encoder_config.clone(),
         clock_type: config::ClockType::ZeroedOrigin,
         watermark: None,
+        #[cfg(target_os = "linux")]
+        grab_backend: Some(config::GrabBackend::NvFBC),
     };
     video::configure(&ctx, video_config, muxer, None)?;
 
