@@ -237,6 +237,7 @@ impl Txproto {
             api_id: entry.api_id,
             identifier: entry.identifier,
             is_default: entry.is_default != 0,
+            is_unplugged: entry.is_unplugged != 0,
         };
 
         (data.cb)(entry);

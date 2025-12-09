@@ -71,4 +71,5 @@ pub struct IOSysEntry {
     pub identifier: u32,
     pub api_id: u32,
     pub is_default: bool,
+    pub is_unplugged: bool,
 }
