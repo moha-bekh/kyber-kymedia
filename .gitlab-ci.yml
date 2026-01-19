@@ -14,10 +14,10 @@ stages:
   - misc
 
 .variables-macos-x86_64: &variables-macos-x86_64
-  CARGO_TARGET: x86_64-apple-darwin
+  HOST_ARCH: x86_64
 
 .variables-macos-arm64: &variables-macos-arm64
-  CARGO_TARGET: aarch64-apple-darwin
+  HOST_ARCH: arm64
 
 .variables-ios: &variables-ios
   RUST_TARGET: aarch64-apple-ios
@@ -63,9 +63,7 @@ build-debian-bookworm-x86_64:
     - merge_requests
     - tags
   script: |
-    cargo cinstall \
-        --release \
-        --prefix="$(pwd)/rootfs"
+    ./build-linux.sh -o $(pwd)/rootfs
 
 test-debian-bookworm-x86_64:
   stage: test
@@ -79,8 +77,7 @@ test-debian-bookworm-x86_64:
   needs:
     - build-debian-bookworm-x86_64
   script: |
-    cargo test \
-        --release
+    ./build-linux.sh -t -o $(pwd)/rootfs
 
 clippy-debian-bookworm-x86_64:
   stage: misc
@@ -94,9 +91,7 @@ clippy-debian-bookworm-x86_64:
   needs:
     - build-debian-bookworm-x86_64
   script: |
-    cargo clippy \
-        --features capi \
-        -- -D warnings
+    ./build-linux.sh -c -o $(pwd)/rootfs
 
 build-windows-x86_64:
   stage: build
@@ -108,11 +103,7 @@ build-windows-x86_64:
     - merge_requests
     - tags
   script: |
-    cargo cinstall \
-        --release \
-        --prefix="$(pwd)/rootfs" \
-        --target=x86_64-pc-windows-gnu \
-        --dlltool=x86_64-w64-mingw32-dlltool
+    ./build-win32.sh -o $(pwd)/rootfs
 
 clippy-windows-x86_64:
   stage: misc
@@ -126,10 +117,7 @@ clippy-windows-x86_64:
   needs:
     - build-windows-x86_64
   script: |
-    cargo clippy \
-        --target x86_64-pc-windows-gnu \
-        --features capi \
-        -- -D warnings
+    ./build-win32.sh -c -o $(pwd)/rootfs
 
 .macos-common:
   before_script: |
@@ -145,9 +133,7 @@ clippy-windows-x86_64:
     - merge_requests
     - tags
   script: |
-    cargo cinstall --prefix="$(pwd)/rootfs" \
-        --target=$CARGO_TARGET \
-        --release
+    ./build-macos.sh -a $HOST_ARCH -o $(pwd)/rootfs
 
 .clippy-macos-common:
   extends: .macos-common
@@ -159,10 +145,7 @@ clippy-windows-x86_64:
     - merge_requests
     - tags
   script: |
-    cargo clippy \
-        --target=$CARGO_TARGET \
-        --features capi \
-        -- -D warnings
+    ./build-macos.sh -c -a $HOST_ARCH -o $(pwd)/rootfs
 
 build-macos-x86_64:
   extends: .build-macos-common
@@ -191,10 +174,7 @@ test-macos-arm64:
   needs:
     - build-macos-arm64
   script: |
-    cargo test \
-        --target=$CARGO_TARGET \
-        --release \
-        --features capi
+    ./build-macos.sh -t -a $HOST_ARCH -o $(pwd)/rootfs
 
 clippy-macos-arm64:
   extends: .clippy-macos-common
@@ -214,9 +194,7 @@ build-wasm:
   needs:
     - lint
   script: |
-    cargo build \
-        --target wasm32-unknown-unknown \
-        --features $WEB_FEATURES
+    ./build-wasm.sh -f $WEB_FEATURES
 
 clippy-wasm:
   stage: misc
@@ -230,10 +208,7 @@ clippy-wasm:
   needs:
     - build-wasm
   script: |
-    cargo clippy \
-        --target wasm32-unknown-unknown \
-        --features $WEB_FEATURES \
-        -- -D warnings
+    ./build-wasm.sh -c -f $WEB_FEATURES
 
 .build-ios-common:
   stage: build
@@ -244,28 +219,28 @@ clippy-wasm:
     - merge_requests
     - tags
   script: |
-    rustup override set $RUST_VERSION
-    cargo cinstall --prefix="$(pwd)/rootfs" \
-      --target=$RUST_TARGET \
-      $CARGOC_FLAGS \
-      --release \
-      --library-type=staticlib
-
+    ./build-ios.sh -o $(pwd)/rootfs -t $IOS_TARGET -r $RUST_VERSION
   needs:
     - lint
   when: manual
 
 build-ios:
   extends: .build-ios-common
-  variables: *variables-ios
+  variables:
+    <<: *variables-ios
+    IOS_TARGET: ios
 
 build-tvos:
   extends: .build-ios-common
-  variables: *variables-tvos
+  variables:
+    <<: *variables-tvos
+    IOS_TARGET: tvos
 
 build-visionos:
   extends: .build-ios-common
-  variables: *variables-visionos
+  variables:
+    <<: *variables-visionos
+    IOS_TARGET: visionos
 
 .build-android-common:
   stage: build
@@ -277,46 +252,7 @@ build-visionos:
     - merge_requests
     - tags
   script: |
-    ANDROID_API=21
-
-    case $HOST_ARCH in
-        armv7a)
-            CARGO_TARGET="armv7-linux-androideabi"
-            ANDROID_ARCH="armv7a-linux-androideabi"
-            VLC_CONTRIB="arm-linux-androideabi"
-
-            export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="armv7a-linux-androideabi$ANDROID_API-clang"
-        ;;
-        arm64)
-            CARGO_TARGET="aarch64-linux-android"
-            ANDROID_ARCH="aarch64-linux-android"
-            VLC_CONTRIB="aarch64-linux-android"
-
-            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="aarch64-linux-android$ANDROID_API-clang"
-        ;;
-        *)
-            echo "Unexpected arch $HOST_ARCH"
-            exit 1
-        ;;
-    esac
-
-    export TARGET_AR=llvm-ar
-    export TARGET_CC=$ANDROID_ARCH$ANDROID_API-clang
-    export RUSTFLAGS="-L native=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$ANDROID_ARCH/$ANDROID_API"
-
-    cd "$KYAUDIOREG_SRCDIR"
-    cargo cinstall \
-        --prefix="$VLC_SRCDIR/contrib/$VLC_CONTRIB" \
-        --library-type=staticlib \
-        --release \
-        --target=$CARGO_TARGET
-    cd -
-
-    unset CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER
-    unset CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER
-    unset TARGET_AR
-    unset TARGET_CC
-    unset RUSTFLAGS
+    ./build-android.sh -o $(pwd)/rootfs -a $HOST_ARCH
   needs:
     - lint
   when: manual
