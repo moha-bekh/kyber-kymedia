@@ -1,0 +1,375 @@
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+  DEBIAN_IMAGE: registry.gitlab.com/kyber.stream/ops/docker-images/debian-trixie:20260127115341
+  WASM_IMAGE: registry.gitlab.com/kyber.stream/ops/docker-images/debian-wasm:20260127120059
+  WIN64_IMAGE: registry.gitlab.com/kyber.stream/ops/docker-images/debian-win64:20260127120515
+  ANDROID_IMAGE: registry.gitlab.com/kyber.stream/ops/docker-images/debian-android:20260127114607
+  MACOS_RUST_VERSION: 1.89.0
+  WEB_FEATURES: js
+
+stages:
+  - lint
+  - contrib
+  - build
+  - test
+  - misc
+
+.variables-macos-x86_64: &variables-macos-x86_64
+  HOST_ARCH: x86_64
+
+.variables-macos-arm64: &variables-macos-arm64
+  HOST_ARCH: arm64
+
+.variables-android-arm64: &variables-android-arm64
+  HOST_ARCH: arm64
+
+.variables-android-armv7a: &variables-android-armv7a
+  HOST_ARCH: armv7a
+
+.variables-ios: &variables-ios
+  BUILD_TARGET: ios
+  RUST_VERSION: 1.89.0
+
+.variables-tvos: &variables-tvos
+  BUILD_TARGET: tvos
+  RUST_VERSION: nightly-2025-08-24
+
+.variables-visionos: &variables-visionos
+  BUILD_TARGET: visionos
+  RUST_VERSION: nightly-2025-08-24
+
+lint:
+  stage: lint
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script:
+    - cargo fmt --check
+  cache: []
+
+contrib-debian-trixie-x86_64:
+  stage: contrib
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Build native dependencies for avserver
+    ./contrib/build-linux.sh -o $KYBER_PREFIX
+    # Prepare rootfs to be shared to other jobs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh $(pwd)
+    cd -
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
+contrib-windows-x86_64:
+  stage: contrib
+  image: $WIN64_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Build native dependencies for avserver
+    ./contrib/build-win32.sh -o $KYBER_PREFIX
+    # Prepare rootfs to be shared to other jobs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh $(pwd)
+    cd -
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
+build-debian-trixie-x86_64:
+  stage: build
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+    - contrib-debian-trixie-x86_64
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Configure imported rootfs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh
+    cd -
+    # Build both avserver and kyaudioreg
+    ./build-linux.sh -k -s -o $KYBER_PREFIX build
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
+build-windows-x86_64:
+  stage: build
+  image: $WIN64_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+    - contrib-windows-x86_64
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Configure imported rootfs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh
+    cd -
+    # Build both avserver and kyaudioreg
+    ./build-win32.sh -k -s -o $KYBER_PREFIX build
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
+.macos-common:
+  before_script: |
+    rustup override set $MACOS_RUST_VERSION
+
+.build-macos-common:
+  extends: .macos-common
+  stage: build
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    # Build kyaudioreg only (avserver not supported on macOS)
+    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs build-kyaudioreg
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
+build-macos-x86_64:
+  extends: .build-macos-common
+  variables: *variables-macos-x86_64
+
+build-macos-arm64:
+  extends: .build-macos-common
+  variables: *variables-macos-arm64
+
+.build-android-common:
+  stage: build
+  image: $ANDROID_IMAGE
+  tags:
+    - docker
+  when: manual
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    # Build kyaudioreg only (avserver not supported on Android)
+    ./build-android.sh -k -a $HOST_ARCH -o $(pwd)/rootfs-android-$HOST_ARCH build-kyaudioreg
+  artifacts:
+    paths:
+      - rootfs-android-$HOST_ARCH
+    expire_in: 1 week
+
+build-android-arm64:
+  extends: .build-android-common
+  variables: *variables-android-arm64
+
+build-android-armv7a:
+  extends: .build-android-common
+  variables: *variables-android-armv7a
+
+.build-apple-mobile-common:
+  stage: build
+  tags:
+    - macos
+  when: manual
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    rustup override set $RUST_VERSION
+    ./build-ios.sh -k -t $BUILD_TARGET -o $(pwd)/rootfs build-kyaudioreg
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
+build-ios-arm64:
+  extends: .build-apple-mobile-common
+  variables: *variables-ios
+
+build-tvos-arm64:
+  extends: .build-apple-mobile-common
+  variables: *variables-tvos
+
+build-visionos-arm64:
+  extends: .build-apple-mobile-common
+  variables: *variables-visionos
+
+build-wasm:
+  stage: build
+  image: $WASM_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    # Build kyaudioreg only (avserver not supported on WASM)
+    ./build-wasm.sh -k -f $WEB_FEATURES build-kyaudioreg
+
+test-debian-trixie-x86_64:
+  stage: test
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+    - contrib-debian-trixie-x86_64
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Configure imported rootfs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh
+    cd -
+    # Run tests on both avserver and kyaudioreg
+    ./build-linux.sh -k -s -o $KYBER_PREFIX test
+
+test-macos-arm64:
+  extends: .macos-common
+  stage: test
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  variables: *variables-macos-arm64
+  script: |
+    # Run tests on kyaudioreg only
+    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs test-kyaudioreg
+
+clippy-debian-trixie-x86_64:
+  stage: misc
+  image: $DEBIAN_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+    - contrib-debian-trixie-x86_64
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Configure imported rootfs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh
+    cd -
+    # Run clippy on both avserver and kyaudioreg
+    ./build-linux.sh -k -s -o $KYBER_PREFIX clippy
+
+clippy-windows-x86_64:
+  stage: misc
+  image: $WIN64_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+    - contrib-windows-x86_64
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Configure imported rootfs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh
+    cd -
+    # Run clippy on both avserver and kyaudioreg
+    ./build-win32.sh -k -s -o $KYBER_PREFIX clippy
+
+.clippy-macos-common:
+  extends: .macos-common
+  stage: misc
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    # Run clippy on kyaudioreg only
+    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs clippy-kyaudioreg
+
+clippy-macos-x86_64:
+  extends: .clippy-macos-common
+  variables: *variables-macos-x86_64
+
+clippy-macos-arm64:
+  extends: .clippy-macos-common
+  variables: *variables-macos-arm64
+
+clippy-wasm:
+  stage: misc
+  image: $WASM_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  needs:
+    - lint
+  script: |
+    # Run clippy on kyaudioreg only
+    ./build-wasm.sh -k -f $WEB_FEATURES clippy-kyaudioreg
