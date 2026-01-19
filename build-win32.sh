@@ -117,33 +117,19 @@ else
     echo "Skip dependencies build"
 fi
 
-# Build
-export PATH=$OUT_DIR/bin:$PATH
-export PKG_CONFIG_ALLOW_CROSS=1
-export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+# Source common build functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/avserver-common.sh"
+
+# Setup environment
+avserver_win32_setup_env "$OUT_DIR"
 
 # Run action
 case "$ACTION" in
     "build")
-        # Build
-        cargo build \
-            --target x86_64-pc-windows-gnu \
-            --release \
-            --bins \
-            --examples \
-            $HIDE_CONSOLE_FEATURE
-
-        # Install
-        mkdir -p $OUT_DIR/bin
-
-        cp \
-            target/x86_64-pc-windows-gnu/release/avserver.exe \
-            $OUT_DIR/bin
-
+        avserver_win32_do_build "$OUT_DIR" "$HIDE_CONSOLE_FEATURE"
     ;;
     "clippy")
-        cargo clippy \
-            --target x86_64-pc-windows-gnu \
-            -- -D warnings -A clippy::missing_safety_doc
+        avserver_win32_do_clippy
     ;;
 esac

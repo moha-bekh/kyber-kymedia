@@ -113,33 +113,22 @@ else
     echo "Skip dependencies build"
 fi
 
-# Output directory
-export PATH=$OUT_DIR/bin:$PATH
-export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig
-export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu
+# Source common build functions
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/avserver-common.sh"
+
+# Setup environment
+avserver_linux_setup_env "$OUT_DIR"
 
 # Run action
 case "$ACTION" in
     "build")
-        # Build
-        cargo build --release --bins --examples
-
-        # Install
-        mkdir -p $OUT_DIR/bin
-
-        cp \
-            target/release/avserver \
-            $OUT_DIR/bin
+        avserver_linux_do_build "$OUT_DIR"
     ;;
     "clippy")
-        cargo clippy -- -D warnings -A clippy::missing_safety_doc
+        avserver_linux_do_clippy
     ;;
     "test")
-        export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu
-        if [ -z $KYBER_TEST_NO_DEFAULT_FEATURES ]; then
-            cargo test
-        else
-            cargo test --no-default-features
-        fi
+        avserver_linux_do_test "$OUT_DIR"
     ;;
 esac
