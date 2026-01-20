@@ -1,5 +1,6 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
+  ANDROID_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-android:20250819181536
   DEBIAN_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-trixie:20260106094705
   WASM_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-wasm:20260106095239
   WIN64_IMAGE: registry.gitlab.com/kyber-labs/kyber-streamer/docker-images/debian-win64:20260106095522
@@ -31,6 +32,13 @@ stages:
   RUST_TARGET: aarch64-apple-visionos
   RUST_VERSION: nightly-2025-08-24
   CARGOC_FLAGS: -Zbuild-std=std,panic_abort
+
+.variables-android-arm64: &variables-android-arm64
+  HOST_ARCH: arm64
+
+.variables-android-armv7a: &variables-android-armv7a
+  HOST_ARCH: armv7a
+
 
 lint:
   stage: lint
@@ -258,3 +266,66 @@ build-tvos:
 build-visionos:
   extends: .build-ios-common
   variables: *variables-visionos
+
+.build-android-common:
+  stage: build
+  image: $ANDROID_IMAGE
+  tags:
+    - docker
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    ANDROID_API=21
+
+    case $HOST_ARCH in
+        armv7a)
+            CARGO_TARGET="armv7-linux-androideabi"
+            ANDROID_ARCH="armv7a-linux-androideabi"
+            VLC_CONTRIB="arm-linux-androideabi"
+
+            export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="armv7a-linux-androideabi$ANDROID_API-clang"
+        ;;
+        arm64)
+            CARGO_TARGET="aarch64-linux-android"
+            ANDROID_ARCH="aarch64-linux-android"
+            VLC_CONTRIB="aarch64-linux-android"
+
+            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="aarch64-linux-android$ANDROID_API-clang"
+        ;;
+        *)
+            echo "Unexpected arch $HOST_ARCH"
+            exit 1
+        ;;
+    esac
+
+    export TARGET_AR=llvm-ar
+    export TARGET_CC=$ANDROID_ARCH$ANDROID_API-clang
+    export RUSTFLAGS="-L native=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$ANDROID_ARCH/$ANDROID_API"
+
+    cd "$KYAUDIOREG_SRCDIR"
+    cargo cinstall \
+        --prefix="$VLC_SRCDIR/contrib/$VLC_CONTRIB" \
+        --library-type=staticlib \
+        --release \
+        --target=$CARGO_TARGET
+    cd -
+
+    unset CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER
+    unset CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER
+    unset TARGET_AR
+    unset TARGET_CC
+    unset RUSTFLAGS
+  needs:
+    - lint
+  when: manual
+
+build-android-arm64:
+  extends: .build-android-common
+  variables: *variables-android-arm64
+
+build-android-armv7a:
+  extends: .build-android-common
+  variables: *variables-android-armv7a
+
