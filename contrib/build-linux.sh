@@ -319,7 +319,7 @@ build_ffmpeg() {
         --enable-gpl --enable-libx264 \
         --enable-libopus \
         --enable-vulkan \
-        --enable-nonfree --enable-nvenc
+        --enable-nvenc
 
     make -j $NJOBS
     make install
