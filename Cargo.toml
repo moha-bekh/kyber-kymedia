@@ -6,5 +6,6 @@ members = [
     "avserver",
     "avservice-types",
     "avservice",
+    "kyaudioreg",
     "txproto-rs",
 ]
