@@ -96,7 +96,12 @@ fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _log_handle = setup_logs("kyavserver", LevelFilter::Info);
+    let log_level = if std::env::var("KYBER_VERBOSE").is_ok() {
+        LevelFilter::Debug
+    } else {
+        LevelFilter::Info
+    };
+    let _log_handle = setup_logs("kyavserver", log_level);
 
     #[cfg(target_os = "windows")]
     set_process_dpi_aware();
