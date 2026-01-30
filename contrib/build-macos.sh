@@ -80,7 +80,7 @@ get_cargo_target()
 
 # Workspace directories
 CONTRIB_DIR=$(realpath $(dirname $0))
-LIBCLIENT_ROOT=$CONTRIB_DIR/..
+WORKSPACE_ROOT=$CONTRIB_DIR/..
 
 autotools_set_env()
 {
@@ -175,8 +175,20 @@ download_tarball() {
     return 1
 }
 
+build_kyaudioreg() {
+    KYAUDIOREG_SRCDIR="$WORKSPACE_ROOT/kyaudioreg"
+    CARGO_TARGET=$(get_cargo_target "$HOST_ARCH")
+
+    cd "$KYAUDIOREG_SRCDIR"
+    cargo cinstall \
+        --release \
+        --prefix="$OUT_DIR" \
+        --target="$CARGO_TARGET"
+    cd -
+}
+
 build_libvlc() {
-    VLC_SRCDIR="$LIBCLIENT_ROOT/external/vlc"
+    VLC_SRCDIR="$WORKSPACE_ROOT/external/vlc"
 
     # Get sources
     spushd $VLC_SRCDIR
@@ -358,4 +370,5 @@ export PATH=$OUT_DIR/bin:$PATH
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/${HOST_ARCH}-apple-darwin/pkgconfig
 
 # Build
+build_kyaudioreg
 build_libvlc

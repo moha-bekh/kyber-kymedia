@@ -40,9 +40,9 @@ OPTIONS:
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
 
 ACTIONS:
-   build-kyaudioreg     Build kyaudioreg (default)
-   clippy-kyaudioreg    Run clippy on kyaudioreg
-   test-kyaudioreg      Run tests on kyaudioreg
+   build                Build kyaudioreg (default)
+   test                 Run tests on kyaudioreg
+   clippy               Run clippy on kyaudioreg
 EOF
 }
 
@@ -81,7 +81,7 @@ get_cargo_target()
 }
 
 BUILD_KYBER_DEPS=false
-ACTION="build-kyaudioreg"
+ACTION="build"
 
 while getopts "hko:a:" OPTION
 do
@@ -150,22 +150,18 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
-CARGO_TARGET=`get_cargo_target $HOST_ARCH`
-
-# Source common build functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/kyaudioreg-common.sh"
-
 # Run action
 case "$ACTION" in
-    "build-kyaudioreg")
-        kyaudioreg_macos_do_build "$CARGO_TARGET" "$OUT_DIR"
+    "build")
+        ./contrib/build-macos.sh -o "$OUT_DIR" -a "$HOST_ARCH"
         ;;
-    "test-kyaudioreg")
-        kyaudioreg_macos_do_test "$CARGO_TARGET"
+    "test")
+        echo "Test action not yet implemented for macOS"
+        exit 1
         ;;
-    "clippy-kyaudioreg")
-        kyaudioreg_macos_do_clippy "$CARGO_TARGET"
+    "clippy")
+        echo "Clippy action not yet implemented for macOS"
+        exit 1
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"

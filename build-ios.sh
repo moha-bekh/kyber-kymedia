@@ -44,9 +44,9 @@ OPTIONS:
                  Supported targets: ios, ios-sim, tvos, tvos-sim, visionos, visionos-sim
 
 ACTIONS:
-   build-kyaudioreg     Build kyaudioreg (default)
-   clippy-kyaudioreg    Run clippy on kyaudioreg
-   test-kyaudioreg      Run tests on kyaudioreg
+   build                Build kyaudioreg (default)
+   test                 Run tests on kyaudioreg
+   clippy               Run clippy on kyaudioreg
 EOF
 }
 
@@ -75,7 +75,7 @@ git_clone() {
 }
 
 BUILD_KYBER_DEPS=false
-ACTION="build-kyaudioreg"
+ACTION="build"
 
 while getopts "hko:t:" OPTION
 do
@@ -147,20 +147,91 @@ fi
 export PKG_CONFIG_ALLOW_CROSS=1
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 
-# Source common build functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/kyaudioreg-common.sh"
+# iOS build functions
+get_cargo_target() {
+    case $1 in
+        ios) echo "aarch64-apple-ios" ;;
+        ios-sim) echo "aarch64-apple-ios-sim" ;;
+        tvos) echo "aarch64-apple-tvos" ;;
+        tvos-sim) echo "aarch64-apple-tvos-sim" ;;
+        visionos) echo "aarch64-apple-visionos" ;;
+        visionos-sim) echo "aarch64-apple-visionos-sim" ;;
+        *)
+            echo "Unexpected target $1"
+            exit 1
+            ;;
+    esac
+}
+
+get_cargoc_flags() {
+    case $1 in
+        ios|ios-sim) echo "" ;;
+        tvos|tvos-sim|visionos|visionos-sim)
+            echo "-Zbuild-std=std,panic_abort"
+            ;;
+        *)
+            echo "Unexpected target $1"
+            exit 1
+            ;;
+    esac
+}
+
+do_build() {
+    local target=$1
+    local out_dir=$2
+
+    local cargo_target=$(get_cargo_target "$target")
+    local cargoc_flags=$(get_cargoc_flags "$target")
+
+    cd kyaudioreg
+    cargo cinstall \
+        --target=$cargo_target \
+        $cargoc_flags \
+        --release \
+        --prefix="$out_dir"
+    cd -
+}
+
+do_test() {
+    local target=$1
+
+    local cargo_target=$(get_cargo_target "$target")
+    local cargoc_flags=$(get_cargoc_flags "$target")
+
+    cd kyaudioreg
+    cargo test \
+        --target=$cargo_target \
+        $cargoc_flags \
+        --release \
+        --features capi
+    cd -
+}
+
+do_clippy() {
+    local target=$1
+
+    local cargo_target=$(get_cargo_target "$target")
+    local cargoc_flags=$(get_cargoc_flags "$target")
+
+    cd kyaudioreg
+    cargo clippy \
+        --target=$cargo_target \
+        $cargoc_flags \
+        --features capi \
+        -- -D warnings
+    cd -
+}
 
 # Run action
 case "$ACTION" in
-    "build-kyaudioreg")
-        kyaudioreg_ios_do_build "$TARGET" "$OUT_DIR"
+    "build")
+        do_build "$TARGET" "$OUT_DIR"
         ;;
-    "test-kyaudioreg")
-        kyaudioreg_ios_do_test "$TARGET"
+    "test")
+        do_test "$TARGET"
         ;;
-    "clippy-kyaudioreg")
-        kyaudioreg_ios_do_clippy "$TARGET"
+    "clippy")
+        do_clippy "$TARGET"
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"

@@ -35,16 +35,13 @@ OPTIONS:
    -h            Show some help
    -k            Build Kyber dependencies (for avserver)
    -s            Skip native dependencies build (for avserver)
+   -d            Build dependencies only (Kyber deps + contrib), then exit
    -w            Don't spawn cmd.exe when running avserver.exe (hide console)
    -o <path>     Install the built binaries in the absolute path (required)
 
 ACTIONS:
-   build                Build both avserver and kyaudioreg (default)
-   build-avserver       Build avserver only
-   build-kyaudioreg     Build kyaudioreg only
-   clippy               Run clippy on both avserver and kyaudioreg
-   clippy-avserver      Run clippy on avserver only
-   clippy-kyaudioreg    Run clippy on kyaudioreg only
+   build                Build avserver (default)
+   clippy               Run clippy on avserver
 EOF
 }
 
@@ -68,10 +65,11 @@ git_clone() {
 
 BUILD_DEPS=true
 BUILD_KYBER_DEPS=false
+DEPS_ONLY=false
 HIDE_CONSOLE_FEATURE=""
 ACTION="build"
 
-while getopts "hkswo:" OPTION
+while getopts "hksdwo:" OPTION
 do
     case $OPTION in
         h)
@@ -83,6 +81,10 @@ do
             ;;
         s)
             BUILD_DEPS=false
+            ;;
+        d)
+            DEPS_ONLY=true
+            BUILD_KYBER_DEPS=true
             ;;
         w)
             HIDE_CONSOLE_FEATURE="--features win32-hide-console"
@@ -115,7 +117,7 @@ fi
 # Create folders
 mkdir -p $OUT_DIR
 
-# Build kyber dependencies (only needed for avserver)
+# Build kyber dependencies
 if [ "$BUILD_KYBER_DEPS" = true ]; then
     if [[ ! -d libkypc ]]; then
         git_clone kyber.stream/core/kyutil.git
@@ -134,52 +136,60 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
-# Build dependencies (only needed for avserver)
-if [[ "$ACTION" == *"avserver"* || "$ACTION" == "build" || "$ACTION" == "clippy" ]] && [ "$BUILD_DEPS" = true ]; then
+# Build dependencies (contrib builds kyaudioreg + native deps)
+if [ "$BUILD_DEPS" = true ]; then
     ./contrib/build-win32.sh -o $OUT_DIR
 else
     echo "Skip dependencies build"
 fi
 
-# Source common build functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-if [[ "$ACTION" == *"avserver"* || "$ACTION" == "build" || "$ACTION" == "clippy" ]]; then
-    source "$SCRIPT_DIR/avserver-common.sh"
-fi
-
-if [[ "$ACTION" == *"kyaudioreg"* || "$ACTION" == "build" || "$ACTION" == "clippy" ]]; then
-    source "$SCRIPT_DIR/kyaudioreg-common.sh"
+# If deps only mode, exit here
+if [ "$DEPS_ONLY" = true ]; then
+    echo "Dependencies built successfully"
+    exit 0
 fi
 
 # Setup environment for avserver
-if [[ "$ACTION" == *"avserver"* || "$ACTION" == "build" || "$ACTION" == "clippy" ]]; then
-    export PATH=$OUT_DIR/bin:$PATH
-    export PKG_CONFIG_ALLOW_CROSS=1
-    export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
-fi
+export PATH=$OUT_DIR/bin:$PATH
+export PKG_CONFIG_ALLOW_CROSS=1
+export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+
+# Avserver build functions
+avserver_win32_do_build() {
+    local out_dir=$1
+    local hide_console_feature=$2
+
+    # Build
+    cargo build \
+        -p avserver \
+        --target x86_64-pc-windows-gnu \
+        --release \
+        --bins \
+        --examples \
+        $hide_console_feature
+
+    # Install
+    mkdir -p $out_dir/bin
+
+    cp \
+        target/x86_64-pc-windows-gnu/release/avserver.exe \
+        $out_dir/bin
+}
+
+avserver_win32_do_clippy() {
+    cargo clippy \
+        -p avserver \
+        --target x86_64-pc-windows-gnu \
+        -- -D warnings -A clippy::missing_safety_doc
+}
 
 # Run action
 case "$ACTION" in
     "build")
         avserver_win32_do_build "$OUT_DIR" "$HIDE_CONSOLE_FEATURE"
-        kyaudioreg_win32_do_build "$OUT_DIR"
-        ;;
-    "build-avserver")
-        avserver_win32_do_build "$OUT_DIR" "$HIDE_CONSOLE_FEATURE"
-        ;;
-    "build-kyaudioreg")
-        kyaudioreg_win32_do_build "$OUT_DIR"
         ;;
     "clippy")
         avserver_win32_do_clippy
-        kyaudioreg_win32_do_clippy
-        ;;
-    "clippy-avserver")
-        avserver_win32_do_clippy
-        ;;
-    "clippy-kyaudioreg")
-        kyaudioreg_win32_do_clippy
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"

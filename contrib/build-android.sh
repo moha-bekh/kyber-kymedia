@@ -1,4 +1,4 @@
-# Project Kyber: build-android.sh
+# Project Kyber: build-linux.sh
 # Copyright © 2022-2026 Kyber SAS
 # SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0
 #
@@ -28,6 +28,7 @@ BASE_DIR=$(realpath $(dirname $0))
 WORKSPACE_ROOT=$BASE_DIR/..
 VLC_SRCDIR="$WORKSPACE_ROOT/external/vlc"
 VLCJNI_SRCDIR="$WORKSPACE_ROOT/external/libvlcjni"
+KYAUDIOREG_SRCDIR="$WORKSPACE_ROOT/kyaudioreg"
 
 # Build configuration
 NJOBS=$(grep -c ^processor /proc/cpuinfo)
@@ -84,6 +85,49 @@ get_android_arch() {
 panic() {
     echo $1
     exit 1
+}
+
+build_kyaudioreg() {
+    ANDROID_API=21
+
+    case $HOST_ARCH in
+        arm)
+            CARGO_TARGET="armv7-linux-androideabi"
+            ANDROID_ARCH="armv7a-linux-androideabi"
+            VLC_CONTRIB="arm-linux-androideabi"
+
+            export CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER="armv7a-linux-androideabi$ANDROID_API-clang"
+        ;;
+        arm64)
+            CARGO_TARGET="aarch64-linux-android"
+            ANDROID_ARCH="aarch64-linux-android"
+            VLC_CONTRIB="aarch64-linux-android"
+
+            export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="aarch64-linux-android$ANDROID_API-clang"
+        ;;
+        *)
+            echo "Unexpected arch $HOST_ARCH"
+            exit 1
+        ;;
+    esac
+
+    export TARGET_AR=llvm-ar
+    export TARGET_CC=$ANDROID_ARCH$ANDROID_API-clang
+    export RUSTFLAGS="-L native=$ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/$ANDROID_ARCH/$ANDROID_API"
+
+    cd "$KYAUDIOREG_SRCDIR"
+    cargo cinstall \
+        --prefix="$VLC_SRCDIR/contrib/$VLC_CONTRIB" \
+        --library-type=staticlib \
+        --release \
+        --target=$CARGO_TARGET
+    cd -
+
+    unset CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER
+    unset CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER
+    unset TARGET_AR
+    unset TARGET_CC
+    unset RUSTFLAGS
 }
 
 build_libvlc() {
@@ -161,4 +205,5 @@ mkdir -p $SRC_DIR $BUILD_DIR $OUT_DIR
 export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig
 
 # Build
+build_kyaudioreg
 build_libvlc

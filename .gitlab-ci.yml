@@ -64,7 +64,7 @@ contrib-debian-trixie-x86_64:
     export KYBER_DIRNAME=rootfs
     export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
     # Build native dependencies for avserver
-    ./contrib/build-linux.sh -o $KYBER_PREFIX
+    ./build-linux.sh -d -o $KYBER_PREFIX
     # Prepare rootfs to be shared to other jobs
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh $(pwd)
@@ -87,7 +87,7 @@ contrib-windows-x86_64:
     export KYBER_DIRNAME=rootfs
     export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
     # Build native dependencies for avserver
-    ./contrib/build-win32.sh -o $KYBER_PREFIX
+    ./build-win32.sh -d -o $KYBER_PREFIX
     # Prepare rootfs to be shared to other jobs
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh $(pwd)
@@ -116,7 +116,7 @@ build-debian-trixie-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Build both avserver and kyaudioreg
+    # Build
     ./build-linux.sh -k -s -o $KYBER_PREFIX build
   artifacts:
     paths:
@@ -142,7 +142,7 @@ build-windows-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Build both avserver and kyaudioreg
+    # Build
     ./build-win32.sh -k -s -o $KYBER_PREFIX build
   artifacts:
     paths:
@@ -165,8 +165,7 @@ build-windows-x86_64:
   needs:
     - lint
   script: |
-    # Build kyaudioreg only (avserver not supported on macOS)
-    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs build-kyaudioreg
+    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs build
   artifacts:
     paths:
       - rootfs
@@ -193,8 +192,8 @@ build-macos-arm64:
   needs:
     - lint
   script: |
-    # Build kyaudioreg only (avserver not supported on Android)
-    ./build-android.sh -k -a $HOST_ARCH -o $(pwd)/rootfs-android-$HOST_ARCH build-kyaudioreg
+    # Build
+    ./build-android.sh -k -a $HOST_ARCH -o $(pwd)/rootfs-android-$HOST_ARCH build
   artifacts:
     paths:
       - rootfs-android-$HOST_ARCH
@@ -221,7 +220,7 @@ build-android-armv7a:
     - lint
   script: |
     rustup override set $RUST_VERSION
-    ./build-ios.sh -k -t $BUILD_TARGET -o $(pwd)/rootfs build-kyaudioreg
+    ./build-ios.sh -k -t $BUILD_TARGET -o $(pwd)/rootfs build
   artifacts:
     paths:
       - rootfs
@@ -251,8 +250,8 @@ build-wasm:
   needs:
     - lint
   script: |
-    # Build kyaudioreg only (avserver not supported on WASM)
-    ./build-wasm.sh -k -f $WEB_FEATURES build-kyaudioreg
+    # Build
+    ./build-wasm.sh -k -f $WEB_FEATURES build
 
 test-debian-trixie-x86_64:
   stage: test
@@ -273,10 +272,10 @@ test-debian-trixie-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Run tests on both avserver and kyaudioreg
+    # Run tests
     ./build-linux.sh -k -s -o $KYBER_PREFIX test
 
-test-macos-arm64:
+.test-macos-arm64:
   extends: .macos-common
   stage: test
   tags:
@@ -289,8 +288,7 @@ test-macos-arm64:
     - lint
   variables: *variables-macos-arm64
   script: |
-    # Run tests on kyaudioreg only
-    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs test-kyaudioreg
+    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs test
 
 clippy-debian-trixie-x86_64:
   stage: misc
@@ -311,7 +309,7 @@ clippy-debian-trixie-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Run clippy on both avserver and kyaudioreg
+    # Run clippy
     ./build-linux.sh -k -s -o $KYBER_PREFIX clippy
 
 clippy-windows-x86_64:
@@ -333,7 +331,7 @@ clippy-windows-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Run clippy on both avserver and kyaudioreg
+    # Run clippy
     ./build-win32.sh -k -s -o $KYBER_PREFIX clippy
 
 .clippy-macos-common:
@@ -348,14 +346,14 @@ clippy-windows-x86_64:
   needs:
     - lint
   script: |
-    # Run clippy on kyaudioreg only
-    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs clippy-kyaudioreg
+    # Run clippy
+    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs clippy
 
-clippy-macos-x86_64:
+.clippy-macos-x86_64:
   extends: .clippy-macos-common
   variables: *variables-macos-x86_64
 
-clippy-macos-arm64:
+.clippy-macos-arm64:
   extends: .clippy-macos-common
   variables: *variables-macos-arm64
 
@@ -371,5 +369,4 @@ clippy-wasm:
   needs:
     - lint
   script: |
-    # Run clippy on kyaudioreg only
-    ./build-wasm.sh -k -f $WEB_FEATURES clippy-kyaudioreg
+    ./build-wasm.sh -k -f $WEB_FEATURES clippy

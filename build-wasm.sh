@@ -38,8 +38,8 @@ OPTIONS:
    -f <features> Specify features (default: $WEB_FEATURES)
 
 ACTIONS:
-   build-kyaudioreg     Build kyaudioreg for WASM (default)
-   clippy-kyaudioreg    Run clippy on kyaudioreg for WASM
+   build                Build kyaudioreg for WASM (default)
+   clippy               Run clippy on kyaudioreg for WASM
 EOF
 }
 
@@ -62,7 +62,7 @@ git_clone() {
 }
 
 BUILD_KYBER_DEPS=false
-ACTION="build-kyaudioreg"
+ACTION="build"
 
 while getopts "hkf:" OPTION
 do
@@ -120,17 +120,37 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
-# Source common build functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/kyaudioreg-common.sh"
+# WASM build functions
+do_build() {
+    local web_features=$1
+
+    cd kyaudioreg
+    cargo build \
+        --target wasm32-unknown-unknown \
+        --release \
+        --features "$web_features"
+    cd -
+}
+
+do_clippy() {
+    local web_features=$1
+
+    cd kyaudioreg
+    cargo clippy \
+        --target wasm32-unknown-unknown \
+        --release \
+        --features "$web_features" \
+        -- -D warnings
+    cd -
+}
 
 # Run action
 case "$ACTION" in
-    "build-kyaudioreg")
-        kyaudioreg_wasm_do_build "$WEB_FEATURES"
+    "build")
+        do_build "$WEB_FEATURES"
         ;;
-    "clippy-kyaudioreg")
-        kyaudioreg_wasm_do_clippy "$WEB_FEATURES"
+    "clippy")
+        do_clippy "$WEB_FEATURES"
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"

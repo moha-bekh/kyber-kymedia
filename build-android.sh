@@ -40,9 +40,7 @@ OPTIONS:
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
 
 ACTIONS:
-   build-kyaudioreg     Build kyaudioreg (default)
-   clippy-kyaudioreg    Run clippy on kyaudioreg
-   test-kyaudioreg      Run tests on kyaudioreg
+   build                Build kyaudioreg (default)
 EOF
 }
 
@@ -65,7 +63,7 @@ git_clone() {
 }
 
 BUILD_KYBER_DEPS=false
-ACTION="build-kyaudioreg"
+ACTION="build"
 
 while getopts "hko:a:" OPTION
 do
@@ -134,14 +132,10 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
-# Source common build functions
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/kyaudioreg-common.sh"
-
 # Run action
 case "$ACTION" in
-    "build-kyaudioreg")
-        kyaudioreg_android_do_build "$OUT_DIR" "$HOST_ARCH"
+    "build")
+        ./contrib/build-android.sh -o "$OUT_DIR" -a "$HOST_ARCH"
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"

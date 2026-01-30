@@ -27,6 +27,8 @@ BASE_DIR=$(realpath $(dirname $0))
 # Workspace directories
 WORKSPACE_ROOT=$BASE_DIR/..
 TXPROTO_SRCDIR="$WORKSPACE_ROOT/external/txproto"
+KYAUDIOREG_SRCDIR="$WORKSPACE_ROOT/kyaudioreg"
+VLC_SRCDIR="$WORKSPACE_ROOT/external/vlc"
 
 # Build configuration
 NJOBS=$(grep -c ^processor /proc/cpuinfo)
@@ -327,6 +329,45 @@ build_ffmpeg() {
     cd $init_cwd
 }
 
+build_kyaudioreg() {
+    cd "$KYAUDIOREG_SRCDIR"
+    cargo cinstall \
+        --release \
+        --prefix="$OUT_DIR"
+    cd -
+}
+
+build_libvlc() {
+    local init_cwd=$(pwd)
+
+    # Bootstrap
+    cd $VLC_SRCDIR
+    ./bootstrap
+
+    # Build
+    mkdir -p $BUILD_DIR/vlc
+    cd $BUILD_DIR/vlc
+
+    CONFIGFLAGS=$(cat << EOF
+--disable-dca --disable-zvbi --disable-vpx --disable-faad --disable-fribidi
+--disable-qt --disable-skins2 --disable-vcd --disable-vlm --disable-nls --disable-notify --disable-live555
+--enable-swscale --disable-projectm --disable-libass --disable-libxml2 --disable-goom --disable-dvdread
+--disable-dvdnav --disable-bluray --disable-linsys --disable-gme --disable-tremor --disable-vorbis
+--disable-fluidsynth --disable-jack --disable-mtp --disable-speex --disable-theora
+--disable-flac --disable-screen --disable-freetype --disable-taglib --disable-smb2 --disable-sparkle
+--disable-addonmanagermodules --disable-mad --disable-chromecast --disable-lua --disable-medialibrary --disable-a52
+--disable-rav1e --disable-jpeg --disable-ncurses --disable-chromaprint --disable-shout --disable-schroedinger
+--disable-soxr --disable-x264 --disable-x26410b --disable-x265 --disable-libplacebo --disable-nfs
+EOF
+)
+
+    $VLC_SRCDIR/configure --prefix=$OUT_DIR $CONFIGFLAGS
+    make -j $NJOBS
+    make install -j $NJOBS
+
+    cd $init_cwd
+}
+
 build_txproto() {
     local init_cwd=$(pwd)
 
@@ -392,7 +433,11 @@ export PATH=$OUT_DIR/bin:$PATH
 export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu
 export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig
 
-# Build dependencies
+# Build libvlc
+build_kyaudioreg
+build_libvlc
+
+# Build txproto
 build_nvcodecheaders
 build_x264
 build_vulkanheaders
