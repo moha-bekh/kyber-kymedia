@@ -1,3 +1,12 @@
 [submodule "external/txproto"]
 	path = external/txproto
 	url = ../../deps/txproto.git
+[submodule "external/vlc-rs"]
+	path = external/vlc-rs
+	url = ../../deps/vlc-rs.git
+[submodule "external/vlc"]
+	path = external/vlc
+	url = ../../deps/vlc.git
+[submodule "external/libvlcjni"]
+	path = external/libvlcjni
+	url = ../../deps/libvlcjni.git
