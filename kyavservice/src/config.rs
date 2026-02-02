@@ -70,6 +70,8 @@ impl WatermarkConfig {
 pub(crate) enum GrabBackend {
     #[cfg(target_os = "linux")]
     NvFBC,
+    #[cfg(target_os = "linux")]
+    Drm,
 }
 
 #[derive(Debug, Deserialize)]
