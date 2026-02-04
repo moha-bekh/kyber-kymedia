@@ -61,23 +61,21 @@ pub(crate) fn enumerate(mut sender: EventSender<Event>) -> Result<(Context, Vec<
             }
         };
 
-        // 1. Try to find if the display is known. In this case, this is an update
-        // 2. Else, store the new display
         let Ok(mut displays_locked) = displays.lock() else {
             warn!("Failed to lock displays");
             return;
         };
 
-        let mut updated = false;
-        for known_display in displays_locked.iter_mut() {
-            if known_display.id == display.id {
-                *known_display = display.clone();
-                updated = true;
+        match displays_locked.iter().position(|d| d.id == display.id) {
+            Some(index) if entry.is_unplugged => {
+                displays_locked.remove(index);
             }
-        }
-
-        if !updated {
-            displays_locked.push(display.clone());
+            Some(index) => {
+                displays_locked[index] = display.clone();
+            }
+            None => {
+                displays_locked.push(display.clone());
+            }
         }
 
         // Update notifications should only be sent when the first enumeration
