@@ -50,9 +50,9 @@ git_clone() {
     local BRANCH=$2
 
     if [[ -z "${CI_JOB_TOKEN}" ]]; then
-        local FULL_REPO_URI="git@gitlab.com:${REPO}"
+        local FULL_REPO_URI="git@gitlab.com:${ROOT_NAMESPACE}/${REPO}"
     else
-        local FULL_REPO_URI="https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/${REPO}"
+        local FULL_REPO_URI="https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/${ROOT_NAMESPACE}/${REPO}"
     fi
 
     echo "Repo: '${FULL_REPO_URI}'"
@@ -116,11 +116,11 @@ mkdir -p $OUT_DIR
 # Build kyber dependencies
 if [ "$BUILD_KYBER_DEPS" = true ]; then
     if [[ ! -d libkypc ]]; then
-        git_clone kyber.stream/core/kyutil.git
+        git_clone core/kyutil.git
     fi
 
     if [[ ! -d kymux ]]; then
-        git_clone kyber.stream/core/kymux.git
+        git_clone core/kymux.git
     fi
 
     # Cargo config
