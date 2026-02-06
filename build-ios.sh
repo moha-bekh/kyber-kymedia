@@ -187,6 +187,7 @@ do_build() {
         --target=$cargo_target \
         $cargoc_flags \
         --release \
+        --library-type=staticlib \
         --prefix="$out_dir"
     cd -
 }
