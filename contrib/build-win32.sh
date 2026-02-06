@@ -382,6 +382,7 @@ build_libplacebo() {
     patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0002-vulkan-Disable-stub.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0003-utils-libav-initial-attempt-at-d3d11-hwframe-mapping.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0004-utils-libav-init-proper-d3d11-texture-size-when-mapp.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0006-vulkan-utils_gen-fix-for-python-3-14.patch
 
     mkdir -p build && cd build
 

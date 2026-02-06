@@ -240,6 +240,7 @@ build_libplacebo() {
     cd "$work_dir/$archive_root"
 
     patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0005-utils-libav-fix-component-mapping-order-for-BGR-formats.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0006-vulkan-utils_gen-fix-for-python-3-14.patch
 
     mkdir build && cd build
 
