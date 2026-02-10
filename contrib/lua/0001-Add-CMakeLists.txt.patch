@@ -16,7 +16,7 @@ index 0000000..64b4f63
 --- /dev/null
 +++ b/CMakeLists.txt
 @@ -0,0 +1,64 @@
-+cmake_minimum_required(VERSION 3.0)
++cmake_minimum_required(VERSION 3.5)
 +project(lua)
 +
 +include(GNUInstallDirs)
