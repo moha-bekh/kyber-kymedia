@@ -22,7 +22,7 @@ use std::sync::{Arc, Mutex};
 
 use log::{info, warn};
 
-use avservice_types::{PipelineEvent, PipelineEventType, PipelineStage, PipelineType};
+use kyavservice_types::{PipelineEvent, PipelineEventType, PipelineStage, PipelineType};
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, IOEntryType, IOSysEntry, IOSysType, Txproto};
 

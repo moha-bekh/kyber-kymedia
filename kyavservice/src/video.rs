@@ -21,7 +21,9 @@
 use log::{info, warn};
 use serde::Deserialize;
 
-use avservice_types::{PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec};
+use kyavservice_types::{
+    PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
+};
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, DictionaryEntry, DictionaryValue, Txproto};
 

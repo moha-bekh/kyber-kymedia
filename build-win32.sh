@@ -28,19 +28,19 @@ usage()
 cat << EOF
 usage: $0 -o <path> [options] [action]
 
-Build kymedia application for Windows (avserver and kyaudioreg).
+Build kymedia application for Windows (kyavserver and kyaudioreg).
 
 OPTIONS:
    -h            Show some help
-   -k            Build Kyber dependencies (for avserver)
-   -s            Skip native dependencies build (for avserver)
+   -k            Build Kyber dependencies (for kyavserver)
+   -s            Skip native dependencies build (for kyavserver)
    -d            Build dependencies only (Kyber deps + contrib), then exit
-   -w            Don't spawn cmd.exe when running avserver.exe (hide console)
+   -w            Don't spawn cmd.exe when running kyavserver.exe (hide console)
    -o <path>     Install the built binaries in the absolute path (required)
 
 ACTIONS:
-   build                Build avserver (default)
-   clippy               Run clippy on avserver
+   build                Build kyavserver (default)
+   clippy               Run clippy on kyavserver
 EOF
 }
 
@@ -148,19 +148,19 @@ if [ "$DEPS_ONLY" = true ]; then
     exit 0
 fi
 
-# Setup environment for avserver
+# Setup environment for kyavserver
 export PATH=$OUT_DIR/bin:$PATH
 export PKG_CONFIG_ALLOW_CROSS=1
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 
 # Avserver build functions
-avserver_win32_do_build() {
+kyavserver_win32_do_build() {
     local out_dir=$1
     local hide_console_feature=$2
 
     # Build
     cargo build \
-        -p avserver \
+        -p kyavserver \
         --target x86_64-pc-windows-gnu \
         --release \
         --bins \
@@ -171,13 +171,13 @@ avserver_win32_do_build() {
     mkdir -p $out_dir/bin
 
     cp \
-        target/x86_64-pc-windows-gnu/release/avserver.exe \
+        target/x86_64-pc-windows-gnu/release/kyavserver.exe \
         $out_dir/bin
 }
 
-avserver_win32_do_clippy() {
+kyavserver_win32_do_clippy() {
     cargo clippy \
-        -p avserver \
+        -p kyavserver \
         --target x86_64-pc-windows-gnu \
         -- -D warnings -A clippy::missing_safety_doc
 }
@@ -185,10 +185,10 @@ avserver_win32_do_clippy() {
 # Run action
 case "$ACTION" in
     "build")
-        avserver_win32_do_build "$OUT_DIR" "$HIDE_CONSOLE_FEATURE"
+        kyavserver_win32_do_build "$OUT_DIR" "$HIDE_CONSOLE_FEATURE"
         ;;
     "clippy")
-        avserver_win32_do_clippy
+        kyavserver_win32_do_clippy
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"

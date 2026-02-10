@@ -29,7 +29,7 @@ usage()
 cat << EOF
 usage: $0 [options] [action]
 
-Build kymedia application for WASM (kyaudioreg only - avserver not supported).
+Build kymedia application for WASM (kyaudioreg only - kyavserver not supported).
 
 OPTIONS:
    -h            Show some help
@@ -94,8 +94,8 @@ if [ "x$1" != "x" ]; then
 fi
 
 # Validate action
-if [[ "$ACTION" == *"avserver"* ]]; then
-    echo "Error: avserver is not supported for WASM"
+if [[ "$ACTION" == *"kyavserver"* ]]; then
+    echo "Error: kyavserver is not supported for WASM"
     usage
     exit 1
 fi

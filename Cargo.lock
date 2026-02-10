@@ -71,45 +71,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "avserver"
-version = "0.1.0"
-dependencies = [
- "avservice",
- "avservice-types",
- "ctrlc",
- "libkypc",
- "log",
- "log4rs",
- "tokio",
- "txproto-rs",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "avservice"
-version = "0.1.0"
-dependencies = [
- "avservice-types",
- "kycom",
- "libkypc",
- "log",
- "rmp-serde",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "toml",
- "txproto-rs",
-]
-
-[[package]]
-name = "avservice-types"
-version = "0.1.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "backtrace"
 version = "0.3.69"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -527,6 +488,45 @@ dependencies = [
  "libc",
  "log",
  "wasm-bindgen",
+]
+
+[[package]]
+name = "kyavserver"
+version = "0.1.0"
+dependencies = [
+ "ctrlc",
+ "kyavservice",
+ "kyavservice-types",
+ "libkypc",
+ "log",
+ "log4rs",
+ "tokio",
+ "txproto-rs",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "kyavservice"
+version = "0.1.0"
+dependencies = [
+ "kyavservice-types",
+ "kycom",
+ "libkypc",
+ "log",
+ "rmp-serde",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "toml",
+ "txproto-rs",
+]
+
+[[package]]
+name = "kyavservice-types"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

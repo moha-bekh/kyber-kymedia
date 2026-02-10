@@ -22,7 +22,7 @@
 
 use log::LevelFilter;
 
-use avservice::Result;
+use kyavservice::Result;
 
 #[cfg(target_os = "windows")]
 fn set_process_dpi_aware() {
@@ -96,7 +96,7 @@ fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let _log_handle = setup_logs("avserver", LevelFilter::Info);
+    let _log_handle = setup_logs("kyavserver", LevelFilter::Info);
 
     #[cfg(target_os = "windows")]
     set_process_dpi_aware();
@@ -104,5 +104,5 @@ async fn main() -> Result<()> {
     txproto_rs::init_logger();
 
     let worker = libkypc::process::connect_to_commander().await?;
-    avservice::run(worker).await
+    kyavservice::run(worker).await
 }

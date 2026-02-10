@@ -31,7 +31,7 @@ mod video;
 
 use log::{error, info, warn};
 
-use avservice_types::{
+use kyavservice_types::{
     Command, Event, PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
 };
 use libkypc::{CommandReceiver, EventSender, Worker};

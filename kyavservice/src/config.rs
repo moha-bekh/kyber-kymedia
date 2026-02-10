@@ -137,12 +137,12 @@ pub(crate) async fn load() -> Result<Config> {
         Error::ConfigParseFail
     })?;
 
-    let Some(avserver_conf) = content.get("avserver") else {
-        info!("No avserver section found. Use default configuration");
+    let Some(kyavserver_conf) = content.get("kyavserver") else {
+        info!("No kyavserver section found. Use default configuration");
         return Ok(Config::default());
     };
 
-    avserver_conf
+    kyavserver_conf
         .clone()
         .try_into()
         .map_err(|err| Error::ConfigLoadFail { reason: err })
@@ -174,7 +174,7 @@ pub(crate) fn dump_encoder_config(
         toml::to_string(&map).map_err(|err| Error::ConfigWriteFail { reason: err })?;
 
     Ok((
-        format!("avserver.{encoder_type}_encoder_config"),
+        format!("kyavserver.{encoder_type}_encoder_config"),
         encoder_config,
     ))
 }

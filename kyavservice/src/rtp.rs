@@ -25,7 +25,7 @@ use std::time::Duration;
 use log::{info, warn};
 use tokio::{fs, time};
 
-use avservice_types::VideoCodec;
+use kyavservice_types::VideoCodec;
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, Txproto};
 

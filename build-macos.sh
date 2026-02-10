@@ -30,7 +30,7 @@ usage()
 cat << EOF
 usage: $0 -o <path> [options] [action]
 
-Build kymedia application for macOS (kyaudioreg only - avserver not supported).
+Build kymedia application for macOS (kyaudioreg only - kyavserver not supported).
 
 OPTIONS:
    -h            Show some help
@@ -116,8 +116,8 @@ if [ "x$1" != "x" ]; then
 fi
 
 # Validate action
-if [[ "$ACTION" == *"avserver"* ]]; then
-    echo "Error: avserver is not supported on macOS"
+if [[ "$ACTION" == *"kyavserver"* ]]; then
+    echo "Error: kyavserver is not supported on macOS"
     usage
     exit 1
 fi

@@ -25,7 +25,7 @@ use log::warn;
 
 use crate::{Context, Result};
 
-use avservice_types::{Display, Event};
+use kyavservice_types::{Display, Event};
 use libkypc::EventSender;
 use txproto_rs::{IOEntryType, IOSysEntry, Txproto};
 

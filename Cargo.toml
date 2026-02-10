@@ -3,9 +3,9 @@
 resolver = "2"
 
 members = [
-    "avserver",
-    "avservice-types",
-    "avservice",
+    "kyavserver",
+    "kyavservice-types",
+    "kyavservice",
     "kyaudioreg",
     "txproto-rs",
 ]

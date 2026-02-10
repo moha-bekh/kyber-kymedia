@@ -33,7 +33,7 @@ usage()
 cat << EOF
 usage: $0 -o <path> [options] [action]
 
-Build kymedia application for iOS/tvOS/visionOS (kyaudioreg only - avserver not supported).
+Build kymedia application for iOS/tvOS/visionOS (kyaudioreg only - kyavserver not supported).
 
 OPTIONS:
    -h            Show some help
@@ -110,8 +110,8 @@ if [ "x$1" != "x" ]; then
 fi
 
 # Validate action
-if [[ "$ACTION" == *"avserver"* ]]; then
-    echo "Error: avserver is not supported on iOS/tvOS/visionOS"
+if [[ "$ACTION" == *"kyavserver"* ]]; then
+    echo "Error: kyavserver is not supported on iOS/tvOS/visionOS"
     usage
     exit 1
 fi

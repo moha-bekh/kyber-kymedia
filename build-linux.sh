@@ -28,19 +28,19 @@ usage()
 cat << EOF
 usage: $0 -o <path> [options] [action]
 
-Build kymedia application (avserver and kyaudioreg).
+Build kymedia application (kyavserver and kyaudioreg).
 
 OPTIONS:
    -h            Show some help
-   -k            Build Kyber dependencies (for avserver)
-   -s            Skip native dependencies build (for avserver)
+   -k            Build Kyber dependencies (for kyavserver)
+   -s            Skip native dependencies build (for kyavserver)
    -d            Build dependencies only (Kyber deps + contrib), then exit
    -o <path>     Install the built binaries in the absolute path (required)
 
 ACTIONS:
-   build                Build avserver (default)
-   test                 Run tests on avserver
-   clippy               Run clippy on avserver
+   build                Build kyavserver (default)
+   test                 Run tests on kyavserver
+   clippy               Run clippy on kyavserver
 EOF
 }
 
@@ -144,18 +144,18 @@ if [ "$DEPS_ONLY" = true ]; then
     exit 0
 fi
 
-# Setup environment for avserver
+# Setup environment for kyavserver
 export PATH=$OUT_DIR/bin:$PATH
 export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig:$OUT_DIR/lib64/pkgconfig
 export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu:$OUT_DIR/lib64
 
 # Avserver build functions
-avserver_linux_do_build() {
+kyavserver_linux_do_build() {
     local out_dir=$1
 
     # Build
     cargo build \
-        -p avserver \
+        -p kyavserver \
         --release \
         --bins \
         --examples
@@ -164,34 +164,34 @@ avserver_linux_do_build() {
     mkdir -p $out_dir/bin
 
     cp \
-        target/release/avserver \
+        target/release/kyavserver \
         $out_dir/bin
 }
 
-avserver_linux_do_clippy() {
+kyavserver_linux_do_clippy() {
     cargo clippy -- -D warnings -A clippy::missing_safety_doc
 }
 
-avserver_linux_do_test() {
+kyavserver_linux_do_test() {
     local out_dir=$1
     export LD_LIBRARY_PATH=$out_dir/lib:$out_dir/lib/x86_64-linux-gnu:$out_dir/lib64
     if [ -z $KYBER_TEST_NO_DEFAULT_FEATURES ]; then
-        cargo test -p avserver
+        cargo test -p kyavserver
     else
-        cargo test -p avserver --no-default-features
+        cargo test -p kyavserver --no-default-features
     fi
 }
 
 # Run action
 case "$ACTION" in
     "build")
-        avserver_linux_do_build "$OUT_DIR"
+        kyavserver_linux_do_build "$OUT_DIR"
         ;;
     "test")
-        avserver_linux_do_test "$OUT_DIR"
+        kyavserver_linux_do_test "$OUT_DIR"
         ;;
     "clippy")
-        avserver_linux_do_clippy
+        kyavserver_linux_do_clippy
         ;;
     *)
         echo "Error: Unknown action '$ACTION'"
