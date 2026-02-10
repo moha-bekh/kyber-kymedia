@@ -146,8 +146,8 @@ fi
 
 # Setup environment for avserver
 export PATH=$OUT_DIR/bin:$PATH
-export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig
-export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu
+export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig:$OUT_DIR/lib64/pkgconfig
+export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu:$OUT_DIR/lib64
 
 # Avserver build functions
 avserver_linux_do_build() {
@@ -174,7 +174,7 @@ avserver_linux_do_clippy() {
 
 avserver_linux_do_test() {
     local out_dir=$1
-    export LD_LIBRARY_PATH=$out_dir/lib:$out_dir/lib/x86_64-linux-gnu
+    export LD_LIBRARY_PATH=$out_dir/lib:$out_dir/lib/x86_64-linux-gnu:$out_dir/lib64
     if [ -z $KYBER_TEST_NO_DEFAULT_FEATURES ]; then
         cargo test -p avserver
     else
