@@ -42,7 +42,7 @@ async fn forward_task(mut rx: mpsc::Receiver<Vec<Metrics>>, uri: String) -> Resu
         let packet = kycom::MetricsPacket {
             payload: buf.into(),
         };
-        ipc.send(packet).await?;
+        ipc.send.send(packet).await?;
     }
 
     Ok(())
