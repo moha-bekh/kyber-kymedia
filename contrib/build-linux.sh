@@ -148,7 +148,7 @@ build_vulkanheaders() {
     # Build
     cd "$work_dir/$archive_root"
 
-    mkdir build && cd build
+    mkdir -p build && cd build
     cmake .. \
         -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
         -DCMAKE_BUILD_TYPE=Release
@@ -177,7 +177,7 @@ build_vulkanloader() {
 
     export CFLAGS=-DWIN32_LEAN_AND_MEAN
 
-    mkdir build && cd build
+    mkdir -p build && cd build
     cmake .. \
         -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
         -DCMAKE_BUILD_TYPE=Release
@@ -207,7 +207,7 @@ build_glslang() {
     # Build
     cd "$work_dir/$archive_root"
 
-    mkdir build && cd build
+    mkdir -p build && cd build
     cmake .. \
         -DCMAKE_INSTALL_PREFIX="$OUT_DIR" \
         -DCMAKE_BUILD_TYPE=Release \
@@ -242,7 +242,7 @@ build_libplacebo() {
     patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0005-utils-libav-fix-component-mapping-order-for-BGR-formats.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/libplacebo/0006-vulkan-utils_gen-fix-for-python-3-14.patch
 
-    mkdir build && cd build
+    mkdir -p build && cd build
 
     export CFLAGS="-I$OUT_DIR/include"
 
