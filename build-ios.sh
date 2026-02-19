@@ -126,7 +126,7 @@ mkdir -p $OUT_DIR
 
 # Build kyber dependencies
 if [ "$BUILD_KYBER_DEPS" = true ]; then
-    if [[ ! -d libkypc ]]; then
+    if [[ ! -d kyutil ]]; then
         git_clone core/kyutil.git
     fi
 
