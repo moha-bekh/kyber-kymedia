@@ -16,3 +16,6 @@ libkypc = "0.1.0"
 kyavservice-types = { path = "../kyavservice-types" }
 kycom = "0.1.0"
 txproto-rs = { path = "../txproto-rs" }
+
+[dev-dependencies]
+tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }

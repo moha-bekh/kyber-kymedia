@@ -232,7 +232,7 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
                 let ret = rtp::start_audio(ip, port, config.clock_type(), sender.clone());
                 match ret {
                     Ok(c) => ctx = Some(c),
-                    Err(err) => forward_init_error(&mut sender, err, PipelineType::Video).await,
+                    Err(err) => forward_init_error(&mut sender, err, PipelineType::Audio).await,
                 }
             }
             (
@@ -301,4 +301,61 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
     info!("AV service stopping");
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use kyavservice_types::{Command, Event, PipelineStage, PipelineType};
+    use libkypc::channel::create_pair;
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn rtp_start_audio_error_reports_audio_pipeline_type() {
+        let local = tokio::task::LocalSet::new();
+        local
+            .run_until(async {
+                let (mut commander, worker) = create_pair::<Command, Event>().unwrap();
+                let (mut cmd_sender, mut evt_receiver) = commander.get_sender_receiver().unwrap();
+
+                let worker_handle =
+                    tokio::task::spawn_local(async move { super::run(worker).await });
+
+                let ack = cmd_sender
+                    .send_with_timeout(
+                        Command::RtpStartAudio {
+                            ip: "127.0.0.1".into(),
+                            port: 0,
+                        },
+                        Duration::from_secs(5),
+                    )
+                    .await
+                    .unwrap();
+                assert!(ack.is_none(), "RtpStartAudio accept carries no event");
+
+                let evt = tokio::time::timeout(Duration::from_secs(5), evt_receiver.recv())
+                    .await
+                    .expect("timed out waiting for pipeline error event")
+                    .expect("channel closed before receiving event");
+
+                match evt {
+                    Event::PipelineEvent(pe) => {
+                        assert!(
+                            matches!(pe.type_, PipelineType::Audio),
+                            "Expected PipelineType::Audio on RTP audio error, got {:?}",
+                            pe.type_
+                        );
+                        assert!(matches!(pe.stage, PipelineStage::Initialization));
+                    }
+                    other => panic!("Expected PipelineEvent, got {other:?}"),
+                }
+
+                let _ = cmd_sender
+                    .send_with_timeout(Command::Stop, Duration::from_secs(5))
+                    .await;
+                let _ = commander.stop();
+                let _ = worker_handle.await;
+            })
+            .await;
+    }
 }
