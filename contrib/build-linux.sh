@@ -358,7 +358,7 @@ build_libvlc() {
 --disable-addonmanagermodules --disable-mad --disable-chromecast --disable-lua --disable-medialibrary --disable-a52
 --disable-rav1e --disable-jpeg --disable-ncurses --disable-chromaprint --disable-shout --disable-schroedinger
 --disable-soxr --disable-x264 --disable-x26410b --disable-x265 --disable-libplacebo --disable-nfs
---disable-wayland --disable-vulkan
+--disable-wayland --disable-vulkan --disable-gst-decode
 EOF
 )
 
