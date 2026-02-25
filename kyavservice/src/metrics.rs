@@ -18,7 +18,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use kycom::ProtocolEndpointDriver;
 use log::warn;
 use serde::Serialize;
 use tokio::{sync::mpsc, task};
@@ -34,7 +33,7 @@ pub(crate) struct Metrics {
 
 async fn forward_task(mut rx: mpsc::Receiver<Vec<Metrics>>, uri: String) -> Result<()> {
     let addr = uri.parse::<kycom::KyComAddr>()?;
-    let kycom_client = kycom::MetricsServerEndpoint::connect(addr).await?;
+    let kycom_client = kycom::Channel::connect(addr).into_metrics_server_endpoint();
     let mut ipc = kycom_client.ready().await?;
 
     while let Some(metrics) = rx.recv().await {
