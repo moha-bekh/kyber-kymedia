@@ -240,6 +240,10 @@ fn create_qsv_nv12_filter(ctx: &Txproto) -> Result<txproto_rs::Handle> {
         Some(options),
     )?;
 
+    let init_opts = Dictionary::from_entries(&[("fifo_size", 1).into()])?;
+
+    ctx.ctrl_opts(&filter, init_opts)?;
+
     Ok(filter)
 }
 

@@ -337,6 +337,23 @@ impl Txproto {
         Ok(())
     }
 
+    pub fn ctrl_opts(&self, handle: &Handle, opts: Dictionary) -> Result<()> {
+        let flags = sys::SPEventType_SP_EVENT_CTRL_OPTS | sys::SPEventType_SP_EVENT_FLAG_IMMEDIATE;
+        let ret = unsafe {
+            sys::tx_ctrl(
+                self.inner(),
+                handle.h,
+                flags,
+                opts.take() as *mut libc::c_void,
+            )
+        };
+        if ret != 0 {
+            return Err(ret.into());
+        }
+
+        Ok(())
+    }
+
     pub fn create_muxer(
         &self,
         out_url: &str,
