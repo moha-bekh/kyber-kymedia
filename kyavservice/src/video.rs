@@ -509,7 +509,19 @@ pub(crate) fn configure(
 ) -> Result<VideoPipeline> {
     let mut events = vec![];
 
-    let io_event = ctx.register_io_cb(|_| {})?;
+    // When a specific grab backend is selected, restrict initialization to
+    // only that backend + audio, so other video backends are not loaded.
+    #[cfg(target_os = "linux")]
+    let api_list: Vec<&str> = match video_config.grab_backend {
+        Some(config::GrabBackend::NvFBC) => vec!["nvfbc", "pulse"],
+        Some(config::GrabBackend::Drm) => vec!["drm", "pulse"],
+        None => vec![],
+    };
+    #[cfg(not(target_os = "linux"))]
+    let api_list: Vec<&str> = vec![];
+
+    info!("register_io_cb with api_list: {:?}", api_list);
+    let io_event = ctx.register_io_cb(|_| {}, &api_list)?;
     drop(io_event);
 
     // Video source

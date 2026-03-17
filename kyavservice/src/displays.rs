@@ -92,7 +92,7 @@ pub(crate) fn enumerate(mut sender: EventSender<Event>) -> Result<(Context, Vec<
         }
     };
 
-    let event = ctx.register_io_cb(io_cb)?;
+    let event = ctx.register_io_cb(io_cb, &[])?;
 
     // At this point, the enumeration is complete.
     // Any further call to io_cb will be a Display hotplug or an update about

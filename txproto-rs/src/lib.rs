@@ -251,16 +251,31 @@ impl Txproto {
         let _ = unsafe { Box::from_raw(userdata as *mut IoCbData<F>) };
     }
 
-    pub fn register_io_cb<F>(&self, cb: F) -> Result<Event>
+    pub fn register_io_cb<F>(&self, cb: F, api_list: &[&str]) -> Result<Event>
     where
         F: FnMut(IOSysEntry),
     {
         let data = Box::into_raw(Box::new(IoCbData { cb }));
 
+        // Convert &[&str] to a NULL-terminated C string array
+        let c_strings: Vec<CString> = api_list
+            .iter()
+            .map(|s| CString::new(*s))
+            .collect::<std::result::Result<_, _>>()?;
+
+        let mut c_ptrs: Vec<*const libc::c_char> = c_strings.iter().map(|s| s.as_ptr()).collect();
+        c_ptrs.push(ptr::null()); // NULL terminator
+
+        let api_list_ptr = if api_list.is_empty() {
+            ptr::null_mut()
+        } else {
+            c_ptrs.as_ptr() as *mut *const libc::c_char
+        };
+
         let event = unsafe {
             sys::tx_io_register_cb(
                 self.inner(),
-                ptr::null_mut(),
+                api_list_ptr,
                 Some(Self::source_event_cb::<F>),
                 Some(Self::source_free_cb::<F>),
                 data as *mut _,

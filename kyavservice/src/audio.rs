@@ -94,7 +94,7 @@ pub(crate) fn configure(
         *monitor_id = Some(entry.identifier);
     };
 
-    let io_event = ctx.register_io_cb(io_cb)?;
+    let io_event = ctx.register_io_cb(io_cb, &[])?;
     drop(io_event);
 
     let Some(monitor_id) = *monitor_id.lock()? else {

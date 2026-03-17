@@ -65,7 +65,7 @@ impl WatermarkConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum GrabBackend {
     #[cfg(target_os = "linux")]
