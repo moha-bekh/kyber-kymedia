@@ -169,11 +169,11 @@ build_opus() {
 build_amf() {
     local init_cwd=$(pwd)
 
-    local version="1.4.33"
+    local version="1.5.0"
 
     local uri="https://github.com/GPUOpen-LibrariesAndSDKs/AMF/archive/refs/tags/v$version.tar.gz"
     local archive_root="AMF-$version"
-    local sha256="86b39d5bd4652338bf7b4e48efec58472bb57a985250bc149e7908534a915c8e"
+    local sha256="bf80ee4a77a731c5a2351b4dd74f524a18806a70099ba66a8058d91aac1150b5"
     local work_dir="$BUILD_DIR/amf"
 
     # Get sources
