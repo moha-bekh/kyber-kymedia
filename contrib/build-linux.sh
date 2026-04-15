@@ -295,11 +295,11 @@ build_lua() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="7.1.2"
+    local version="8.1"
 
     local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
     local archive_root="ffmpeg-$version"
-    local sha256="089bc60fb59d6aecc5d994ff530fd0dcb3ee39aa55867849a2bbc4e555f9c304"
+    local sha256="b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
