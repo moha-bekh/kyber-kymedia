@@ -414,11 +414,11 @@ build_libplacebo() {
 build_ffmpeg() {
     local init_cwd=$(pwd)
 
-    local version="7.1.2"
+    local version="8.1"
 
     local uri="https://ffmpeg.org/releases/ffmpeg-$version.tar.xz"
     local archive_root="ffmpeg-$version"
-    local sha256="089bc60fb59d6aecc5d994ff530fd0dcb3ee39aa55867849a2bbc4e555f9c304"
+    local sha256="b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a"
     local work_dir="$BUILD_DIR/ffmpeg"
 
     # Get sources
@@ -429,8 +429,7 @@ build_ffmpeg() {
     # Build
     cd "$work_dir/$archive_root"
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
-    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0002-libavcodec-amfenc-Add-mapping-for-AV_PIX_FMT_BGRA.patch
-    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-libavutil-d3d11va-Avoid-to-query-ID3D11VideoDevice-a.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0002-libavutil-d3d11va-Avoid-to-query-ID3D11VideoDevice-a.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0003-libavutil-Implement-monotonic-av_gettime_relative-on.patch
 
     mkdir -p build
