@@ -34,7 +34,7 @@ OPTIONS:
    -h            Show some help
    -k            Build Kyber dependencies (for kyavserver)
    -s            Skip native dependencies build (for kyavserver)
-   -d            Build dependencies only (Kyber deps + contrib), then exit
+   -d            Build native dependencies (contrib) only, then exit
    -w            Don't spawn cmd.exe when running kyavserver.exe (hide console)
    -o <path>     Install the built binaries in the absolute path (required)
 
@@ -83,7 +83,6 @@ do
             ;;
         d)
             DEPS_ONLY=true
-            BUILD_KYBER_DEPS=true
             ;;
         w)
             HIDE_CONSOLE_FEATURE="--features win32-hide-console"

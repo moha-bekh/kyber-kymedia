@@ -64,7 +64,7 @@ contrib-debian-trixie-x86_64:
     export KYBER_DIRNAME=rootfs
     export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
     # Build native dependencies for kyavserver
-    ./build-linux.sh -d -o $KYBER_PREFIX
+    ./build-linux.sh -k -d -o $KYBER_PREFIX
     # Prepare rootfs to be shared to other jobs
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh $(pwd)
@@ -87,7 +87,7 @@ contrib-windows-x86_64:
     export KYBER_DIRNAME=rootfs
     export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
     # Build native dependencies for kyavserver
-    ./build-win32.sh -d -o $KYBER_PREFIX
+    ./build-win32.sh -k -d -o $KYBER_PREFIX
     # Prepare rootfs to be shared to other jobs
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh $(pwd)
