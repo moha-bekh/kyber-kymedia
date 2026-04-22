@@ -18,6 +18,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
@@ -76,6 +78,13 @@ pub enum Command {
     Stop,
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum Response {
+    None,
+    DisplayList { displays: Vec<Display> },
+    RtpSdpGenerated { sdp: String },
+}
+
 #[derive(Clone, Copy, Serialize, Deserialize, Debug)]
 pub enum PipelineType {
     Audio,
@@ -103,8 +112,27 @@ pub struct PipelineEvent {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum Event {
-    DisplayList { displays: Vec<Display> },
     DisplayListUpdated { displays: Vec<Display> },
-    RtpSdpGenerated { sdp: String },
     PipelineEvent(PipelineEvent),
 }
+
+pub struct IpcApi;
+
+impl libkypc::IpcApi for IpcApi {
+    type Event = Event;
+    type Command = Command;
+    type Response = Result<Response>;
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Error(pub String);
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::error::Error for Error {}
+
+pub type Result<T> = std::result::Result<T, Error>;

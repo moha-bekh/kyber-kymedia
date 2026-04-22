@@ -71,7 +71,7 @@ impl Event {
 
     pub fn new<F>(type_: EventType, event_cb: F) -> Self
     where
-        F: FnMut(HandleEvent),
+        F: FnMut(HandleEvent) + 'static,
     {
         let event = unsafe {
             sys::sp_event_create(
@@ -104,7 +104,7 @@ impl Event {
         _data: *mut c_void,
     ) -> c_int
     where
-        F: FnMut(HandleEvent),
+        F: FnMut(HandleEvent) + 'static,
     {
         let data = unsafe { &mut *(callback_ctx as *mut HandleEventCbData<F>) };
         (data.cb)(HandleEvent::Error);
@@ -117,7 +117,7 @@ impl Event {
         _ctx: *mut libc::c_void,
         _dep_ctx: *mut libc::c_void,
     ) where
-        F: FnMut(HandleEvent),
+        F: FnMut(HandleEvent) + 'static,
     {
         unsafe { ptr::drop_in_place(callback_ctx as *mut HandleEventCbData<F>) };
     }

@@ -18,6 +18,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+use kyavservice_types::IpcApi;
 use log::info;
 
 use libkypc::EventSender;
@@ -26,13 +27,13 @@ use txproto_rs::Txproto;
 use crate::config::ClockType;
 use crate::metrics;
 use crate::{audio, configure_clock, video};
-use crate::{Context, Event, Result, VideoConfig};
+use crate::{Context, Result, VideoConfig};
 
 pub(crate) fn start_video(
     video_config: VideoConfig,
     uri: &str,
     metrics_uri: Option<&str>,
-    sender: EventSender<Event>,
+    sender: &EventSender<IpcApi>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
 
@@ -58,7 +59,7 @@ pub(crate) fn start_video(
 pub(crate) fn start_audio(
     uri: &str,
     clock_type: ClockType,
-    sender: EventSender<Event>,
+    sender: &EventSender<IpcApi>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
 
@@ -66,7 +67,7 @@ pub(crate) fn start_audio(
     configure_clock(&ctx, &clock_type)?;
 
     let packet_sink = ctx.create_packet_sink(uri)?;
-    let events = audio::configure(&ctx, packet_sink, Some(sender))?;
+    let events = audio::configure(&ctx, packet_sink, sender)?;
 
     ctx.commit()?;
 

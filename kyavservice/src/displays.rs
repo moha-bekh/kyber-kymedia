@@ -25,12 +25,12 @@ use log::warn;
 
 use crate::{Context, Result};
 
-use kyavservice_types::{Display, Event};
+use kyavservice_types::{Display, Event, IpcApi};
 use libkypc::EventSender;
 use txproto_rs::{IOEntryType, IOSysEntry, Txproto};
 
 pub(crate) fn enumerate(
-    mut sender: EventSender<Event>,
+    sender: &EventSender<IpcApi>,
     api_list: &[&str],
 ) -> Result<(Context, Vec<Display>)> {
     let ctx = Txproto::new()?;
@@ -84,12 +84,9 @@ pub(crate) fn enumerate(
         // Update notifications should only be sent when the first enumeration
         // is complete
         if send_notifications.load(Ordering::Relaxed) {
-            let ret = sender.blocking_send(Event::DisplayListUpdated {
+            sender.send(Event::DisplayListUpdated {
                 displays: displays_locked.clone(),
             });
-            if let Err(err) = ret {
-                warn!("Failed to send new display list: {err:?}");
-            }
         }
     };
 

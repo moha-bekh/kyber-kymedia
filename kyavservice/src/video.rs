@@ -22,7 +22,7 @@ use log::{info, warn};
 use serde::Deserialize;
 
 use kyavservice_types::{
-    PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
+    IpcApi, PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
 };
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, DictionaryEntry, DictionaryValue, Txproto};
@@ -504,19 +504,17 @@ fn plug_error_listener(
     ctx: &Txproto,
     handle: &txproto_rs::Handle,
     stage: PipelineStage,
-    mut sender: EventSender<Event>,
+    sender: &EventSender<IpcApi>,
 ) -> Result<txproto_rs::Event> {
+    let sender = sender.clone();
     let error_cb = move |event| {
         info!("Video acquisition event: {event:?}");
 
-        let ret = sender.blocking_send(Event::PipelineEvent(PipelineEvent {
+        sender.send(Event::PipelineEvent(PipelineEvent {
             type_: PipelineType::Video,
             stage,
             event: PipelineEventType::Error,
         }));
-        if let Err(err) = ret {
-            warn!("Failed to send video acquisition error: {err:?}");
-        }
     };
 
     let mut error_event = txproto_rs::Event::new(txproto_rs::EventType::Error, error_cb);
@@ -534,7 +532,7 @@ pub(crate) fn configure(
     ctx: &Txproto,
     video_config: VideoConfig,
     muxer: txproto_rs::Handle,
-    sender: Option<EventSender<Event>>,
+    sender: Option<&EventSender<IpcApi>>,
 ) -> Result<VideoPipeline> {
     let mut events = vec![];
 
@@ -602,16 +600,11 @@ pub(crate) fn configure(
     // Plug error listeners
     if let Some(sender) = sender {
         // Acquisition
-        let event = plug_error_listener(
-            ctx,
-            &video_source,
-            PipelineStage::Acquisition,
-            sender.clone(),
-        )?;
+        let event = plug_error_listener(ctx, &video_source, PipelineStage::Acquisition, sender)?;
         events.push(event);
 
         // Encoder
-        let event = plug_error_listener(ctx, &encoder, PipelineStage::Encoder, sender.clone())?;
+        let event = plug_error_listener(ctx, &encoder, PipelineStage::Encoder, sender)?;
         events.push(event);
     }
 

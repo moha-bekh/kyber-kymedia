@@ -22,6 +22,7 @@ use std::env;
 use std::io;
 use std::time::Duration;
 
+use kyavservice_types::IpcApi;
 use log::{info, warn};
 use tokio::{fs, time};
 
@@ -32,7 +33,7 @@ use txproto_rs::{Dictionary, Txproto};
 use crate::config::{self, ClockType};
 use crate::video::{VideoConfig, VideoEncoder};
 use crate::{audio, configure_clock, utils, video};
-use crate::{Context, Error, Event, Result};
+use crate::{Context, Error, Result};
 
 fn create_muxer(
     ctx: &Txproto,
@@ -140,7 +141,7 @@ pub(crate) fn start_video(
     video_config: VideoConfig,
     ip: String,
     port: u16,
-    sender: EventSender<Event>,
+    sender: &EventSender<IpcApi>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
 
@@ -163,7 +164,7 @@ pub(crate) fn start_audio(
     ip: String,
     port: u16,
     clock_type: ClockType,
-    sender: EventSender<Event>,
+    sender: &EventSender<IpcApi>,
 ) -> Result<Context> {
     let ctx = Txproto::new()?;
 
@@ -171,7 +172,7 @@ pub(crate) fn start_audio(
     configure_clock(&ctx, &clock_type)?;
 
     let muxer = create_muxer(&ctx, &ip, port, None)?;
-    let events = audio::configure(&ctx, muxer, Some(sender))?;
+    let events = audio::configure(&ctx, muxer, sender)?;
 
     ctx.commit()?;
 
