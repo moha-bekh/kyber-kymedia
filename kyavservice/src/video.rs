@@ -195,6 +195,7 @@ fn create_vaapi(
         let mut options = vec![
             ("bf", 0).into(),
             ("b", config.bitrate as i64).into(),
+            ("async_depth", 1).into(),
             ("flags", "+global_header").into(),
         ];
 
