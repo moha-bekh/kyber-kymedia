@@ -370,7 +370,8 @@ fn create_amf(
         let mut options = vec![
             ("bf", 0).into(),
             ("b", config.bitrate as i64).into(),
-            ("flags", "+global_header").into(),
+            ("flags", "+global_header+low_delay").into(),
+            ("async_depth", 1).into(),
         ];
 
         match config.codec {
