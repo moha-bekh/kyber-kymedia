@@ -1,0 +1,56 @@
+# Project Kyber: macos-cross-meson-toolchain.ini.in
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Meson cross-file template for macOS cross-architecture builds
+# (e.g. building x86_64 on an arm64 runner or vice-versa).
+#
+# Placeholders substituted by build-macos.sh via sed:
+#   @CPU_FAMILY@  — Meson cpu_family value: 'x86_64' or 'aarch64'
+#   @HOST_ARCH@   — clang -arch value: 'x86_64' or 'arm64'
+
+[binaries]
+c = 'clang'
+cpp = 'clang++'
+objc = 'clang'
+objcpp = 'clang++'
+ar = 'ar'
+strip = 'strip'
+pkg-config = 'pkg-config'
+
+[properties]
+# On Apple Silicon, Rosetta transparently runs x86_64 binaries, so configure
+# test programs compiled for x86_64 can execute on the arm64 build machine.
+needs_exe_wrapper = false
+
+[built-in options]
+c_args = ['-arch', '@HOST_ARCH@']
+cpp_args = ['-arch', '@HOST_ARCH@']
+objc_args = ['-arch', '@HOST_ARCH@']
+objcpp_args = ['-arch', '@HOST_ARCH@']
+c_link_args = ['-arch', '@HOST_ARCH@']
+cpp_link_args = ['-arch', '@HOST_ARCH@']
+objc_link_args = ['-arch', '@HOST_ARCH@']
+objcpp_link_args = ['-arch', '@HOST_ARCH@']
+
+[host_machine]
+system = 'darwin'
+cpu_family = '@CPU_FAMILY@'
+cpu = '@HOST_ARCH@'
+endian = 'little'

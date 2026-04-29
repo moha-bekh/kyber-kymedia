@@ -21,8 +21,10 @@
 
 set -e
 
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+
 # Architecture configuration
-BUILD_ARCH=`uname -m | cut -d. -f1`
+BUILD_ARCH=$(uname -m | cut -d. -f1)
 HOST_ARCH="x86_64"
 
 usage()
@@ -35,6 +37,7 @@ Build kymedia application for macOS (kyaudioreg only - kyavserver not supported)
 OPTIONS:
    -h            Show some help
    -k            Build Kyber dependencies
+   -s            Skip native dependencies build
    -o <path>     Install the built binaries in the absolute path (required)
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
 
@@ -79,10 +82,11 @@ get_cargo_target()
     esac
 }
 
+BUILD_DEPS=true
 BUILD_KYBER_DEPS=false
 ACTION="build"
 
-while getopts "hko:a:" OPTION
+while getopts "hkso:a:" OPTION
 do
     case $OPTION in
         h)
@@ -91,6 +95,9 @@ do
             ;;
         k)
             BUILD_KYBER_DEPS=true
+            ;;
+        s)
+            BUILD_DEPS=false
             ;;
         o)
             OUT_DIR=$OPTARG
@@ -149,10 +156,46 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
+# Setup environment
+export PATH=$OUT_DIR/bin:$PATH
+export PKG_CONFIG_ALLOW_CROSS=1
+# PKG_CONFIG_LIBDIR must be set before meson setup so that FFmpeg's configure
+# (which runs as an external_project at setup time) can find subproject-built
+# libs like x264, opus, zlib via pkg-config. PKG_CONFIG_LIBDIR survives meson's
+# internal PkgConfigInterface.setup_env() override (unlike PKG_CONFIG_PATH which
+# gets replaced with [meson-uninstalled]).
+export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+# Build dependencies (kyaudioreg + native deps via meson)
+if [ "$BUILD_DEPS" = true ]; then
+    ./build-kyaudioreg.sh -p macos -a "$HOST_ARCH" -o "$OUT_DIR"
+
+    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=disabled")
+
+    # When cross-compiling
+    if [ "$HOST_ARCH" != "$BUILD_ARCH" ]; then
+        CPU_FAMILY=$([ "$HOST_ARCH" = "arm64" ] && echo "aarch64" || echo "$HOST_ARCH")
+        sed \
+            -e "s|@CPU_FAMILY@|${CPU_FAMILY}|g" \
+            -e "s|@HOST_ARCH@|${HOST_ARCH}|g" \
+            "$SCRIPT_DIR/macos-cross-meson-toolchain.ini.in" > "$SCRIPT_DIR/macos-cross-meson-toolchain.ini"
+        MESON_SETUP_ARGS+=("--cross-file" "$SCRIPT_DIR/macos-cross-meson-toolchain.ini")
+    fi
+
+    if [ -d builddir-macos ]; then
+        meson setup builddir-macos --prefix "$OUT_DIR" "${MESON_SETUP_ARGS[@]}" --reconfigure
+    else
+        meson setup builddir-macos --prefix "$OUT_DIR" "${MESON_SETUP_ARGS[@]}"
+    fi
+    meson compile -C builddir-macos -j$(sysctl -n hw.logicalcpu)
+    meson install -C builddir-macos
+else
+    echo "Skip dependencies build"
+fi
+
 # Run action
 case "$ACTION" in
     "build")
-        ./contrib/build-macos.sh -o "$OUT_DIR" -a "$HOST_ARCH"
+        echo "Nothing to do: kyaudioreg is built during the deps phase"
         ;;
     "test")
         echo "Test action not yet implemented for macOS"

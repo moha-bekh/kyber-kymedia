@@ -7,3 +7,4 @@ target
 builddir-*
 
 mingw-w64-meson-toolchain.ini
+macos-cross-meson-toolchain.ini
