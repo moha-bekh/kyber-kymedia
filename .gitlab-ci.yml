@@ -2,7 +2,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
   DEBIAN_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-trixie:a3d1e282885b1ef5fd5fdbbf7a7d8e0b3a33de15
   WASM_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-wasm:1708fd23b028cc9369b568f9ff976a84f7c869c2
-  WIN64_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-win64:fbcb780ae307a192d9037db595c02d755be9d83e
+  WIN64_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-win64:a3d1e282885b1ef5fd5fdbbf7a7d8e0b3a33de15
   ANDROID_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-android:fbcb780ae307a192d9037db595c02d755be9d83e
   MACOS_RUST_VERSION: 1.89.0
   WEB_FEATURES: js
@@ -88,7 +88,7 @@ contrib-windows-x86_64:
   script: |
     export KYBER_DIRNAME=rootfs
     export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
-    # Build native dependencies for kyavserver
+    # Build contribs with Meson
     ./build-win32.sh -k -d -o $KYBER_PREFIX
     # Prepare rootfs to be shared to other jobs
     cd $KYBER_PREFIX
@@ -144,7 +144,7 @@ build-windows-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Build
+    # Build component with Cargo (Windows), skip Meson dependencies
     ./build-win32.sh -k -s -o $KYBER_PREFIX build
   artifacts:
     paths:
@@ -335,7 +335,7 @@ clippy-windows-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Run clippy
+    # Run clippy checks (Windows), skip Meson dependencies
     ./build-win32.sh -k -s -o $KYBER_PREFIX clippy
 
 .clippy-macos-common:

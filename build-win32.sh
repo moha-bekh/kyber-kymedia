@@ -23,6 +23,11 @@ set -e
 
 BASE_DIR=$(realpath $(dirname $0))
 
+
+# MinGW-w64 sysroot and target triple used to instantiate the toolchain file.
+MINGW_PREFIX="${MINGW_PREFIX:-/usr/x86_64-w64-mingw32}"
+MINGW_TRIPLE="${MINGW_TRIPLE:-x86_64-w64-mingw32}"
+
 usage()
 {
 cat << EOF
@@ -134,9 +139,37 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
-# Build dependencies (contrib builds kyaudioreg + native deps)
+# Setup environment for kyavserver
+export PATH=$OUT_DIR/bin:$PATH
+export PKG_CONFIG_ALLOW_CROSS=1
+# PKG_CONFIG_LIBDIR must be set before meson setup so that FFmpeg's configure
+# (which runs as an external_project at setup time) can find subproject-built
+# libs like x264, opus, zlib via pkg-config. PKG_CONFIG_LIBDIR survives meson's
+# internal PkgConfigInterface.setup_env() override (unlike PKG_CONFIG_PATH which
+# gets replaced with [meson-uninstalled]).
+export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+
+# Build dependencies (kyaudioreg + native deps via meson)
 if [ "$BUILD_DEPS" = true ]; then
-    ./contrib/build-win32.sh -o $OUT_DIR
+    ./build-kyaudioreg.sh -p win32 -o "$OUT_DIR"
+
+    # Instantiate the MinGW cross-file from its template so MINGW_PREFIX /
+    # MINGW_TRIPLE are resolved against the current environment. Matches the
+    # @VAR@ / sed substitution pattern used by android and ios scripts.
+    sed \
+        -e "s|@MINGW_PREFIX@|${MINGW_PREFIX}|g" \
+        -e "s|@MINGW_TRIPLE@|${MINGW_TRIPLE}|g" \
+        -e "s|@ROOTFS_PREFIX@|${OUT_DIR}|g" \
+        "$BASE_DIR/mingw-w64-meson-toolchain.ini.in" > "$BASE_DIR/mingw-w64-meson-toolchain.ini"
+
+    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=enabled" "--cross-file" "$BASE_DIR/mingw-w64-meson-toolchain.ini")
+    if [ -d builddir-win32 ]; then
+        meson setup builddir-win32 --prefix "$OUT_DIR" "${MESON_SETUP_ARGS[@]}" --reconfigure
+    else
+        meson setup builddir-win32 --prefix "$OUT_DIR" "${MESON_SETUP_ARGS[@]}"
+    fi
+    meson compile -C builddir-win32 -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+    meson install -C builddir-win32
 else
     echo "Skip dependencies build"
 fi
@@ -146,11 +179,6 @@ if [ "$DEPS_ONLY" = true ]; then
     echo "Dependencies built successfully"
     exit 0
 fi
-
-# Setup environment for kyavserver
-export PATH=$OUT_DIR/bin:$PATH
-export PKG_CONFIG_ALLOW_CROSS=1
-export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 
 # Avserver build functions
 kyavserver_win32_do_build() {

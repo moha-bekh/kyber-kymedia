@@ -1,0 +1,53 @@
+# Project Kyber: mingw-w64-meson-toolchain.ini.in
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Meson cross-file template for MinGW-w64 Windows builds.
+#
+# Placeholders substituted by build-win32.sh via sed:
+#   MINGW_PREFIX   — Absolute path to the MinGW sysroot (default: /usr/x86_64-w64-mingw32)
+#   MINGW_TRIPLE   — Target triple prefix for binaries (default: x86_64-w64-mingw32)
+#   ROOTFS_PREFIX  — Absolute path to the Windows rootfs (OUT_DIR)
+
+[binaries]
+c = '@MINGW_TRIPLE@-gcc'
+cpp = '@MINGW_TRIPLE@-g++'
+ar = '@MINGW_TRIPLE@-ar'
+strip = '@MINGW_TRIPLE@-strip'
+dlltool = '@MINGW_TRIPLE@-dlltool'
+windres = '@MINGW_TRIPLE@-windres'
+pkg-config = '@MINGW_TRIPLE@-pkg-config'
+
+[cmake]
+CMAKE_CXX_COMPILER = '@MINGW_TRIPLE@-g++'
+CMAKE_FIND_ROOT_PATH = '@MINGW_PREFIX@'
+CMAKE_FIND_ROOT_PATH_MODE_PROGRAM = 'NEVER'
+CMAKE_FIND_ROOT_PATH_MODE_LIBRARY = 'ONLY'
+CMAKE_FIND_ROOT_PATH_MODE_INCLUDE = 'ONLY'
+
+[properties]
+# Restrict pkg-config to the Windows rootfs so meson does not pick up
+# Linux-native libraries (EGL, udev, GBM, …) from the host system.
+pkg_config_libdir = '@ROOTFS_PREFIX@/lib/pkgconfig'
+
+[host_machine]
+system = 'windows'
+cpu_family = 'x86_64'
+cpu = 'x86_64'
+endian = 'little'
