@@ -1,0 +1,63 @@
+#!/bin/sh
+# Project Kyber: configure
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -e
+
+SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
+PREFIX=/usr/local
+LIBDIR=lib
+INCLUDEDIR=include
+
+for arg; do
+    case "$arg" in
+        --prefix=*)     PREFIX="${arg#*=}" ;;
+        --libdir=*)     LIBDIR="${arg#*=}" ;;
+        --includedir=*) INCLUDEDIR="${arg#*=}" ;;
+    esac
+done
+
+# cmake expects relative paths (relative to prefix); strip prefix if present
+LIBDIR="${LIBDIR#"$PREFIX/"}"
+INCLUDEDIR="${INCLUDEDIR#"$PREFIX/"}"
+
+# VULKAN_HEADERS_DIST_PREFIX must be set to vulkan-headers' DESTDIR install
+# prefix (<dist>/<rel_prefix>) so cmake can find VulkanHeaders
+if [ -z "${VULKAN_HEADERS_DIST_PREFIX:-}" ]; then
+    echo "ERROR: VULKAN_HEADERS_DIST_PREFIX is not set" >&2
+    exit 1
+fi
+
+WSI_ARGS=""
+if [ "${MESON_CROSS:-0}" != "1" ]; then
+    WSI_ARGS="-DBUILD_WSI_XCB_SUPPORT=ON -DBUILD_WSI_XLIB_SUPPORT=ON -DBUILD_WSI_WAYLAND_SUPPORT=ON"
+fi
+
+# shellcheck disable=SC2086
+cmake "$SRC_DIR" \
+    -G "Unix Makefiles" \
+    -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    -DCMAKE_INSTALL_LIBDIR="$LIBDIR" \
+    -DCMAKE_INSTALL_INCLUDEDIR="$INCLUDEDIR" \
+    -DCMAKE_BUILD_TYPE=Release \
+    "-DVULKAN_HEADERS_INSTALL_DIR=$VULKAN_HEADERS_DIST_PREFIX" \
+    "-DCMAKE_PREFIX_PATH=$VULKAN_HEADERS_DIST_PREFIX" \
+    $WSI_ARGS \
+    ${CROSS_CMAKE_ARGS:-}

@@ -1,0 +1,41 @@
+#!/bin/sh
+# Project Kyber: configure
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# make wrapper for meson unstable-external_project
+# Runs from the build directory (workdir = external_project build_dir)
+set -e
+
+SRC_DIR="${0%/*}"
+PREFIX=/usr/local
+LIBDIR=lib
+
+for arg; do
+    case "$arg" in
+        --prefix=*) PREFIX="${arg#*=}" ;;
+        --libdir=*)  LIBDIR="${arg#*=}" ;;
+    esac
+done
+
+# nv-codec-headers Makefile uses $(PREFIX)/$(LIBDIR)/pkgconfig, so LIBDIR must be relative
+LIBDIR="${LIBDIR#"$PREFIX/"}"
+
+make -C "$SRC_DIR" PREFIX="$PREFIX" LIBDIR="$LIBDIR"
+make -C "$SRC_DIR" PREFIX="$PREFIX" LIBDIR="$LIBDIR" install

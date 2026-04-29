@@ -1,0 +1,29 @@
+# Project Kyber: spirv-headers.wrap
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[wrap-file]
+directory = SPIRV-Headers-vulkan-sdk-1.4.313.0
+source_url = https://codeload.github.com/KhronosGroup/SPIRV-Headers/tar.gz/refs/tags/vulkan-sdk-1.4.313.0
+source_filename = SPIRV-Headers-vulkan-sdk-1.4.313.0.tar.gz
+source_hash = f68be549d74afb61600a1e3a7d1da1e6b7437758c8e77d664909f88f302c5ac1
+patch_directory = spirv-headers
+
+[provide]
+dependency_names = spirv-headers

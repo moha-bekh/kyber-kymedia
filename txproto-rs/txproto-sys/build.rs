@@ -53,14 +53,30 @@ fn main() {
         bindings = bindings.clang_arg(format!("-I{prefix}/toolchain-x86_64/mingw/include"));
     }
 
-    // Set header include paths
-    let libraries = ["txproto", "libavutil"];
+    // Probe all required libraries. Include paths are extracted only for
+    // txproto and libavutil (needed by bindgen). The remaining probes ensure
+    // Cargo emits the correct linker flags for txproto's transitive deps, which
+    // live in a non-standard pkg-config path when built via meson subprojects.
+    let header_libs = ["txproto", "libavutil"];
+    let extra_libs = [
+        "libavcodec",
+        "libavformat",
+        "libswresample",
+        "libswscale",
+        "libavfilter",
+        "libavdevice",
+        "liblua",
+    ];
 
-    for lib in libraries {
+    for lib in header_libs {
         let pkg_config_library = pkg_config::Config::new().probe(lib).unwrap();
         for include_path in &pkg_config_library.include_paths {
             bindings = bindings.clang_arg(format!("-I{}", include_path.display()));
         }
+    }
+
+    for lib in extra_libs {
+        pkg_config::Config::new().probe(lib).unwrap();
     }
 
     let bindings = bindings.generate().expect("Unable to generate bindings");

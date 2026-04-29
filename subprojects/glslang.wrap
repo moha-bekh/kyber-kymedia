@@ -1,0 +1,30 @@
+# Project Kyber: glslang.wrap
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[wrap-file]
+directory = glslang-16.0.0
+source_url = https://github.com/KhronosGroup/glslang/archive/refs/tags/16.0.0.tar.gz
+source_filename = glslang-16.0.0.tar.gz
+source_hash = 172385478520335147d3b03a1587424af0935398184095f24beab128a254ecc7
+patch_directory = glslang
+diff_files = glslang/patches/0001-cmake-Add-pkg-config-support.patch, glslang/patches/0002-cmake-Link-to-spirv-tools.patch, glslang/patches/0003-pkgconfig-Adjust-linked-libs.patch
+
+[provide]
+dependency_names = glslang

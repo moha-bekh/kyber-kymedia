@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Arthur Vasseur <arthur@kyber.tech>
+Date: Thu, 20 Feb 2025 00:00:00 +0000
+Subject: [PATCH] Allow --bindir as a harmless option
+
+The Meson external project wrapper passes --bindir to configure. Zlib's
+configure script previously rejected the option. Accept it by parsing
+and storing the value so the configure step succeeds.
+
+---
+ configure | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/configure b/configure
+index 3612c6d..9a1841d 100755
+--- a/configure
++++ b/configure
+@@
+ libdir=${libdir-'${exec_prefix}/lib'}
+ sharedlibdir=${sharedlibdir-'${libdir}'}
+ includedir=${includedir-'${prefix}/include'}
++bindir=${bindir-'${exec_prefix}/bin'}
+ mandir=${mandir-'${prefix}/share/man'}
+@@
+     -i*=* | --includedir=*) includedir=`echo $1 | sed 's/.*=//'`;shift ;;
++    --bindir=*) bindir=`echo $1 | sed 's/.*=//'`; shift ;;
+     -u*=* | --uname=*) uname=`echo $1 | sed 's/.*=//'`;shift ;;
+@@
+     -i* | --includedir) includedir="$2"; shift; shift ;;
++    --bindir) bindir="$2"; shift; shift ;;

@@ -1,0 +1,45 @@
+# Project Kyber: ffmpeg.wrap
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[wrap-file]
+directory = FFmpeg-n8.1
+source_url = https://github.com/FFmpeg/FFmpeg/archive/refs/tags/n8.1.tar.gz
+source_filename = FFmpeg-n8.1.tar.gz
+source_hash = dd308201bb1239a1b73185f80c6b4121f4efdfa424a009ce544fd00bf736bb2e
+patch_directory = ffmpeg
+diff_files =
+  ffmpeg/patches/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch,
+  ffmpeg/patches/0002-libavutil-d3d11va-Avoid-to-query-ID3D11VideoDevice-a.patch,
+  ffmpeg/patches/0003-libavutil-Implement-monotonic-av_gettime_relative-on.patch,
+  ffmpeg/patches/0004-configure-Use-pkg_config_flags-in-test_pkg_config-fu.patch,
+  ffmpeg/patches/0005-Revert-avutil-hwcontext_d3d11va-remove-D3D11_BIND_RE.patch,
+  ffmpeg/patches/0006-avcodec-dxva2_hevc-add-support-for-parsing-HEVC-Rang.patch,
+  ffmpeg/patches/0007-avcodec-mpeg12dec-don-t-call-hw-end_frame-when-start.patch,
+  ffmpeg/patches/0008-fix-mf_utils-compilation-with-mingw64.patch,
+  ffmpeg/patches/0009-avcodec-hevcdec-allow-HEVC-444-8-10-12-bits-decoding.patch,
+  ffmpeg/patches/0010-avcodec-mpeg12dec-don-t-end-a-slice-without-first_sl.patch,
+  ffmpeg/patches/0011-avcodec-hevcdec-allow-HEVC-422-10-12-bits-decoding-w.patch,
+  ffmpeg/patches/0012-avcodec-videotoolboxenc-disable-calls-on-unsupported.patch,
+  ffmpeg/patches/0013-avcodec-fix-compilation-visionos.patch,
+  ffmpeg/patches/0014-dxva_vc1_crash.patch,
+  ffmpeg/patches/0015-h264_early_SAR.patch
+
+[provide]
+dependency_names = ffmpeg, libavcodec, libavformat, libavutil, libswresample, libswscale, libavfilter, libavdevice

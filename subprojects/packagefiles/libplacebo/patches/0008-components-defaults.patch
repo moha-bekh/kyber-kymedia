@@ -1,0 +1,23 @@
+From 3f2e1c7d8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d Mon Sep 17 00:00:00 2001
+From: Arthur Vasseur <arthur@kyber.media>
+Date: Fri, 20 Feb 2026 00:00:00 +0000
+Subject: [PATCH] meson: preseed component flags
+
+---
+ src/meson.build | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/meson.build b/src/meson.build
+index 7f86bf6a..a1b2c3d4 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -151,6 +151,9 @@ fuzzers = [
+ ]
+ 
+ components = configuration_data()
++components.set('vulkan', false)
++components.set('opengl', false)
++components.set('d3d11', false)
+ 
+ 
+ ### Optional dependencies / components

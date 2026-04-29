@@ -1,0 +1,30 @@
+# Project Kyber: vpl.wrap
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+[wrap-file]
+directory = libvpl-2.10.1
+source_url = https://github.com/intel/libvpl/archive/refs/tags/v2.10.1.tar.gz
+source_filename = libvpl-2.10.1.tar.gz
+source_hash = 524299a7b920ac0de1f6913ca90515858ea3a8ea2daaea60f8e0be62f22c8041
+patch_directory = vpl
+diff_files = vpl/patches/0001-Force-static-libstdc-link.patch, vpl/patches/0002-cmake-Fix-.pc-generated-file.patch
+
+[provide]
+dependency_names = vpl

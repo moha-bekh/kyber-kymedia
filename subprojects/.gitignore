@@ -1,0 +1,6 @@
+*
+!*.wrap
+!packagefiles/
+!packagefiles/**
+!.gitignore
+!txproto

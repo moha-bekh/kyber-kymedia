@@ -1,0 +1,43 @@
+From: Generated patch
+Date: Wed, 17 Dec 2025 00:00:00 +0000
+Subject: [PATCH 4/4] configure: Use pkg_config_flags in test_pkg_config functions
+
+Apply pkg_config_flags to pkg-config --exists calls in test_pkg_config,
+test_pkg_config_cpp and test_pkg_config_cxx functions. This ensures flags
+like --static are properly passed to pkg-config when checking for package
+existence.
+
+---
+ configure | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/configure b/configure
+--- a/configure
++++ b/configure
+@@ -1603,7 +1603,7 @@ test_pkg_config(){
+     funcs="$4"
+     shift 4
+     disable $name
+-    test_cmd $pkg_config --exists --print-errors "$pkg_version" || return
++    test_cmd $pkg_config --exists --print-errors $pkg_config_flags "$pkg_version" || return
+     pkg_cflags=$($pkg_config --cflags $pkg_config_flags $pkg)
+     pkg_libs=$($pkg_config --libs $pkg_config_flags $pkg)
+     pkg_incdir=$($pkg_config --variable=includedir $pkg_config_flags $pkg)
+@@ -1623,7 +1623,7 @@ test_pkg_config_cpp(){
+     cond="$4"
+     shift 4
+     disable $name
+-    test_cmd $pkg_config --exists --print-errors "$pkg_version" || return
++    test_cmd $pkg_config --exists --print-errors $pkg_config_flags "$pkg_version" || return
+     pkg_cflags=$($pkg_config --cflags $pkg_config_flags $pkg)
+     pkg_incdir=$($pkg_config --variable=includedir $pkg_config_flags $pkg)
+     pkg_incflags=$($pkg_config --cflags-only-I $pkg_config_flags $pkg)
+@@ -1643,7 +1643,7 @@ test_pkg_config_cxx(){
+     classes="$4"
+     shift 4
+     disable $name
+-    test_cmd $pkg_config --exists --print-errors $pkg_version || return
++    test_cmd $pkg_config --exists --print-errors $pkg_config_flags $pkg_version || return
+     pkg_cflags=$($pkg_config --cflags $pkg_config_flags $pkg)
+     pkg_libs=$($pkg_config --libs $pkg_config_flags $pkg)
+     pkg_incdir=$($pkg_config --variable=includedir $pkg_config_flags $pkg)

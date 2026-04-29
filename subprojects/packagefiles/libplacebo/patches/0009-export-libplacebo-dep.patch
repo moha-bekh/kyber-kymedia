@@ -1,0 +1,21 @@
+From 4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d Mon Sep 17 00:00:00 2001
+From: Arthur Vasseur <arthur@kyber.media>
+Date: Fri, 20 Feb 2026 00:00:00 +0000
+Subject: [PATCH] meson: export libplacebo_dep for fallback consumers
+
+---
+ src/meson.build | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/meson.build b/src/meson.build
+index a1b2c3d4..b5c6d7e8 100644
+--- a/src/meson.build
++++ b/src/meson.build
+@@ -265,6 +265,7 @@ libplacebo = declare_dependency(
+   link_with: lib,
+   variables: pc_vars,
+ )
++libplacebo_dep = libplacebo
+ 
+ 
+ ### Install process

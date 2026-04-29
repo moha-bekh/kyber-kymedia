@@ -1,11 +1,11 @@
 diff --git a/src/include/libplacebo/utils/libav_internal.h b/src/include/libplacebo/utils/libav_internal.h
-index 67eafe42..59015b5a 100644
+index db3afc8..6b0eaa8 100644
 --- a/src/include/libplacebo/utils/libav_internal.h
 +++ b/src/include/libplacebo/utils/libav_internal.h
-@@ -765,12 +765,36 @@ PL_LIBAV_API void pl_frame_from_avframe(struct pl_frame *out,
+@@ -778,12 +778,38 @@ PL_LIBAV_API void pl_frame_from_avframe(struct pl_frame *out,
      for (int p = 0; p < out->num_planes; p++) {
          struct pl_plane *plane = &out->planes[p];
-
+ 
 -        // Fill in the component mapping array
 +        // Collect components for this plane with their memory offsets
 +        struct { int idx; int offset; } comps[4];
@@ -18,8 +18,9 @@ index 67eafe42..59015b5a 100644
 +                comps[num_comps].offset = desc->comp[c].offset * 8 + desc->comp[c].shift;
 +                num_comps++;
 +            }
-+        }
-+
+         }
+ 
++#ifndef _WIN32
 +        // Sort by offset to get correct memory order (for BGR formats etc.)
 +        for (int i = 0; i < num_comps - 1; i++) {
 +            for (int j = i + 1; j < num_comps; j++) {
@@ -32,8 +33,9 @@ index 67eafe42..59015b5a 100644
 +                    comps[j].offset = tmp_offset;
 +                }
 +            }
-         }
-
++        }
++#endif
++
 +        // Build component_mapping in memory order
 +        plane->components = num_comps;
 +        for (int i = 0; i < num_comps; i++)

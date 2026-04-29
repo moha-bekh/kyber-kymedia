@@ -1,0 +1,55 @@
+#!/bin/sh
+# Project Kyber: configure
+# Copyright © 2022-2026 Kyber SAS
+# SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
+#
+# This file is both under dual license: AGPLv3 and a Commercial one.
+#
+# ----
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# cmake configure wrapper for meson unstable-external_project
+# Runs from the cmake build directory (workdir = external_project build_dir)
+set -e
+
+SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
+PREFIX=/usr/local
+LIBDIR=lib
+INCLUDEDIR=include
+
+for arg; do
+    case "$arg" in
+        --prefix=*)     PREFIX="${arg#*=}" ;;
+        --libdir=*)     LIBDIR="${arg#*=}" ;;
+        --includedir=*) INCLUDEDIR="${arg#*=}" ;;
+    esac
+done
+
+# cmake expects relative paths (relative to prefix); strip prefix if present
+LIBDIR="${LIBDIR#"$PREFIX/"}"
+INCLUDEDIR="${INCLUDEDIR#"$PREFIX/"}"
+
+# shellcheck disable=SC2086
+cmake "$SRC_DIR" \
+    -G "Unix Makefiles" \
+    -DCMAKE_INSTALL_PREFIX="$PREFIX" \
+    -DCMAKE_INSTALL_LIBDIR="$LIBDIR" \
+    -DCMAKE_INSTALL_INCLUDEDIR="$INCLUDEDIR" \
+    -DSPIRV_HEADERS_ENABLE_TESTS=OFF \
+    -DCMAKE_BUILD_TYPE=Release \
+    ${CROSS_CMAKE_ARGS:-}
+
+NPROC="$(sysctl -n hw.logicalcpu 2>/dev/null || nproc 2>/dev/null || echo 4)"
+cmake --build . --parallel "$NPROC"
+cmake --install .

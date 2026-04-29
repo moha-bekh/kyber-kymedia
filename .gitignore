@@ -1,5 +1,9 @@
 .cargo
 contrib/work
 libkypc
+kymux
 rootfs*
 target
+builddir-*
+
+mingw-w64-meson-toolchain.ini

@@ -1,0 +1,28 @@
+From 1b7f2d1a1d3b3f7f0d6c2f9c2f9a6c0a1b2c3d4e Mon Sep 17 00:00:00 2001
+From: Arthur Vasseur <arthur@kyber.media>
+Date: Fri, 20 Feb 2026 00:00:00 +0000
+Subject: [PATCH] vulkan: avoid dependency lookup when feature is disabled
+
+---
+ src/vulkan/meson.build | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/vulkan/meson.build b/src/vulkan/meson.build
+index d22883ce..f6a9b3b1 100644
+--- a/src/vulkan/meson.build
++++ b/src/vulkan/meson.build
+@@ -1,8 +1,12 @@
+ vulkan_build = get_option('vulkan')
+ vulkan_link = get_option('vk-proc-addr')
+-vulkan_loader = dependency('vulkan', required: false)
+-vulkan_headers = vulkan_loader.partial_dependency(includes: true, compile_args: true)
++vulkan_loader = disabler()
++vulkan_headers = declare_dependency()
++if vulkan_build.allowed()
++  vulkan_loader = dependency('vulkan', required: false)
++  vulkan_headers = vulkan_loader.partial_dependency(includes: true, compile_args: true)
++endif
+ registry_xml = get_option('vulkan-registry')
+ 
+ # Prefer our Vulkan headers for portability
+ vulkan_headers_dir = thirdparty/'Vulkan-Headers'
