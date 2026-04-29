@@ -25,8 +25,8 @@ BASE_DIR=$(realpath $(dirname $0))
 
 # Workspace directories
 WORKSPACE_ROOT=$BASE_DIR/..
-VLC_SRCDIR="$WORKSPACE_ROOT/external/vlc"
-VLCJNI_SRCDIR="$WORKSPACE_ROOT/external/libvlcjni"
+VLC_SRCDIR="$WORKSPACE_ROOT/subprojects/vlc"
+VLCJNI_SRCDIR="$WORKSPACE_ROOT/subprojects/libvlcjni"
 KYAUDIOREG_SRCDIR="$WORKSPACE_ROOT/kyaudioreg"
 
 # Build configuration
