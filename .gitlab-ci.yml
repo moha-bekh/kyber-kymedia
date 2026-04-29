@@ -1,6 +1,6 @@
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
-  DEBIAN_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-trixie:1708fd23b028cc9369b568f9ff976a84f7c869c2
+  DEBIAN_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-trixie:a3d1e282885b1ef5fd5fdbbf7a7d8e0b3a33de15
   WASM_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-wasm:1708fd23b028cc9369b568f9ff976a84f7c869c2
   WIN64_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-win64:fbcb780ae307a192d9037db595c02d755be9d83e
   ANDROID_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-android:fbcb780ae307a192d9037db595c02d755be9d83e
@@ -63,7 +63,7 @@ contrib-debian-trixie-x86_64:
   script: |
     export KYBER_DIRNAME=rootfs
     export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
-    # Build native dependencies for kyavserver
+    # Build contribs with Meson
     ./build-linux.sh -k -d -o $KYBER_PREFIX
     # Prepare rootfs to be shared to other jobs
     cd $KYBER_PREFIX
@@ -72,6 +72,8 @@ contrib-debian-trixie-x86_64:
   artifacts:
     paths:
       - rootfs
+      - builddir/meson-logs/
+      - builddir/subprojects/FFmpeg-*/build/ffbuild/config.log
     expire_in: 1 week
 
 contrib-windows-x86_64:
@@ -101,7 +103,7 @@ build-debian-trixie-x86_64:
   stage: build
   image: $DEBIAN_IMAGE
   tags:
-    - docker
+    - heavy
   only:
     - main
     - merge_requests
@@ -116,7 +118,7 @@ build-debian-trixie-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Build
+    # Build component with Cargo, skip Meson dependencies
     ./build-linux.sh -k -s -o $KYBER_PREFIX build
   artifacts:
     paths:
@@ -296,7 +298,7 @@ clippy-debian-trixie-x86_64:
   stage: misc
   image: $DEBIAN_IMAGE
   tags:
-    - docker
+    - heavy
   only:
     - main
     - merge_requests
@@ -311,7 +313,7 @@ clippy-debian-trixie-x86_64:
     cd $KYBER_PREFIX
     ../scripts/change_prefix.sh
     cd -
-    # Run clippy
+    # Run clippy checks, skip Meson dependencies
     ./build-linux.sh -k -s -o $KYBER_PREFIX clippy
 
 clippy-windows-x86_64:

@@ -130,9 +130,28 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
+# PKG_CONFIG_LIBDIR must be set before meson setup so that FFmpeg's configure
+# (which runs as an external_project at setup time) can find subproject-built
+# libs like x264, opus, zlib via pkg-config. PKG_CONFIG_LIBDIR survives meson's
+# internal PkgConfigInterface.setup_env() override (unlike PKG_CONFIG_PATH which
+# gets replaced with [meson-uninstalled]). Append system defaults so libdrm etc.
+# are still found.
+_sys_pc=$(pkg-config --variable pc_path pkg-config 2>/dev/null || true)
+export PKG_CONFIG_LIBDIR="$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig:$OUT_DIR/lib64/pkgconfig${_sys_pc:+:$_sys_pc}"
+unset _sys_pc
+
 # Build dependencies (contrib builds kyaudioreg + native deps)
 if [ "$BUILD_DEPS" = true ]; then
-    ./contrib/build-linux.sh -o $OUT_DIR
+    "$BASE_DIR/build-kyaudioreg.sh" -p linux -o "$OUT_DIR"
+
+    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=enabled")
+    if [ -d builddir-linux ]; then
+        meson setup builddir-linux --prefix "$OUT_DIR" "${MESON_SETUP_ARGS[@]}" --reconfigure
+    else
+        meson setup builddir-linux --prefix "$OUT_DIR" "${MESON_SETUP_ARGS[@]}"
+    fi
+    meson compile -C builddir-linux -j$(nproc)
+    meson install -C builddir-linux
 else
     echo "Skip dependencies build"
 fi
