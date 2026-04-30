@@ -29,7 +29,10 @@ use kyavservice_types::{Display, Event};
 use libkypc::EventSender;
 use txproto_rs::{IOEntryType, IOSysEntry, Txproto};
 
-pub(crate) fn enumerate(mut sender: EventSender<Event>) -> Result<(Context, Vec<Display>)> {
+pub(crate) fn enumerate(
+    mut sender: EventSender<Event>,
+    api_list: &[&str],
+) -> Result<(Context, Vec<Display>)> {
     let ctx = Txproto::new()?;
 
     let send_notifications = Arc::new(AtomicBool::new(false));
@@ -90,7 +93,7 @@ pub(crate) fn enumerate(mut sender: EventSender<Event>) -> Result<(Context, Vec<
         }
     };
 
-    let event = ctx.register_io_cb(io_cb, &[])?;
+    let event = ctx.register_io_cb(io_cb, api_list)?;
 
     // At this point, the enumeration is complete.
     // Any further call to io_cb will be a Display hotplug or an update about

@@ -146,7 +146,12 @@ pub async fn run(mut worker: Worker<Command, Event>) -> Result<()> {
             (cmd_id, Command::EnumerateDisplays) => {
                 info!("Start display enumeration");
 
-                let (c, display_list) = displays::enumerate(sender.clone())?;
+                #[cfg(target_os = "linux")]
+                let api_list = video::grab_backend_api_list(config.grab_backend());
+                #[cfg(not(target_os = "linux"))]
+                let api_list: Vec<&str> = vec![];
+
+                let (c, display_list) = displays::enumerate(sender.clone(), &api_list)?;
 
                 receiver
                     .accept(

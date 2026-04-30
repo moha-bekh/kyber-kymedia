@@ -92,6 +92,19 @@ fn encoder_config_to_dict(encoder_config: &config::EncoderConfig) -> Vec<Diction
 }
 
 #[cfg(target_os = "linux")]
+pub(crate) fn grab_backend_api_list(
+    grab_backend: Option<config::GrabBackend>,
+) -> Vec<&'static str> {
+    match grab_backend {
+        Some(config::GrabBackend::NvFBC) => vec!["nvfbc", "pulse"],
+        Some(config::GrabBackend::Drm) => vec!["drm", "pulse"],
+        Some(config::GrabBackend::Xcb) => vec!["xcb", "pulse"],
+        Some(config::GrabBackend::Wlroots) => vec!["wayland", "pulse"],
+        None => vec![],
+    }
+}
+
+#[cfg(target_os = "linux")]
 fn grab_backend_to_dict(backend: config::GrabBackend) -> Result<Dictionary> {
     let entries = match backend {
         config::GrabBackend::NvFBC => {
@@ -527,13 +540,7 @@ pub(crate) fn configure(
     // When a specific grab backend is selected, restrict initialization to
     // only that backend + audio, so other video backends are not loaded.
     #[cfg(target_os = "linux")]
-    let api_list: Vec<&str> = match video_config.grab_backend {
-        Some(config::GrabBackend::NvFBC) => vec!["nvfbc", "pulse"],
-        Some(config::GrabBackend::Drm) => vec!["drm", "pulse"],
-        Some(config::GrabBackend::Xcb) => vec!["xcb", "pulse"],
-        Some(config::GrabBackend::Wlroots) => vec!["wayland", "pulse"],
-        None => vec![],
-    };
+    let api_list: Vec<&str> = grab_backend_api_list(video_config.grab_backend);
     #[cfg(not(target_os = "linux"))]
     let api_list: Vec<&str> = vec![];
 
