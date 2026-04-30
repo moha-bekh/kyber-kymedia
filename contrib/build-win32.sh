@@ -431,6 +431,7 @@ build_ffmpeg() {
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0001-nvenc-Patch-SPS-when-zerolatency-is-enabled.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0002-libavutil-d3d11va-Avoid-to-query-ID3D11VideoDevice-a.patch
     patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0003-libavutil-Implement-monotonic-av_gettime_relative-on.patch
+    patch -p1 < $WORKSPACE_ROOT/contrib/ffmpeg/0004-Revert-avutil-hwcontext_d3d11va-remove-D3D11_BIND_RE.patch
 
     mkdir -p build
     cd build

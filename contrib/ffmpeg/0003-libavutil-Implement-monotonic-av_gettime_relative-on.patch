@@ -1,7 +1,7 @@
 From 9fa4484d1aa24ac0c957d259700757283a0ab76b Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Romain=20Roff=C3=A9?= <romain@kyber.media>
 Date: Mon, 16 Dec 2024 12:59:49 +0100
-Subject: [PATCH 3/3] libavutil: Implement monotonic av_gettime_relative() on
+Subject: [PATCH 3/4] libavutil: Implement monotonic av_gettime_relative() on
  Win32
 
 ---

@@ -1,7 +1,7 @@
 From 83a9c02958db67394767c8383813a47a0a1b8feb Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Romain=20Roff=C3=A9?= <r2@kyber.tech>
 Date: Fri, 24 Apr 2026 14:22:20 +0200
-Subject: [PATCH 2/3] libavutil/d3d11va: Avoid to query ID3D11VideoDevice and
+Subject: [PATCH 2/4] libavutil/d3d11va: Avoid to query ID3D11VideoDevice and
  ID3D11VideoContext
 
 Required to make DXGI work when not physical GPU is available.

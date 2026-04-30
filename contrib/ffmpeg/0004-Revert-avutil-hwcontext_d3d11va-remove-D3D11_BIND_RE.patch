@@ -1,0 +1,27 @@
+From 2fb55b1d7b7a357dc6f3c7927571d289306f74e8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Romain=20Roff=C3=A9?= <r2@kyber.tech>
+Date: Thu, 30 Apr 2026 09:08:56 +0200
+Subject: [PATCH 4/4] Revert "avutil/hwcontext_d3d11va: remove
+ D3D11_BIND_RENDER_TARGET restriction for array textures"
+
+This reverts commit efd484cb2dc3e3aa0eaf1855535186ccde3dc97c.
+---
+ libavutil/hwcontext_d3d11va.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavutil/hwcontext_d3d11va.c b/libavutil/hwcontext_d3d11va.c
+index b3bab1af8b..17d220e8a9 100644
+--- a/libavutil/hwcontext_d3d11va.c
++++ b/libavutil/hwcontext_d3d11va.c
+@@ -321,7 +321,7 @@ static int d3d11va_frames_init(AVHWFramesContext *ctx)
+         ctx->initial_pool_size = texDesc2.ArraySize;
+         hwctx->BindFlags = texDesc2.BindFlags;
+         hwctx->MiscFlags = texDesc2.MiscFlags;
+-    } else if (texDesc.ArraySize > 0) {
++    } else if (!(texDesc.BindFlags & D3D11_BIND_RENDER_TARGET) && texDesc.ArraySize > 0) {
+         hr = ID3D11Device_CreateTexture2D(device_hwctx->device, &texDesc, NULL, &hwctx->texture);
+         if (FAILED(hr)) {
+             av_log(ctx, AV_LOG_ERROR, "Could not create the texture (%lx)\n", (long)hr);
+-- 
+2.47.3
+
