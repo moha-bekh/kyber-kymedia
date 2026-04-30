@@ -106,6 +106,10 @@ fn grab_backend_to_dict(backend: config::GrabBackend) -> Result<Dictionary> {
             info!("Using XCB grab backend");
             vec![("grab_backend", "xcb").into()]
         }
+        config::GrabBackend::Wlroots => {
+            info!("Using wlroots grab backend");
+            vec![("grab_backend", "wayland").into()]
+        }
     };
 
     Ok(Dictionary::from_entries(&entries)?)
@@ -223,11 +227,13 @@ fn create_vaapi(
         VideoCodec::AV1 => "av1_vaapi",
     };
 
-    // DRM and XCB grab backends output RGB, so we need a RGB->NV12 filter
+    // DRM, XCB and Wlroots grab backends output RGB, so we need a RGB->NV12 filter
     #[cfg(target_os = "linux")]
     let needs_nv12_filter = matches!(
         config.grab_backend,
-        Some(crate::config::GrabBackend::Drm) | Some(crate::config::GrabBackend::Xcb)
+        Some(crate::config::GrabBackend::Drm)
+            | Some(crate::config::GrabBackend::Xcb)
+            | Some(crate::config::GrabBackend::Wlroots)
     );
     #[cfg(not(target_os = "linux"))]
     let needs_nv12_filter = false;
@@ -525,6 +531,7 @@ pub(crate) fn configure(
         Some(config::GrabBackend::NvFBC) => vec!["nvfbc", "pulse"],
         Some(config::GrabBackend::Drm) => vec!["drm", "pulse"],
         Some(config::GrabBackend::Xcb) => vec!["xcb", "pulse"],
+        Some(config::GrabBackend::Wlroots) => vec!["wayland", "pulse"],
         None => vec![],
     };
     #[cfg(not(target_os = "linux"))]

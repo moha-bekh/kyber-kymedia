@@ -74,6 +74,8 @@ pub(crate) enum GrabBackend {
     Drm,
     #[cfg(target_os = "linux")]
     Xcb,
+    #[cfg(target_os = "linux")]
+    Wlroots,
 }
 
 #[derive(Debug, Deserialize)]
