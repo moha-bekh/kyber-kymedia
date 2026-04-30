@@ -536,7 +536,6 @@ dependencies = [
  "async-trait",
  "bytes",
  "kymux-types",
- "kyutil",
  "log",
  "tokio",
  "url",
@@ -549,12 +548,12 @@ dependencies = [
  "async-trait",
  "byteorder",
  "bytes",
- "kyutil",
+ "kymux-util",
  "thiserror",
 ]
 
 [[package]]
-name = "kyutil"
+name = "kymux-util"
 version = "0.1.0"
 dependencies = [
  "thiserror",
