@@ -102,6 +102,10 @@ fn grab_backend_to_dict(backend: config::GrabBackend) -> Result<Dictionary> {
             info!("Using DRM/KMS grab backend");
             vec![("grab_backend", "drm").into()]
         }
+        config::GrabBackend::Xcb => {
+            info!("Using XCB grab backend");
+            vec![("grab_backend", "xcb").into()]
+        }
     };
 
     Ok(Dictionary::from_entries(&entries)?)
@@ -219,9 +223,12 @@ fn create_vaapi(
         VideoCodec::AV1 => "av1_vaapi",
     };
 
-    // DRM grab backend outputs RGB, so we need a RGB->NV12 filter
+    // DRM and XCB grab backends output RGB, so we need a RGB->NV12 filter
     #[cfg(target_os = "linux")]
-    let needs_nv12_filter = matches!(config.grab_backend, Some(crate::config::GrabBackend::Drm));
+    let needs_nv12_filter = matches!(
+        config.grab_backend,
+        Some(crate::config::GrabBackend::Drm) | Some(crate::config::GrabBackend::Xcb)
+    );
     #[cfg(not(target_os = "linux"))]
     let needs_nv12_filter = false;
 
@@ -517,6 +524,7 @@ pub(crate) fn configure(
     let api_list: Vec<&str> = match video_config.grab_backend {
         Some(config::GrabBackend::NvFBC) => vec!["nvfbc", "pulse"],
         Some(config::GrabBackend::Drm) => vec!["drm", "pulse"],
+        Some(config::GrabBackend::Xcb) => vec!["xcb", "pulse"],
         None => vec![],
     };
     #[cfg(not(target_os = "linux"))]

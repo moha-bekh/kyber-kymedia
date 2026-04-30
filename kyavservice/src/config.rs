@@ -72,6 +72,8 @@ pub(crate) enum GrabBackend {
     NvFBC,
     #[cfg(target_os = "linux")]
     Drm,
+    #[cfg(target_os = "linux")]
+    Xcb,
 }
 
 #[derive(Debug, Deserialize)]
