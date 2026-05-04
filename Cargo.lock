@@ -545,6 +545,7 @@ version = "0.1.0"
 dependencies = [
  "kyavservice-types",
  "kycom",
+ "kywatermark-rs",
  "libavconv-rs",
  "libc",
  "libkypc",

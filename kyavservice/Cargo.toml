@@ -5,7 +5,7 @@ edition = { workspace = true }
 
 [features]
 default = ["watermark"]
-watermark = ["txproto-rs/watermark"]
+watermark = ["dep:kywatermark", "txproto-rs/watermark"]
 
 [dependencies]
 libc = "0.2"
@@ -23,6 +23,7 @@ kyavservice-types = { path = "../kyavservice-types" }
 kycom = "0.1.0"
 txproto-rs = { path = "../txproto-rs", default-features = false }
 libavconv-rs = { path = "../libavconv-rs" }
+kywatermark = { path = "../kywatermark-rs", package = "kywatermark-rs", optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }

@@ -26,6 +26,8 @@ mod kymux;
 mod kymux_sink;
 mod metrics;
 mod video;
+#[cfg(feature = "watermark")]
+mod watermark;
 
 use std::sync::Arc;
 
@@ -152,6 +154,8 @@ async fn handle_command(
                 intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                 encoder_config: config.video_encoder_config.clone(),
                 clock_type: config.clock_type(),
+                #[cfg(feature = "watermark")]
+                watermark: config.watermark.clone(),
                 #[cfg(target_os = "linux")]
                 grab_backend: Some(config.grab_backend()),
             };

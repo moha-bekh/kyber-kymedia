@@ -31,8 +31,12 @@ use libavconv_rs::{
 use super::Result;
 use super::clock;
 use super::metrics::{MetricsForwarder, capture_metrics_hook, install_encoder_hook};
+#[cfg(feature = "watermark")]
+use super::watermark;
 use crate::config;
 use crate::config::VideoEncoder;
+#[cfg(feature = "watermark")]
+use crate::config::WatermarkConfig;
 
 pub(crate) struct VideoConfig {
     pub(crate) display_id: u32,
@@ -43,6 +47,8 @@ pub(crate) struct VideoConfig {
     pub(crate) intra_refresh: bool,
     pub(crate) encoder_config: Option<config::EncoderConfig>,
     pub(crate) clock_type: config::ClockType,
+    #[cfg(feature = "watermark")]
+    pub(crate) watermark: Option<config::WatermarkConfig>,
     #[cfg(target_os = "linux")]
     pub(crate) grab_backend: Option<config::GrabBackend>,
 }
@@ -382,16 +388,29 @@ fn encoder_config_to_opt_string(encoder_config: &config::EncoderConfig) -> Strin
 }
 
 /// Build filtergraph + encoder, wire them to `capture_handle`.
+///
+/// When `watermark` is `Some`, a watermark closure is installed on the
+/// filtergraph's `on_frame_in` slot so that every incoming frame is
+/// composited GPU-side.
 fn create_encoder_pipeline(
     ctx: Arc<AvconvContext>,
     hw_device: &HwDeviceRef,
     video_config: &VideoConfig,
     capture_handle: Handle,
+    #[cfg(feature = "watermark")] watermark: Option<&WatermarkConfig>,
 ) -> Result<(FilterGraph, EncoderBuilder)> {
     let (enc_name, filter_desc) = encoder_names(video_config);
     info!("Create encoder {enc_name}, filter: {filter_desc}");
 
     let mut fg = FilterGraphBuilder::new(Arc::clone(&ctx), filter_desc, Some(hw_device))?;
+
+    // Install watermark closure before build() libavconv copies the hook
+    // pointers into its internal storage during init.
+    #[cfg(feature = "watermark")]
+    if let Some(cfg) = watermark {
+        let hook = watermark::watermark_hook(hw_device, cfg)?;
+        fg.on_frame_in(hook);
+    }
 
     let codec = libavconv_rs::Codec::find_encoder_by_name(enc_name).ok_or(
         libavconv_rs::Error::NotFound {
@@ -458,8 +477,14 @@ pub(crate) fn configure(
     let (capture, capture_handle) =
         create_grab_source(Arc::clone(&ctx), hw_device, &video_config, metrics.as_ref())?;
 
-    let (fg, mut enc_builder) =
-        create_encoder_pipeline(Arc::clone(&ctx), hw_device, &video_config, capture_handle)?;
+    let (fg, mut enc_builder) = create_encoder_pipeline(
+        Arc::clone(&ctx),
+        hw_device,
+        &video_config,
+        capture_handle,
+        #[cfg(feature = "watermark")]
+        video_config.watermark.as_ref(),
+    )?;
 
     // Must be installed before build() - the closures are moved into the
     // encoder's hook storage and live as long as the encoder.

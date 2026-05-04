@@ -72,6 +72,12 @@ pub enum Error {
         #[from]
         source: rmp_serde::encode::Error,
     },
+    #[cfg(feature = "watermark")]
+    #[error("kywatermark error: {source:?}")]
+    Kywatermark {
+        #[from]
+        source: kywatermark::Error,
+    },
     #[error("txproto backend error: {0}")]
     TxprotoBackend(String),
 }
