@@ -1,0 +1,15 @@
+[package]
+name = "kywatermark-rs"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "kywatermark"
+path = "src/lib.rs"
+
+[dependencies]
+libc = "0.2"
+thiserror = "1.0"
+kywatermark-sys = { path = "kywatermark-sys" }
+libavconv-sys = { path = "../libavconv-rs/libavconv-sys" }
+libavconv-rs = { path = "../libavconv-rs" }

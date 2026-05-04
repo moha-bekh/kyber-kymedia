@@ -10,4 +10,6 @@ members = [
     "txproto-rs",
     "libavconv-rs",
     "libavconv-rs/libavconv-sys",
+    "kywatermark-rs",
+    "kywatermark-rs/kywatermark-sys",
 ]

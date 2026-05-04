@@ -610,6 +610,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "kywatermark-rs"
+version = "0.1.0"
+dependencies = [
+ "kywatermark-sys",
+ "libavconv-rs",
+ "libavconv-sys",
+ "libc",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "kywatermark-sys"
+version = "0.1.0"
+dependencies = [
+ "bindgen 0.69.5",
+ "libavconv-sys",
+ "libc",
+ "pkg-config",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

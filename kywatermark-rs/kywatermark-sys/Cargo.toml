@@ -1,0 +1,12 @@
+[package]
+name = "kywatermark-sys"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2"
+libavconv-sys = { path = "../../libavconv-rs/libavconv-sys" }
+
+[build-dependencies]
+bindgen = "0.69"
+pkg-config = "0.3"
