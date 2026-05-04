@@ -159,6 +159,9 @@ if build_server.enabled()
   endif
   txproto = subproject('txproto', default_options : _txproto_options)
   subproject('libavconv')
+  if build_watermark.enabled()
+    subdir('kywatermark')
+  endif
 endif
 
 vlc_common_options = {
