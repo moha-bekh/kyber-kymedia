@@ -68,7 +68,7 @@ pub(crate) fn start_video(
     )?);
     let on_item = kymux_sink::connect(uri, StreamKind::Video, metrics.clone())?;
 
-    let pipeline = video::configure(
+    let (pipeline, control) = video::configure(
         Arc::clone(&ctx),
         &hw_device,
         video_config,
@@ -84,14 +84,13 @@ pub(crate) fn start_video(
     // kymux writer. Runtime wait outcomes are discarded here.
     let watcher = Arc::clone(&ctx).watch_packet_sink(Arc::clone(&sink), on_item, |_| {});
 
-    Ok(Context::Avconv {
-        _ctx: AvconvVideoContext {
-            ctx,
-            _output: PipelineOutput::Sink { _sink: sink },
-            _pipeline: pipeline,
-            _watcher: Some(watcher),
-        },
-    })
+    Ok(Context::Avconv(AvconvVideoContext {
+        ctx,
+        _output: PipelineOutput::Sink { _sink: sink },
+        _pipeline: pipeline,
+        control,
+        _watcher: Some(watcher),
+    }))
 }
 
 /// Start a kymux audio stream.

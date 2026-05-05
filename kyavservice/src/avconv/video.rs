@@ -30,7 +30,9 @@ use libavconv_rs::{
 
 use super::Result;
 use super::clock;
-use super::metrics::{MetricsForwarder, capture_metrics_hook, install_encoder_hook};
+use super::encoder_control::EncoderControl;
+use super::encoder_hook;
+use super::metrics::{MetricsForwarder, capture_metrics_hook};
 #[cfg(feature = "watermark")]
 use super::watermark;
 use crate::config;
@@ -458,7 +460,7 @@ pub(crate) struct VideoPipeline {
 /// * `hw_device`        - hardware device (D3D11VA on Windows).
 /// * `video_config`     - encoder / capture settings.
 /// * `output_hdl`      - scheduler input handle of the terminal node the
-///   encoder feeds: a kymux data sink.
+///   encoder feeds: an RTP muxer stream or a kymux data sink.
 /// * `metrics`          - optional metrics forwarder; when set, capture and
 ///   encoder hooks emit `(pts, acquired)`, `(pts, encoding)`,
 ///   `(pts, encoded)` events.
@@ -468,7 +470,7 @@ pub(crate) fn configure(
     video_config: VideoConfig,
     output_hdl: Handle,
     metrics: Option<MetricsForwarder>,
-) -> Result<VideoPipeline> {
+) -> Result<(VideoPipeline, Arc<EncoderControl>)> {
     info!(
         "Start screen grab on display {}, encoder {:?}",
         video_config.display_id, video_config.encoder
@@ -486,18 +488,22 @@ pub(crate) fn configure(
         video_config.watermark.as_ref(),
     )?;
 
-    // Must be installed before build() - the closures are moved into the
-    // encoder's hook storage and live as long as the encoder.
-    install_encoder_hook(&mut enc_builder, metrics);
+    // Always install the encoder closures (they handle both metrics and
+    // runtime VideoSetBitrate / VideoForceIdr commands). Must be installed
+    // before build() - the closures are moved into the encoder's hook
+    // storage and live as long as the encoder.
+    let control = EncoderControl::new();
+    encoder_hook::install(&mut enc_builder, metrics, Arc::clone(&control));
 
     let enc = enc_builder.build()?;
     let encoder_handle_out = enc.handle_out();
 
     ctx.connect(encoder_handle_out, output_hdl, 0)?;
 
-    Ok(VideoPipeline {
+    let pipeline = VideoPipeline {
         _capture: capture,
         _fg: fg,
         _enc: enc,
-    })
+    };
+    Ok((pipeline, control))
 }

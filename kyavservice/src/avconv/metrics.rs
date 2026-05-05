@@ -22,7 +22,7 @@ use log::warn;
 use serde::Serialize;
 use tokio::{sync::mpsc, task};
 
-use libavconv_rs::{EncoderBuilder, sys};
+use libavconv_rs::sys;
 
 use super::Result;
 
@@ -112,28 +112,4 @@ pub(crate) fn capture_metrics_hook(
         }
         -libc::ENOSYS
     }
-}
-
-/// Install the encoder metrics closures on an `EncoderBuilder`.
-///
-/// libavconv allows a single `AVConvEncoderHooks` per encoder, so `(pts,
-/// encoding)` and `(pts, encoded)` are both emitted from one installation.
-pub(crate) fn install_encoder_hook(enc: &mut EncoderBuilder, forwarder: Option<MetricsForwarder>) {
-    let forwarder_frame_in = forwarder.clone();
-    enc.on_frame_in(move |_enc_ctx, frame, _flags_in, _flags_out| {
-        let Some(frame) = frame else { return 0 };
-        if let Some(forwarder) = &forwarder_frame_in {
-            forwarder.record_event(frame.pts, "encoding");
-        }
-        0
-    });
-
-    let forwarder_pkt_out = forwarder;
-    enc.on_packet_out(move |_enc_ctx, pkt, _flags_in, _flags_out| {
-        let Some(pkt) = pkt else { return 0 };
-        if let Some(forwarder) = &forwarder_pkt_out {
-            forwarder.record_event(pkt.pts, "encoded");
-        }
-        0
-    });
 }

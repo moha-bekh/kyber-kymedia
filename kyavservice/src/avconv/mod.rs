@@ -21,6 +21,8 @@
 mod audio;
 mod clock;
 mod displays;
+mod encoder_control;
+mod encoder_hook;
 mod error;
 mod kymux;
 mod kymux_sink;
@@ -42,6 +44,7 @@ use libkypc::{EventSender, Worker};
 use crate::TargetLogLevel;
 use crate::config::Config;
 
+use self::encoder_control::EncoderControl;
 pub use self::error::{Error, Result};
 pub(crate) use self::video::VideoConfig;
 
@@ -56,6 +59,9 @@ pub(crate) struct AvconvVideoContext {
     pub(crate) ctx: Arc<libavconv_rs::AvconvContext>,
     pub(crate) _output: PipelineOutput,
     pub(crate) _pipeline: video::VideoPipeline,
+    /// Shared runtime-control handle for the encoder drives
+    /// `VideoSetBitrate` / `VideoForceIdr`.
+    pub(crate) control: Arc<EncoderControl>,
     pub(crate) _watcher: Option<libavconv_rs::ErrorWatcher>,
 }
 
@@ -86,7 +92,7 @@ impl Drop for AvconvAudioContext {
 }
 
 pub(crate) enum Context {
-    Avconv { _ctx: AvconvVideoContext },
+    Avconv(AvconvVideoContext),
     AvconvAudio { _ctx: AvconvAudioContext },
 }
 
@@ -98,6 +104,36 @@ fn forward_init_error(sender: &EventSender<IpcApi>, err: Error, type_: PipelineT
         stage: PipelineStage::Initialization,
         event: PipelineEventType::Error,
     }));
+}
+
+fn handle_video_set_bitrate(ctx: &mut Option<Context>, bitrate: i32) -> Result<()> {
+    info!("Set bitrate to {bitrate}");
+
+    match ctx {
+        Some(Context::Avconv(v)) => {
+            v.control.request_bitrate(bitrate as i64);
+            Ok(())
+        }
+        _ => {
+            info!("No active video encoder");
+            Err(std::io::Error::other("No active video encoder").into())
+        }
+    }
+}
+
+fn handle_video_force_idr(ctx: &mut Option<Context>) -> Result<()> {
+    info!("Video force IDR");
+
+    match ctx {
+        Some(Context::Avconv(v)) => {
+            v.control.request_force_idr();
+            Ok(())
+        }
+        _ => {
+            info!("No active video encoder");
+            Err(std::io::Error::other("No active video encoder").into())
+        }
+    }
 }
 
 fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
@@ -176,13 +212,15 @@ async fn handle_command(
                 Err(err) => forward_init_error(sender, err, PipelineType::Audio),
             }
         }
+        Command::VideoSetBitrate { bitrate } => handle_video_set_bitrate(ctx, bitrate)?,
+        Command::VideoForceIdr => handle_video_force_idr(ctx)?,
         Command::Stop => {
             *stop = true;
             drop(ctx.take());
         }
-        // The RTP transport and the runtime encoder commands are not wired into
-        // this backend yet. Unreachable in practice: nothing dispatches to
-        // `avconv::run` until the backend becomes runtime-selectable.
+        // The RTP transport is not wired into this backend yet. Unreachable in
+        // practice: nothing dispatches to `avconv::run` until the backend
+        // becomes runtime-selectable.
         cmd => {
             warn!("Command {cmd:?} not supported by the libavconv backend");
             return Err(std::io::Error::other("unsupported command").into());
