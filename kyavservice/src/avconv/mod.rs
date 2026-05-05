@@ -27,6 +27,8 @@ mod error;
 mod kymux;
 mod kymux_sink;
 mod metrics;
+mod rtp;
+mod utils;
 mod video;
 #[cfg(feature = "watermark")]
 mod watermark;
@@ -36,7 +38,8 @@ use std::sync::Arc;
 use log::{debug, error, info, trace, warn};
 
 use kyavservice_types::{
-    Command, Event, IpcApi, PipelineEvent, PipelineEventType, PipelineStage, PipelineType, Response,
+    Command, Event, IpcApi, PipelineEvent, PipelineEventType, PipelineStage, PipelineType,
+    Response, VideoCodec,
 };
 use libavconv_rs::sys;
 use libkypc::{EventSender, Worker};
@@ -49,8 +52,9 @@ pub use self::error::{Error, Result};
 pub(crate) use self::video::VideoConfig;
 
 /// Terminal node of an avconv pipeline, held only to keep it alive alongside
-/// the context: kymux drains a data sink.
+/// the context: RTP writes through a real muxer, kymux drains a data sink.
 pub(crate) enum PipelineOutput {
+    Muxer { _muxer: libavconv_rs::Muxer },
     Sink { _sink: Arc<libavconv_rs::DataSink> },
 }
 
@@ -168,6 +172,71 @@ async fn handle_command(
                 displays: display_list,
             });
         }
+        Command::RtpGenerateVideoSdp {
+            display_id,
+            yuv444,
+            intra_refresh,
+        } => {
+            info!("Generate RTP Video SDP: yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
+            let ret = rtp::generate_sdp(
+                display_id,
+                config.encoder(),
+                VideoCodec::H264,
+                yuv444,
+                intra_refresh.unwrap_or(config.intra_refresh()),
+                &config.video_encoder_config,
+            )
+            .await;
+
+            match ret {
+                Ok(sdp) => return Ok(Response::RtpSdpGenerated { sdp }),
+                Err(err) => {
+                    error!("Failed to generate Video SDP: {err:?}");
+                }
+            }
+        }
+        Command::RtpStartVideo {
+            display_id,
+            ip,
+            port,
+            bitrate,
+            yuv444,
+            intra_refresh,
+        } => {
+            info!(
+                "Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
+            );
+
+            let video_config = VideoConfig {
+                display_id,
+                encoder: config.encoder(),
+                bitrate: ajust_min_bitrate(config, bitrate),
+                codec: VideoCodec::H264,
+                yuv444,
+                intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
+                encoder_config: config.video_encoder_config.clone(),
+                clock_type: config.clock_type(),
+                #[cfg(feature = "watermark")]
+                watermark: None,
+                #[cfg(target_os = "linux")]
+                grab_backend: Some(config.grab_backend()),
+            };
+
+            let ret = rtp::start_video(video_config, ip, port, sender.clone());
+            match ret {
+                Ok(c) => *ctx = Some(c),
+                Err(err) => forward_init_error(sender, err, PipelineType::Video),
+            }
+        }
+        Command::RtpStartAudio { ip, port } => {
+            info!("Start RTP Audio: {ip}:{port}");
+
+            let ret = rtp::start_audio(ip, port, config.clock_type(), sender.clone());
+            match ret {
+                Ok(c) => *ctx = Some(c),
+                Err(err) => forward_init_error(sender, err, PipelineType::Audio),
+            }
+        }
         Command::KymuxStartVideo {
             display_id,
             uri,
@@ -217,13 +286,6 @@ async fn handle_command(
         Command::Stop => {
             *stop = true;
             drop(ctx.take());
-        }
-        // The RTP transport is not wired into this backend yet. Unreachable in
-        // practice: nothing dispatches to `avconv::run` until the backend
-        // becomes runtime-selectable.
-        cmd => {
-            warn!("Command {cmd:?} not supported by the libavconv backend");
-            return Err(std::io::Error::other("unsupported command").into());
         }
     }
 
