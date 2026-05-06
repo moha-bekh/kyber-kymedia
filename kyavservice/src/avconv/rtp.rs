@@ -24,12 +24,13 @@ use std::time::{Duration, Instant};
 
 use log::{debug, info, warn};
 
-use kyavservice_types::{IpcApi, VideoCodec};
+use kyavservice_types::{IpcApi, PipelineType, VideoCodec};
 use libavconv_rs::{
     AvconvContext, AvioContext, Handle, HwDeviceRef, MUXER_FLAG_OPEN_IO, Muxer, MuxerBuilder, sys,
 };
 use libkypc::EventSender;
 
+use super::error_watcher;
 use super::utils;
 use super::video::VideoConfig;
 use super::{
@@ -252,7 +253,7 @@ pub(crate) fn start_video(
     video_config: VideoConfig,
     ip: String,
     port: u16,
-    _sender: EventSender<IpcApi>,
+    sender: EventSender<IpcApi>,
 ) -> Result<Context> {
     info!(
         "Start RTP video (avconv), display {}, encoder {:?}, target {ip}:{port}",
@@ -281,12 +282,14 @@ pub(crate) fn start_video(
     ctx.start()?;
     info!("RTP video context started");
 
+    let watcher = error_watcher::spawn(Arc::clone(&ctx), sender, PipelineType::Video);
+
     Ok(Context::Avconv(AvconvVideoContext {
         ctx,
         _output: PipelineOutput::Muxer { _muxer: muxer },
         _pipeline: pipeline,
         control,
-        _watcher: None,
+        _watcher: Some(watcher),
     }))
 }
 
@@ -294,7 +297,7 @@ pub(crate) fn start_audio(
     ip: String,
     port: u16,
     clock_type: ClockType,
-    _sender: EventSender<IpcApi>,
+    sender: EventSender<IpcApi>,
 ) -> Result<Context> {
     info!("Start RTP audio (avconv), target {ip}:{port}");
 
@@ -312,12 +315,14 @@ pub(crate) fn start_audio(
     ctx.start()?;
     info!("RTP audio context started");
 
+    let watcher = error_watcher::spawn(Arc::clone(&ctx), sender, PipelineType::Audio);
+
     Ok(Context::AvconvAudio {
         _ctx: AvconvAudioContext {
             ctx,
             _output: PipelineOutput::Muxer { _muxer: muxer },
             _pipeline: pipeline,
-            _watcher: None,
+            _watcher: Some(watcher),
         },
     })
 }

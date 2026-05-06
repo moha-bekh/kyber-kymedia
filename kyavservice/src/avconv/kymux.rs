@@ -25,8 +25,9 @@ use log::info;
 use libavconv_rs::{AvconvContext, DataSink, HwDeviceRef, sys};
 use libkypc::EventSender;
 
-use kyavservice_types::IpcApi;
+use kyavservice_types::{IpcApi, PipelineType};
 
+use super::error_watcher;
 use super::kymux_sink::{self, StreamKind};
 use super::{
     AvconvAudioContext, AvconvVideoContext, Context, PipelineOutput, Result, VideoConfig, audio,
@@ -38,7 +39,7 @@ pub(crate) fn start_video(
     video_config: VideoConfig,
     uri: &str,
     metrics_uri: Option<&str>,
-    _sender: EventSender<IpcApi>,
+    sender: EventSender<IpcApi>,
 ) -> Result<Context> {
     let metrics = match metrics_uri {
         Some(uri) => Some(super::metrics::forward(uri)?),
@@ -80,9 +81,13 @@ pub(crate) fn start_video(
     ctx.start()?;
     info!("Context started");
 
-    // Drain the sink from libavconv's wait thread, handing each packet to the
-    // kymux writer. Runtime wait outcomes are discarded here.
-    let watcher = Arc::clone(&ctx).watch_packet_sink(Arc::clone(&sink), on_item, |_| {});
+    let watcher = error_watcher::spawn_with_sink(
+        Arc::clone(&ctx),
+        Arc::clone(&sink),
+        on_item,
+        sender,
+        PipelineType::Video,
+    );
 
     Ok(Context::Avconv(AvconvVideoContext {
         ctx,
@@ -97,7 +102,7 @@ pub(crate) fn start_video(
 pub(crate) fn start_audio(
     uri: &str,
     clock_type: ClockType,
-    _sender: EventSender<IpcApi>,
+    sender: EventSender<IpcApi>,
 ) -> Result<Context> {
     info!("Start kymux audio (avconv)");
 
@@ -115,7 +120,13 @@ pub(crate) fn start_audio(
     ctx.start()?;
     info!("Audio context started");
 
-    let watcher = Arc::clone(&ctx).watch_packet_sink(Arc::clone(&sink), on_item, |_| {});
+    let watcher = error_watcher::spawn_with_sink(
+        Arc::clone(&ctx),
+        Arc::clone(&sink),
+        on_item,
+        sender,
+        PipelineType::Audio,
+    );
 
     Ok(Context::AvconvAudio {
         _ctx: AvconvAudioContext {

@@ -24,6 +24,7 @@ mod displays;
 mod encoder_control;
 mod encoder_hook;
 mod error;
+mod error_watcher;
 mod kymux;
 mod kymux_sink;
 mod metrics;
