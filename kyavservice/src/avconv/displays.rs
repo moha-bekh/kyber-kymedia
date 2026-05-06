@@ -28,6 +28,9 @@ use super::Result;
 use crate::config::GrabBackend;
 
 /// Build and initialise an avgrab provider context for screen sources.
+///
+/// Used by both the one-shot `enumerate` and the long-lived
+/// [`display_watcher`](super::display_watcher) thread.
 pub(crate) fn build_provider_ctx(backend: Option<GrabBackend>) -> Result<GrabProviderCtx> {
     let provider_name = super::video::grab_provider_name(backend);
     let provider =

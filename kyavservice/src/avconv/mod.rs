@@ -20,6 +20,7 @@
 
 mod audio;
 mod clock;
+mod display_watcher;
 mod displays;
 mod encoder_control;
 mod encoder_hook;
@@ -156,6 +157,7 @@ async fn handle_command(
     sender: &EventSender<IpcApi>,
     stop: &mut bool,
     ctx: &mut Option<Context>,
+    display_watcher: &mut Option<display_watcher::WatcherHandle>,
     config: &Config,
 ) -> Result<Response> {
     match cmd {
@@ -168,6 +170,13 @@ async fn handle_command(
             let backend = None;
 
             let display_list = displays::enumerate(backend)?;
+
+            // Lazily start the hot-plug watcher on first enumeration.
+            // Subsequent calls just refresh the synchronous response;
+            // the watcher keeps running until `Command::Stop`.
+            if display_watcher.is_none() {
+                *display_watcher = display_watcher::spawn(backend, sender.clone());
+            }
 
             return Ok(Response::DisplayList {
                 displays: display_list,
@@ -287,6 +296,9 @@ async fn handle_command(
         Command::Stop => {
             *stop = true;
             drop(ctx.take());
+            if let Some(watcher) = display_watcher.take() {
+                watcher.shutdown_and_join();
+            }
         }
     }
 
@@ -317,14 +329,22 @@ pub(super) async fn run(
     info!("AV service started (libavconv backend)");
 
     let mut ctx: Option<Context> = None;
+    let mut display_watcher: Option<display_watcher::WatcherHandle> = None;
 
     loop {
         let (response, cmd) = worker.commands.recv().await?;
 
         let mut stop = false;
-        let res = handle_command(cmd, &worker.events, &mut stop, &mut ctx, &config)
-            .await
-            .map_err(|err| kyavservice_types::Error(err.to_string()));
+        let res = handle_command(
+            cmd,
+            &worker.events,
+            &mut stop,
+            &mut ctx,
+            &mut display_watcher,
+            &config,
+        )
+        .await
+        .map_err(|err| kyavservice_types::Error(err.to_string()));
 
         response.send(res)?;
 
