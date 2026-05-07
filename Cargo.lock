@@ -1666,3 +1666,27 @@ dependencies = [
  "quote",
  "syn 2.0.53",
 ]
+
+[[patch.unused]]
+name = "kymux"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "kynput"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "kynput-rs"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "kynput-sys"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "kynputservice-types"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "vlc-rs"
+version = "0.3.0"
