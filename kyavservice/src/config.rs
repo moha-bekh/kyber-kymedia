@@ -45,6 +45,16 @@ pub enum ConfigError {
 
 pub type Result<T> = std::result::Result<T, ConfigError>;
 
+/// Which engine handles the AV pipeline.  Selected at startup from the
+/// `[kyavserver] backend = "..."` field in `kyber_config.toml`.
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Backend {
+    Libavconv,
+    #[default]
+    Txproto,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[allow(clippy::upper_case_acronyms)]
@@ -101,6 +111,8 @@ pub(crate) enum GrabBackend {
 
 #[derive(Debug, Default, Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    backend: Backend,
     encoder: Option<VideoEncoder>,
     intra_refresh: Option<bool>,
     minimum_bitrate: Option<u32>,
@@ -113,6 +125,10 @@ pub struct Config {
 }
 
 impl Config {
+    pub(crate) fn backend(&self) -> Backend {
+        self.backend
+    }
+
     pub(crate) fn encoder(&self) -> VideoEncoder {
         #[cfg(target_os = "macos")]
         let default = VideoEncoder::VIDEOTOOLBOX;

@@ -18,8 +18,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-//! The txproto-based AV pipeline, moved out of the crate root so that a
-//! second backend can live beside it.
+//! Legacy txproto-based AV pipeline.  Kept as a runtime-selectable
+//! fallback while the libavconv backend is being validated.
 
 mod audio;
 mod clock;

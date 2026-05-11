@@ -25,7 +25,7 @@ mod txproto;
 use kyavservice_types::IpcApi;
 use libkypc::Worker;
 
-pub use txproto::{Error, Result};
+pub use avconv::{Error, Result};
 
 pub use config::parse as parse_config;
 pub use config::{Config, KyavserverLogExtras, from_table, kyavserver_log_extras};
@@ -49,7 +49,12 @@ pub async fn run(
     config: Config,
     log_levels: &dyn TargetLogLevel,
 ) -> Result<()> {
-    txproto::run(worker, config, log_levels).await
+    match config.backend() {
+        config::Backend::Libavconv => avconv::run(worker, config, log_levels).await,
+        config::Backend::Txproto => txproto::run(worker, config, log_levels)
+            .await
+            .map_err(Into::into),
+    }
 }
 
 #[cfg(test)]
