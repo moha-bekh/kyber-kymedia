@@ -19,7 +19,6 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use log::{info, warn};
-use serde::Deserialize;
 
 use kyavservice_types::{
     IpcApi, PipelineEvent, PipelineEventType, PipelineStage, PipelineType, VideoCodec,
@@ -28,19 +27,8 @@ use libkypc::EventSender;
 use txproto_rs::{Dictionary, DictionaryEntry, DictionaryValue, Txproto};
 
 use crate::config;
-use crate::{Event, Result};
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-#[allow(clippy::upper_case_acronyms)]
-pub(crate) enum VideoEncoder {
-    AMF,
-    NVENC,
-    QSV,
-    VAAPI,
-    X264,
-    VIDEOTOOLBOX,
-}
+use crate::config::VideoEncoder;
+use crate::txproto::{Event, Result};
 
 pub(crate) struct VideoConfig {
     pub(crate) display_id: u32,
@@ -244,9 +232,7 @@ fn create_vaapi(
     #[cfg(target_os = "linux")]
     let needs_nv12_filter = matches!(
         config.grab_backend,
-        crate::config::GrabBackend::Drm
-            | crate::config::GrabBackend::Xcb
-            | crate::config::GrabBackend::Wlroots
+        config::GrabBackend::Drm | config::GrabBackend::Xcb | config::GrabBackend::Wlroots
     );
     #[cfg(not(target_os = "linux"))]
     let needs_nv12_filter = false;

@@ -1,4 +1,4 @@
-// Project Kyber: utils.rs
+// Project Kyber: clock.rs
 // Copyright © 2022-2026 Kyber SAS
 // SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
 //
@@ -18,24 +18,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::path::{Path, PathBuf};
+use txproto_rs::Txproto;
 
-use crate::{Error, Result};
+use crate::config::ClockType;
+use crate::txproto::Result;
 
-pub(crate) fn get_resource_path(resource_name: &str) -> PathBuf {
-    if let Ok(mut path) = std::env::current_exe() {
-        path.pop();
-        path.push(resource_name);
-
-        path
-    } else {
-        PathBuf::from(resource_name)
+pub(crate) fn configure_clock(ctx: &Txproto, clock_type: &ClockType) -> Result<()> {
+    match clock_type {
+        ClockType::ZeroedOrigin => {
+            ctx.set_epoch_offset(0)?;
+        }
+        ClockType::System => {
+            ctx.set_epoch_system()?;
+        }
     }
-}
 
-pub(crate) fn path_to_string(path: &Path) -> Result<String> {
-    path.to_path_buf()
-        .into_os_string()
-        .into_string()
-        .map_err(|s| Error::OsStringConversion { s })
+    Ok(())
 }

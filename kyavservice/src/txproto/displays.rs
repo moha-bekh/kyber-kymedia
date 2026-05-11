@@ -23,7 +23,8 @@ use std::sync::{Arc, Mutex};
 
 use log::warn;
 
-use crate::{Context, Result, TargetLogLevel, open_txproto};
+use crate::TargetLogLevel;
+use crate::txproto::{Context, Result, open_txproto};
 
 use kyavservice_types::{Display, Event, IpcApi};
 use libkypc::EventSender;

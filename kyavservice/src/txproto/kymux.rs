@@ -23,10 +23,11 @@ use log::info;
 
 use libkypc::EventSender;
 
+use crate::TargetLogLevel;
 use crate::config::ClockType;
-use crate::metrics;
-use crate::{Context, Result, TargetLogLevel, VideoConfig, open_txproto};
-use crate::{audio, configure_clock, video};
+use crate::txproto::metrics;
+use crate::txproto::{Context, Result, VideoConfig, open_txproto};
+use crate::txproto::{audio, configure_clock, video};
 
 pub(crate) fn start_video(
     video_config: VideoConfig,

@@ -27,8 +27,19 @@ use serde::Deserialize;
 
 use txproto_rs::{DictionaryEntry, DictionaryValue};
 
-use crate::utils;
-use crate::{Error, Result, VideoEncoder};
+use crate::{Error, Result};
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[allow(clippy::upper_case_acronyms)]
+pub(crate) enum VideoEncoder {
+    AMF,
+    NVENC,
+    QSV,
+    VAAPI,
+    X264,
+    VIDEOTOOLBOX,
+}
 
 pub(crate) type EncoderConfig = HashMap<String, toml::Value>;
 
@@ -122,6 +133,16 @@ impl Config {
     }
 }
 
+fn get_resource_path(resource_name: &str) -> PathBuf {
+    if let Ok(mut path) = std::env::current_exe() {
+        path.pop();
+        path.push(resource_name);
+        path
+    } else {
+        PathBuf::from(resource_name)
+    }
+}
+
 const SECTION: &str = "kyavserver";
 
 /// Extra log filters used by `kyavserver`: separate level for the txproto
@@ -155,7 +176,7 @@ pub fn kyavserver_log_extras(table: &toml::Table) -> Result<KyavserverLogExtras>
 pub fn parse() -> Result<(toml::Table, Option<PathBuf>)> {
     let (path, required) = match std::env::var_os("KYBER_CONFIG") {
         Some(path) => (PathBuf::from(path), true),
-        None => (utils::get_resource_path("kyber_config.toml"), false),
+        None => (get_resource_path("kyber_config.toml"), false),
     };
 
     let content = match fs::read(&path) {

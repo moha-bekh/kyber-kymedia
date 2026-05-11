@@ -30,10 +30,11 @@ use kyavservice_types::VideoCodec;
 use libkypc::EventSender;
 use txproto_rs::{Dictionary, Txproto};
 
-use crate::config::{self, ClockType};
-use crate::video::{VideoConfig, VideoEncoder};
-use crate::{Context, Error, Result, TargetLogLevel, open_txproto};
-use crate::{audio, configure_clock, utils, video};
+use crate::TargetLogLevel;
+use crate::config::{self, ClockType, VideoEncoder};
+use crate::txproto::video::VideoConfig;
+use crate::txproto::{Context, Error, Result, open_txproto};
+use crate::txproto::{audio, configure_clock, utils, video};
 
 fn create_muxer(
     ctx: &Txproto,

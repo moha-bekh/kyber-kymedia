@@ -1,4 +1,4 @@
-// Project Kyber: clock.rs
+// Project Kyber: mod.rs
 // Copyright © 2022-2026 Kyber SAS
 // SPDX-License-Identifier: LicenseRef-Kyber-Commercial OR AGPL-3.0-or-later
 //
@@ -18,20 +18,31 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+//! The txproto-based AV pipeline, moved out of the crate root so that a
+//! second backend can live beside it.
+
+mod audio;
+mod clock;
+mod displays;
+mod error;
+mod kymux;
+mod metrics;
+mod rtp;
+mod run;
+mod utils;
+mod video;
+
 use txproto_rs::Txproto;
 
-use crate::Result;
-use crate::config::ClockType;
+use crate::TargetLogLevel;
 
-pub(crate) fn configure_clock(ctx: &Txproto, clock_type: &ClockType) -> Result<()> {
-    match clock_type {
-        ClockType::ZeroedOrigin => {
-            ctx.set_epoch_offset(0)?;
-        }
-        ClockType::System => {
-            ctx.set_epoch_system()?;
-        }
-    }
+pub(crate) use clock::configure_clock;
+pub use error::{Error, Result};
+pub(crate) use kyavservice_types::Event;
+pub(crate) use run::{Context, run};
+pub(crate) use video::VideoConfig;
 
-    Ok(())
+/// Opens a `Txproto` context at the `txproto` target's level.
+pub(crate) fn open_txproto(log_levels: &dyn TargetLogLevel) -> Result<Txproto> {
+    Ok(Txproto::new(log_levels.level_for("txproto"))?)
 }

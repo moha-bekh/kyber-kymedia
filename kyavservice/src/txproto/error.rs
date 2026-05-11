@@ -23,7 +23,7 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("libkypc error: {source:?}")]
-    LibypcError {
+    Libypc {
         #[from]
         source: libkypc::Error,
     },
@@ -34,7 +34,7 @@ pub enum Error {
     #[error("RTP Video SDP file parse failed")]
     RtpVideoSdpParseFailed,
     #[error("txproto error: {source:?}")]
-    TxprotoError {
+    Txproto {
         #[from]
         source: txproto_rs::Error,
     },

@@ -22,7 +22,7 @@ use log::warn;
 use serde::Serialize;
 use tokio::{sync::mpsc, task};
 
-use crate::Result;
+use crate::txproto::Result;
 
 // Must match struct Metrics in libclient::kymux_backend::metrics
 #[derive(Debug, Serialize)]
