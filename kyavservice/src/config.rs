@@ -25,8 +25,6 @@ use std::path::PathBuf;
 use log::info;
 use serde::Deserialize;
 
-use txproto_rs::{DictionaryEntry, DictionaryValue};
-
 /// Errors of the shared config module. Public because `parse`, `from_table`
 /// and `kyavserver_log_extras` are called from the binary before either
 /// backend (and therefore either backend's `Error`) is in play; each backend
@@ -86,16 +84,6 @@ pub(crate) struct WatermarkConfig {
 #[cfg(feature = "watermark")]
 fn default_position() -> f32 {
     0.0 // Center
-}
-
-#[cfg(feature = "watermark")]
-impl WatermarkConfig {
-    pub(crate) fn position(&self) -> txproto_rs::TxWatermarkPosition {
-        txproto_rs::TxWatermarkPosition {
-            x: self.x,
-            y: self.y,
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
@@ -221,7 +209,7 @@ pub fn from_table(table: &toml::Table) -> Result<Config> {
 
 pub(crate) fn dump_encoder_config(
     encoder_type: EncoderType,
-    entries: &[DictionaryEntry],
+    entries: &[(&str, toml::Value)],
 ) -> Result<(String, String)> {
     let encoder_type = match encoder_type {
         EncoderType::Audio => "audio",
@@ -230,15 +218,7 @@ pub(crate) fn dump_encoder_config(
 
     let map: HashMap<_, _> = entries
         .iter()
-        .map(|entry| {
-            let value = match &entry.value {
-                DictionaryValue::Bool(b) => toml::value::Value::Boolean(*b),
-                DictionaryValue::Int(i) => toml::value::Value::Integer(*i),
-                DictionaryValue::String(s) => toml::value::Value::String(s.into()),
-            };
-
-            (entry.key.to_string(), value)
-        })
+        .map(|(key, value)| (key.to_string(), value.clone()))
         .collect();
 
     let encoder_config = toml::to_string(&map).map_err(ConfigError::Write)?;

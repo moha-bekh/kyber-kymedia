@@ -45,8 +45,25 @@ pub(crate) struct VideoConfig {
     pub(crate) grab_backend: config::GrabBackend,
 }
 
+#[cfg(feature = "watermark")]
+fn watermark_position(cfg: &config::WatermarkConfig) -> txproto_rs::TxWatermarkPosition {
+    txproto_rs::TxWatermarkPosition { x: cfg.x, y: cfg.y }
+}
+
 fn print_options(encoder: &str, options: &[DictionaryEntry]) {
-    match config::dump_encoder_config(config::EncoderType::Video, options) {
+    let entries: Vec<(&str, toml::Value)> = options
+        .iter()
+        .map(|entry| {
+            let value = match &entry.value {
+                DictionaryValue::Bool(b) => toml::Value::Boolean(*b),
+                DictionaryValue::Int(i) => toml::Value::Integer(*i),
+                DictionaryValue::String(s) => toml::Value::String(s.clone()),
+            };
+            (entry.key.as_str(), value)
+        })
+        .collect();
+
+    match config::dump_encoder_config(config::EncoderType::Video, &entries) {
         Ok((section, options)) => {
             info!(
                 r#"{encoder} encoder configuration dump:
@@ -595,8 +612,10 @@ pub(crate) fn configure(
     // Watermark
     #[cfg(feature = "watermark")]
     let video_source = if let Some(watermark_config) = &video_config.watermark {
-        let watermark =
-            ctx.watermark_filter_create(&watermark_config.file, watermark_config.position())?;
+        let watermark = ctx.watermark_filter_create(
+            &watermark_config.file,
+            watermark_position(watermark_config),
+        )?;
         ctx.link(&video_source, &watermark, 0)?;
 
         #[cfg(target_os = "linux")]
