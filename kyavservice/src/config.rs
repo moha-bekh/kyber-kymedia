@@ -106,7 +106,7 @@ impl Default for Config {
             #[cfg(feature = "watermark")]
             watermark: None,
             #[cfg(target_os = "linux")]
-            grab_backend: Some(GrabBackend::NvFBC),
+            grab_backend: None,
         }
     }
 }
@@ -125,8 +125,8 @@ impl Config {
     }
 
     #[cfg(target_os = "linux")]
-    pub(crate) fn grab_backend(&self) -> Option<GrabBackend> {
-        self.grab_backend
+    pub(crate) fn grab_backend(&self) -> GrabBackend {
+        self.grab_backend.unwrap_or(GrabBackend::NvFBC)
     }
 }
 

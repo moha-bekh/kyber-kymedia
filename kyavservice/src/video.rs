@@ -53,7 +53,7 @@ pub(crate) struct VideoConfig {
     #[cfg(feature = "watermark")]
     pub(crate) watermark: Option<config::WatermarkConfig>,
     #[cfg(target_os = "linux")]
-    pub(crate) grab_backend: Option<config::GrabBackend>,
+    pub(crate) grab_backend: config::GrabBackend,
 }
 
 fn print_options(encoder: &str, options: &[DictionaryEntry]) {
@@ -93,15 +93,12 @@ fn encoder_config_to_dict(encoder_config: &config::EncoderConfig) -> Vec<Diction
 }
 
 #[cfg(target_os = "linux")]
-pub(crate) fn grab_backend_api_list(
-    grab_backend: Option<config::GrabBackend>,
-) -> Vec<&'static str> {
+pub(crate) fn grab_backend_api_list(grab_backend: config::GrabBackend) -> Vec<&'static str> {
     match grab_backend {
-        Some(config::GrabBackend::NvFBC) => vec!["nvfbc", "pulse"],
-        Some(config::GrabBackend::Drm) => vec!["drm", "pulse"],
-        Some(config::GrabBackend::Xcb) => vec!["xcb", "pulse"],
-        Some(config::GrabBackend::Wlroots) => vec!["wayland", "pulse"],
-        None => vec![],
+        config::GrabBackend::NvFBC => vec!["nvfbc", "pulse"],
+        config::GrabBackend::Drm => vec!["drm", "pulse"],
+        config::GrabBackend::Xcb => vec!["xcb", "pulse"],
+        config::GrabBackend::Wlroots => vec!["wayland", "pulse"],
     }
 }
 
@@ -246,9 +243,9 @@ fn create_vaapi(
     #[cfg(target_os = "linux")]
     let needs_nv12_filter = matches!(
         config.grab_backend,
-        Some(crate::config::GrabBackend::Drm)
-            | Some(crate::config::GrabBackend::Xcb)
-            | Some(crate::config::GrabBackend::Wlroots)
+        crate::config::GrabBackend::Drm
+            | crate::config::GrabBackend::Xcb
+            | crate::config::GrabBackend::Wlroots
     );
     #[cfg(not(target_os = "linux"))]
     let needs_nv12_filter = false;
@@ -537,8 +534,8 @@ pub(crate) fn configure(
 ) -> Result<VideoPipeline> {
     let mut events = vec![];
 
-    // When a specific grab backend is selected, restrict initialization to
-    // only that backend + audio, so other video backends are not loaded.
+    // Restrict initialization to only that backend + audio, so other video
+    // backends are not loaded.
     #[cfg(target_os = "linux")]
     let api_list: Vec<&str> = grab_backend_api_list(video_config.grab_backend);
     #[cfg(not(target_os = "linux"))]
@@ -551,11 +548,7 @@ pub(crate) fn configure(
     // Video source
     info!("Start screen grab on display {}", video_config.display_id);
     #[cfg(target_os = "linux")]
-    let grab_options = if let Some(backend) = &video_config.grab_backend {
-        Some(grab_backend_to_dict(*backend)?)
-    } else {
-        None
-    };
+    let grab_options = Some(grab_backend_to_dict(video_config.grab_backend)?);
 
     #[cfg(not(target_os = "linux"))]
     let grab_options = None;

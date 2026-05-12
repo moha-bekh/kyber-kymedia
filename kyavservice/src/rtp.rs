@@ -95,7 +95,7 @@ pub(crate) async fn generate_sdp(
         #[cfg(feature = "watermark")]
         watermark: None,
         #[cfg(target_os = "linux")]
-        grab_backend: Some(config::GrabBackend::NvFBC),
+        grab_backend: config::GrabBackend::NvFBC,
     };
     video::configure(&ctx, video_config, muxer, None)?;
 
