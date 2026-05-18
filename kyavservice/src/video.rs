@@ -159,6 +159,7 @@ fn create_nvenc(
             VideoCodec::H264 => {
                 if config.yuv444 {
                     options.push(("profile", "high444p").into());
+                    options.push(("rgb_mode", "yuv444").into());
                 } else {
                     options.push(("profile", "high").into());
                 }
