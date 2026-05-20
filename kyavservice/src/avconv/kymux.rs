@@ -28,7 +28,11 @@ use libkypc::EventSender;
 use kyavservice_types::IpcApi;
 
 use super::kymux_sink::{self, StreamKind};
-use super::{AvconvVideoContext, Context, PipelineOutput, Result, VideoConfig, video};
+use super::{
+    AvconvAudioContext, AvconvVideoContext, Context, PipelineOutput, Result, VideoConfig, audio,
+    video,
+};
+use crate::config::ClockType;
 
 pub(crate) fn start_video(
     video_config: VideoConfig,
@@ -82,6 +86,40 @@ pub(crate) fn start_video(
 
     Ok(Context::Avconv {
         _ctx: AvconvVideoContext {
+            ctx,
+            _output: PipelineOutput::Sink { _sink: sink },
+            _pipeline: pipeline,
+            _watcher: Some(watcher),
+        },
+    })
+}
+
+/// Start a kymux audio stream.
+pub(crate) fn start_audio(
+    uri: &str,
+    clock_type: ClockType,
+    _sender: EventSender<IpcApi>,
+) -> Result<Context> {
+    info!("Start kymux audio (avconv)");
+
+    let ctx = Arc::new(AvconvContext::new()?);
+
+    let sink = Arc::new(DataSink::packets(
+        Arc::clone(&ctx),
+        sys::AVMediaType_AVMEDIA_TYPE_AUDIO,
+    )?);
+    let on_item = kymux_sink::connect(uri, StreamKind::Audio, None)?;
+
+    let pipeline = audio::configure(Arc::clone(&ctx), sink.handle(), &clock_type)?;
+    info!("Audio pipeline configured, starting context");
+
+    ctx.start()?;
+    info!("Audio context started");
+
+    let watcher = Arc::clone(&ctx).watch_packet_sink(Arc::clone(&sink), on_item, |_| {});
+
+    Ok(Context::AvconvAudio {
+        _ctx: AvconvAudioContext {
             ctx,
             _output: PipelineOutput::Sink { _sink: sink },
             _pipeline: pipeline,

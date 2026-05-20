@@ -64,6 +64,7 @@ const CHANNEL_CAPACITY: usize = 8;
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum StreamKind {
     Video,
+    Audio,
 }
 
 /// Messages forwarded from the (synchronous) muxer hooks to the async task.
@@ -118,10 +119,18 @@ async fn forward_task(
     kind: StreamKind,
     metrics: Option<MetricsForwarder>,
 ) -> Result<()> {
+    // Both video and audio server endpoints expose `send: ProtocolSend<AVPacket>`.
     let mut send: ProtocolSend<AVPacket> = match kind {
         StreamKind::Video => {
             kycom::Channel::connect(addr)
                 .into_video_server_endpoint()
+                .ready()
+                .await?
+                .send
+        }
+        StreamKind::Audio => {
+            kycom::Channel::connect(addr)
+                .into_audio_server_endpoint()
                 .ready()
                 .await?
                 .send

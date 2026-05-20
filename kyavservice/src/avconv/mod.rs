@@ -18,6 +18,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+mod audio;
 mod clock;
 mod displays;
 mod error;
@@ -65,8 +66,26 @@ impl Drop for AvconvVideoContext {
     }
 }
 
+/// Context for sessions that use libavconv (kymux audio).
+pub(crate) struct AvconvAudioContext {
+    pub(crate) ctx: Arc<libavconv_rs::AvconvContext>,
+    pub(crate) _output: PipelineOutput,
+    pub(crate) _pipeline: audio::AudioPipeline,
+    pub(crate) _watcher: Option<libavconv_rs::ErrorWatcher>,
+}
+
+impl Drop for AvconvAudioContext {
+    fn drop(&mut self) {
+        if let Some(w) = &self._watcher {
+            w.signal_shutdown();
+        }
+        let _ = self.ctx.stop();
+    }
+}
+
 pub(crate) enum Context {
     Avconv { _ctx: AvconvVideoContext },
+    AvconvAudio { _ctx: AvconvAudioContext },
 }
 
 fn forward_init_error(sender: &EventSender<IpcApi>, err: Error, type_: PipelineType) {
@@ -144,14 +163,22 @@ async fn handle_command(
                 Err(err) => forward_init_error(sender, err, PipelineType::Video),
             }
         }
+        Command::KymuxStartAudio { uri } => {
+            info!("Start Kymux Audio: URI {uri:?}");
+
+            let ret = kymux::start_audio(&uri, config.clock_type(), sender.clone());
+            match ret {
+                Ok(c) => *ctx = Some(c),
+                Err(err) => forward_init_error(sender, err, PipelineType::Audio),
+            }
+        }
         Command::Stop => {
             *stop = true;
             drop(ctx.take());
         }
-        // The audio pipeline, the RTP transport and the runtime encoder
-        // commands are not wired into this backend yet. Unreachable in
-        // practice: nothing dispatches to `avconv::run` until the backend
-        // becomes runtime-selectable.
+        // The RTP transport and the runtime encoder commands are not wired into
+        // this backend yet. Unreachable in practice: nothing dispatches to
+        // `avconv::run` until the backend becomes runtime-selectable.
         cmd => {
             warn!("Command {cmd:?} not supported by the libavconv backend");
             return Err(std::io::Error::other("unsupported command").into());
