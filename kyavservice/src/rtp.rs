@@ -64,6 +64,7 @@ pub(crate) async fn generate_sdp(
     yuv444: bool,
     intra_refresh: bool,
     encoder_config: &Option<config::EncoderConfig>,
+    #[cfg(target_os = "linux")] grab_backend: config::GrabBackend,
 ) -> Result<String> {
     // Prepare target file
     let sdp_path = env::temp_dir().join("video.sdp");
@@ -95,7 +96,7 @@ pub(crate) async fn generate_sdp(
         #[cfg(feature = "watermark")]
         watermark: None,
         #[cfg(target_os = "linux")]
-        grab_backend: config::GrabBackend::NvFBC,
+        grab_backend,
     };
     video::configure(&ctx, video_config, muxer, None)?;
 

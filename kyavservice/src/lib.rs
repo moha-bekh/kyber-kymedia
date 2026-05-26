@@ -164,6 +164,8 @@ pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
                     yuv444,
                     intra_refresh.unwrap_or(config.intra_refresh()),
                     &config.video_encoder_config,
+                    #[cfg(target_os = "linux")]
+                    config.grab_backend(),
                 )
                 .await;
 
