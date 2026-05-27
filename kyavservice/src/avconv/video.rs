@@ -24,12 +24,14 @@ use log::{info, warn};
 
 use kyavservice_types::VideoCodec;
 use libavconv_rs::{
-    AvconvContext, EncoderBuilder, FilterGraph, FilterGraphBuilder, GrabCapture,
-    GrabCaptureBuilder, GrabProviderCtx, Handle, HwDeviceRef, StreamType, sys,
+    AvconvContext, DataSink, EncoderBuilder, FilterGraph, FilterGraphBuilder, GrabCapture,
+    GrabCaptureBuilder, GrabProviderCtx, GrabSource, Handle, HwDeviceRef, StreamType, sys,
 };
 
 use super::Result;
 use super::clock;
+#[cfg(target_os = "windows")]
+use super::cursor;
 use super::encoder_control::EncoderControl;
 use super::encoder_hook;
 use super::metrics::{MetricsForwarder, capture_metrics_hook};
@@ -128,11 +130,29 @@ fn create_grab_source(
             .ok_or(libavconv_rs::Error::NotFound {
                 name: "default source stream",
             })?;
+    let cursor_idx = cursor_stream_idx(src);
 
-    let mut capture = GrabCaptureBuilder::with_streams(src, &[default_idx])?;
+    let stream_indices: Vec<u32> = match cursor_idx {
+        Some(i) => vec![default_idx, i],
+        None => vec![default_idx],
+    };
+    let cursor_capture_idx: Option<u32> = cursor_idx.and_then(|i| {
+        stream_indices
+            .iter()
+            .position(|&s| s == i)
+            .map(|pos| pos as u32)
+    });
+
+    let mut capture = GrabCaptureBuilder::with_streams(src, &stream_indices)?;
     clock::configure_capture_clock(&mut capture, &video_config.clock_type);
 
-    capture.on_frame(video_hook_closure(metrics.cloned()));
+    let video_hook = video_hook_closure(metrics.cloned());
+    install_capture_hook(
+        &mut capture,
+        video_config.display_id,
+        cursor_capture_idx,
+        video_hook,
+    );
 
     let capture = capture.build(ctx.clone())?;
 
@@ -166,6 +186,52 @@ fn video_hook_closure(metrics: Option<MetricsForwarder>) -> VideoHook {
             },
         ),
     }
+}
+
+/// Returns the capture source's cursor stream index. Only Windows (DXGI)
+/// exposes a separate cursor stream; every other platform has none, so the
+/// lookup and the `StreamType::Cursor` reference are compiled out.
+#[cfg(target_os = "windows")]
+fn cursor_stream_idx(src: GrabSource<'_>) -> Option<u32> {
+    src.find_stream_by_type(StreamType::Cursor)
+}
+
+#[cfg(not(target_os = "windows"))]
+fn cursor_stream_idx(_src: GrabSource<'_>) -> Option<u32> {
+    None
+}
+
+/// Installs the per-frame capture hook. On Windows, when a cursor stream is
+/// present, the video hook is wrapped with the DXGI cursor forwarder that pushes
+/// cursor packets to `\\.\pipe\KyberInputServer`; otherwise the plain video hook
+/// is installed. On every other platform there is no cursor stream, so only the
+/// video hook is installed and the `cursor` module is never compiled.
+#[cfg(target_os = "windows")]
+fn install_capture_hook(
+    capture: &mut GrabCaptureBuilder,
+    display_id: u32,
+    cursor_capture_idx: Option<u32>,
+    video_hook: VideoHook,
+) {
+    match cursor_capture_idx {
+        Some(idx) => {
+            let sink = cursor::CursorSink::new(display_id);
+            capture.on_frame(cursor::cursor_hook(sink, display_id, idx, video_hook));
+        }
+        None => {
+            capture.on_frame(video_hook);
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn install_capture_hook(
+    capture: &mut GrabCaptureBuilder,
+    _display_id: u32,
+    _cursor_capture_idx: Option<u32>,
+    video_hook: VideoHook,
+) {
+    capture.on_frame(video_hook);
 }
 
 /// Returns `(encoder_name, filtergraph_description)`.
@@ -441,6 +507,18 @@ fn create_encoder_pipeline(
     Ok((fg, enc))
 }
 
+fn create_cursor_discard(ctx: Arc<AvconvContext>, cursor_handle: Handle) -> Result<DataSink> {
+    let sink = DataSink::null(
+        Arc::clone(&ctx),
+        sys::AVConvHandlePayload_AVCONV_HANDLE_PAYLOAD_FRAME,
+        sys::AVMediaType_AVMEDIA_TYPE_VIDEO,
+    )?;
+
+    ctx.connect(cursor_handle, sink.handle(), 0)?;
+
+    Ok(sink)
+}
+
 pub(crate) struct VideoPipeline {
     /// `_capture`, `_fg` and the `Encoder` (held internally) keep their
     /// hook closures alive until the `AvconvContext` is dropped (which
@@ -448,6 +526,7 @@ pub(crate) struct VideoPipeline {
     pub(crate) _capture: GrabCapture,
     pub(crate) _fg: FilterGraph,
     pub(crate) _enc: libavconv_rs::Encoder,
+    _cursor_discard: Option<DataSink>,
 }
 
 /// Build a complete video capture + encode pipeline and wire it to the muxer.
@@ -499,10 +578,16 @@ pub(crate) fn configure(
 
     ctx.connect(encoder_handle_out, output_hdl, 0)?;
 
+    let cursor_discard = (0..capture.nb_streams())
+        .find(|&i| capture.stream_type(i) == StreamType::Cursor)
+        .map(|i| create_cursor_discard(Arc::clone(&ctx), capture.stream_handle(i)))
+        .transpose()?;
+
     let pipeline = VideoPipeline {
         _capture: capture,
         _fg: fg,
         _enc: enc,
+        _cursor_discard: cursor_discard,
     };
     Ok((pipeline, control))
 }

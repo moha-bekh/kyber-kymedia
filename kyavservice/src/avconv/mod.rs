@@ -20,6 +20,8 @@
 
 mod audio;
 mod clock;
+#[cfg(target_os = "windows")]
+mod cursor;
 mod display_watcher;
 mod displays;
 mod encoder_control;
