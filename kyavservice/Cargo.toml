@@ -8,9 +8,9 @@ log = "0.4.21"
 rmp-serde = "1.1.2"
 serde = "1.0.197"
 serde_json = "1.0.114"
-thiserror = "1.0.58"
+thiserror = "2.0"
 tokio = { version = "1.36.0", features = ["fs", "time"] }
-toml = "0.8.12"
+toml = "1.1"
 
 libkypc = "0.1.0"
 kyavservice-types = { path = "../kyavservice-types" }

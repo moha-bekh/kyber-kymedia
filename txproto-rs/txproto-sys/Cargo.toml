@@ -7,5 +7,5 @@ edition = "2021"
 libc = "0.2.153"
 
 [build-dependencies]
-bindgen = {version = "0.69.4", optional = false }
+bindgen = "0.72"
 pkg-config = "0.3.30"
