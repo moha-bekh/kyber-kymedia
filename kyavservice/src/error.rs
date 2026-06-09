@@ -42,8 +42,10 @@ pub enum Error {
     AudioNoDefaultMonitor,
     #[error("OsString '{s:?}' conversion to string failed")]
     OsStringConversion { s: std::ffi::OsString },
-    #[error("Fail to parse configuration file")]
-    ConfigParseFail,
+    #[error("Configuration file is not valid UTF-8: {reason}")]
+    ConfigInvalidUtf8 { reason: std::string::FromUtf8Error },
+    #[error("Failed to parse configuration file: {reason}")]
+    ConfigParseFail { reason: toml::de::Error },
     #[error("Fail to load configuration: {reason:?}")]
     ConfigLoadFail { reason: toml::de::Error },
     #[error("Fail to write configuration: {reason:?}")]

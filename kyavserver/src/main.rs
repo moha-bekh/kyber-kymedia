@@ -20,7 +20,9 @@
 
 #![cfg_attr(feature = "win32-hide-console", windows_subsystem = "windows")]
 
-use log::LevelFilter;
+use std::process::ExitCode;
+
+use log::{error, info, LevelFilter};
 
 use kyavservice::Result;
 
@@ -98,19 +100,49 @@ fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
 }
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> ExitCode {
+    let (config_table, config_path) = match kyavservice::parse_config() {
+        Ok(parsed) => parsed,
+        Err(e) => {
+            eprintln!("Failed to load configuration: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
     let log_level = if std::env::var("KYBER_VERBOSE").is_ok() {
         LevelFilter::Debug
     } else {
         LevelFilter::Info
     };
     let _log_handle = setup_logs("kyavserver", log_level);
+    match &config_path {
+        Some(path) => info!("Using configuration file {path:?}"),
+        None => info!("No configuration file found, using defaults"),
+    }
+
+    let config = match kyavservice::from_table(&config_table) {
+        Ok(config) => config,
+        Err(e) => {
+            error!("Failed to parse configuration: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     #[cfg(target_os = "windows")]
     set_process_dpi_aware();
 
     txproto_rs::init_logger();
 
+    match real_main(config).await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            error!("kyavserver exited with error: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
+async fn real_main(config: kyavservice::Config) -> Result<()> {
     let worker = libkypc::process::connect_to_commander().await?;
-    kyavservice::run(worker).await
+    kyavservice::run(worker, config).await
 }

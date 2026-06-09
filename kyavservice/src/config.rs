@@ -19,11 +19,11 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+use std::fs;
 use std::path::PathBuf;
 
-use log::{error, info};
+use log::info;
 use serde::Deserialize;
-use tokio::fs;
 
 use txproto_rs::{DictionaryEntry, DictionaryValue};
 
@@ -83,7 +83,7 @@ pub(crate) enum GrabBackend {
 }
 
 #[derive(Debug, Default, Deserialize)]
-pub(crate) struct Config {
+pub struct Config {
     encoder: Option<VideoEncoder>,
     intra_refresh: Option<bool>,
     minimum_bitrate: Option<u32>,
@@ -122,39 +122,38 @@ impl Config {
     }
 }
 
-pub(crate) async fn load() -> Result<Config> {
-    // A KYBER_CONFIG pointer must resolve to a readable file; with none set, a
-    // missing executable-relative default falls back to the built-in defaults.
+/// Read and parse the configuration file, without deserializing it. Returns
+/// an empty table and no path when the file does not exist. Runs before the
+/// logger is set up, so it must not log; the caller reports the returned path
+/// once logging is available.
+///
+/// `KYBER_CONFIG` overrides the file location; a set-but-unreadable path is a
+/// hard error, an unset default path only falls back to defaults.
+pub fn parse() -> Result<(toml::Table, Option<PathBuf>)> {
     let (path, required) = match std::env::var_os("KYBER_CONFIG") {
         Some(path) => (PathBuf::from(path), true),
         None => (utils::get_resource_path("kyber_config.toml"), false),
     };
 
-    let content = match fs::read(&path).await {
+    let content = match fs::read(&path) {
         Ok(content) => content,
-        Err(err) if required => {
-            error!("Cannot read configuration file {path:?}: {err}");
-            return Err(Error::ConfigParseFail);
-        }
-        Err(_) => {
-            info!("Use default configuration");
-            return Ok(Config::default());
-        }
+        Err(_) if !required => return Ok((toml::Table::new(), None)),
+        Err(err) => return Err(err.into()),
     };
 
-    info!("Using configuration file {path:?}");
-    let content = String::from_utf8(content).map_err(|err| {
-        error!("Configuration file isn't a valid UTF8 file: {err:?}");
-        Error::ConfigParseFail
-    })?;
+    let content =
+        String::from_utf8(content).map_err(|reason| Error::ConfigInvalidUtf8 { reason })?;
 
-    let content: toml::Table = content.parse().map_err(|err| {
-        error!("Configuration file parsing failed: {err:?}");
-        Error::ConfigParseFail
-    })?;
+    let table = content
+        .parse()
+        .map_err(|reason| Error::ConfigParseFail { reason })?;
 
-    let Some(kyavserver_conf) = content.get("kyavserver") else {
-        info!("No kyavserver section found. Use default configuration");
+    Ok((table, Some(path)))
+}
+
+pub fn from_table(table: &toml::Table) -> Result<Config> {
+    let Some(kyavserver_conf) = table.get("kyavserver") else {
+        info!("No kyavserver section found, using defaults");
         return Ok(Config::default());
     };
 

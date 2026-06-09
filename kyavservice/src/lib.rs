@@ -38,8 +38,9 @@ use kyavservice_types::{
 use libkypc::{EventSender, ReceivedCommand, Worker};
 use txproto_rs::Txproto;
 
-use crate::config::Config;
 pub(crate) use clock::configure_clock;
+pub use config::parse as parse_config;
+pub use config::{from_table, Config};
 pub use error::{Error, Result};
 pub(crate) use video::{VideoConfig, VideoEncoder};
 
@@ -127,11 +128,10 @@ fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
     }
 }
 
-pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
+pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
     info!("AV service started");
 
     let mut ctx = None;
-    let config = config::load().await?;
 
     while let Ok((response, cmd)) = worker.commands.recv().await {
         match cmd {
@@ -305,7 +305,9 @@ mod tests {
             .run_until(async {
                 let (mut commander, worker) = create_pair::<IpcApi>().unwrap();
 
-                let worker_handle = tokio::task::spawn_local(super::run(worker));
+                let worker_handle = tokio::task::spawn_local(async move {
+                    super::run(worker, Config::default()).await
+                });
 
                 let ack = commander
                     .commands

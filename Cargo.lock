@@ -518,6 +518,7 @@ dependencies = [
  "log",
  "log4rs",
  "tokio",
+ "toml",
  "txproto-rs",
  "windows-sys 0.52.0",
 ]
@@ -1718,6 +1719,10 @@ version = "0.1.0"
 
 [[patch.unused]]
 name = "kynputservice-types"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "log4ky"
 version = "0.1.0"
 
 [[patch.unused]]
