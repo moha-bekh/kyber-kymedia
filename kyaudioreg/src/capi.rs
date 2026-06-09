@@ -107,7 +107,7 @@ impl log::Log for Logger {
     fn flush(&self) {}
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn kyaudioreg_init_logger(
     max_level: KyAudioRegLogLevelFilter,
     log_cb: KyAudioRegLogCb,
@@ -129,7 +129,7 @@ pub struct KyAudioRegulator {
     pull: AudioRegulatorPull,
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn kyaudioreg_new(
     sample_rate: u32,
     sample_size: u32,
@@ -142,29 +142,33 @@ pub unsafe extern "C" fn kyaudioreg_new(
     Box::new(KyAudioRegulator { push, pull })
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub unsafe extern "C" fn kyaudioreg_delete(audioreg: Box<KyAudioRegulator>) {
     // implicitly drop audioreg
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn kyaudioreg_push(
     audioreg: &mut KyAudioRegulator,
     missing_samples: u32,
     src: *const u8,
     len: libc::size_t,
 ) {
-    let data = std::slice::from_raw_parts(src, len);
-    audioreg.push.push(missing_samples, data);
+    unsafe {
+        let data = std::slice::from_raw_parts(src, len);
+        audioreg.push.push(missing_samples, data);
+    }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn kyaudioreg_pull(
     audioreg: &mut KyAudioRegulator,
     dst: *mut u8,
     len: libc::size_t,
 ) {
-    let data = std::slice::from_raw_parts_mut(dst, len);
-    audioreg.pull.pull(data);
+    unsafe {
+        let data = std::slice::from_raw_parts_mut(dst, len);
+        audioreg.pull.pull(data);
+    }
 }

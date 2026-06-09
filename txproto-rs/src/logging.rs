@@ -32,7 +32,7 @@ use crate::Result;
 mod bindgen_extras {
     pub type Valist = crate::sys::va_list;
 
-    extern "C" {
+    unsafe extern "C" {
         pub fn vsnprintf(
             __s: *mut libc::c_char,
             __maxlen: libc::c_ulong,
@@ -46,7 +46,7 @@ mod bindgen_extras {
 mod bindgen_extras {
     pub type Valist = *mut crate::sys::__va_list_tag;
 
-    extern "C" {
+    unsafe extern "C" {
         pub fn vsnprintf(
             __s: *mut libc::c_char,
             __maxlen: libc::c_ulong,
@@ -65,34 +65,36 @@ unsafe extern "C" fn log_trampoline<F>(
 ) where
     F: Fn(Cow<str>, log::Level, Cow<str>) + Send + 'static,
 {
-    let f: &F = &*(userdata as *const _);
+    unsafe {
+        let f: &F = &*(userdata as *const _);
 
-    let level = match level {
-        sys::SPLogLevel_SP_LOG_FATAL | sys::SPLogLevel_SP_LOG_ERROR => log::Level::Error,
-        sys::SPLogLevel_SP_LOG_WARN => log::Level::Warn,
-        sys::SPLogLevel_SP_LOG_INFO => log::Level::Info,
-        sys::SPLogLevel_SP_LOG_VERBOSE | sys::SPLogLevel_SP_LOG_DEBUG => log::Level::Debug,
-        sys::SPLogLevel_SP_LOG_TRACE => log::Level::Trace,
-        sys::SPLogLevel_SP_NOLOG
-        | sys::SPLogLevel_SP_LOG_QUIET
-        | sys::SPLogLevel_SP_LOG_LIST
-        | sys::SPLogLevel_SP_LOG_LIST_END => return,
-        _ => {
-            warn!("Unexpected log level {level:?}");
-            return;
-        }
-    };
+        let level = match level {
+            sys::SPLogLevel_SP_LOG_FATAL | sys::SPLogLevel_SP_LOG_ERROR => log::Level::Error,
+            sys::SPLogLevel_SP_LOG_WARN => log::Level::Warn,
+            sys::SPLogLevel_SP_LOG_INFO => log::Level::Info,
+            sys::SPLogLevel_SP_LOG_VERBOSE | sys::SPLogLevel_SP_LOG_DEBUG => log::Level::Debug,
+            sys::SPLogLevel_SP_LOG_TRACE => log::Level::Trace,
+            sys::SPLogLevel_SP_NOLOG
+            | sys::SPLogLevel_SP_LOG_QUIET
+            | sys::SPLogLevel_SP_LOG_LIST
+            | sys::SPLogLevel_SP_LOG_LIST_END => return,
+            _ => {
+                warn!("Unexpected log level {level:?}");
+                return;
+            }
+        };
 
-    const BUF_SIZE: usize = 1024;
-    let mut buf: [c_char; BUF_SIZE] = [0; BUF_SIZE];
-    bindgen_extras::vsnprintf(buf.as_mut_ptr(), BUF_SIZE as _, fmt, args);
+        const BUF_SIZE: usize = 1024;
+        let mut buf: [c_char; BUF_SIZE] = [0; BUF_SIZE];
+        bindgen_extras::vsnprintf(buf.as_mut_ptr(), BUF_SIZE as _, fmt, args);
 
-    let component = CStr::from_ptr(component).to_string_lossy();
-    let component = Cow::from(format!("txproto::{component}"));
+        let component = CStr::from_ptr(component).to_string_lossy();
+        let component = Cow::from(format!("txproto::{component}"));
 
-    let line = CStr::from_ptr(buf.as_ptr()).to_string_lossy();
+        let line = CStr::from_ptr(buf.as_ptr()).to_string_lossy();
 
-    f(component, level, line);
+        f(component, level, line);
+    }
 }
 
 fn set_log_cb<F>(f: F)

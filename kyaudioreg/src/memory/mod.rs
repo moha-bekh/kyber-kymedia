@@ -20,8 +20,8 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 #[allow(unused_imports)]
 use crate::NotAvailable;

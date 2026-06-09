@@ -296,7 +296,11 @@ impl AudioRegulatorPush {
                 let diff = std::cmp::max(-abs_max_diff, std::cmp::min(abs_max_diff, diff));
                 info!(
                     "[Audio] Buffering: target={} avg={} cur={} compensation={} underflow_occurences={} underflow_samples={}",
-                    self.target_buffering, self.avg_buffering.avg, can_read, diff, self.underflow_occurences,
+                    self.target_buffering,
+                    self.avg_buffering.avg,
+                    can_read,
+                    diff,
+                    self.underflow_occurences,
                     self.underflow_samples
                 );
 

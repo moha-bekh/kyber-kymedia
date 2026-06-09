@@ -32,8 +32,8 @@ use txproto_rs::{Dictionary, Txproto};
 
 use crate::config::{self, ClockType};
 use crate::video::{VideoConfig, VideoEncoder};
-use crate::{audio, configure_clock, utils, video};
 use crate::{Context, Error, Result};
+use crate::{audio, configure_clock, utils, video};
 
 fn create_muxer(
     ctx: &Txproto,
@@ -69,11 +69,11 @@ pub(crate) async fn generate_sdp(
     let sdp_path = env::temp_dir().join("video.sdp");
 
     let ret = fs::remove_file(&sdp_path).await;
-    if let Err(err) = ret {
-        if err.kind() != io::ErrorKind::NotFound {
-            warn!("Fail to delete SDP file");
-            return Err(Error::RtpVideoSdpFileDeleteFailed { reason: err });
-        }
+    if let Err(err) = ret
+        && err.kind() != io::ErrorKind::NotFound
+    {
+        warn!("Fail to delete SDP file");
+        return Err(Error::RtpVideoSdpFileDeleteFailed { reason: err });
     }
 
     // Run txproto

@@ -20,8 +20,8 @@
 
 use txproto_rs::Txproto;
 
-use crate::config::ClockType;
 use crate::Result;
+use crate::config::ClockType;
 
 pub(crate) fn configure_clock(ctx: &Txproto, clock_type: &ClockType) -> Result<()> {
     match clock_type {

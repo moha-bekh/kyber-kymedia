@@ -29,7 +29,7 @@ fn set_process_dpi_aware() {
     use log::{info, warn};
     use windows_sys::Win32::{
         Foundation::{GetLastError, TRUE},
-        UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2},
+        UI::HiDpi::{DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext},
     };
 
     let ret = unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };

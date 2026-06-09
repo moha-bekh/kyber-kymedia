@@ -26,8 +26,8 @@ use txproto_rs::Txproto;
 
 use crate::config::ClockType;
 use crate::metrics;
-use crate::{audio, configure_clock, video};
 use crate::{Context, Result, VideoConfig};
+use crate::{audio, configure_clock, video};
 
 pub(crate) fn start_video(
     video_config: VideoConfig,

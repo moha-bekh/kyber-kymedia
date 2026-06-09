@@ -161,7 +161,9 @@ async fn handle_command(
             yuv444,
             intra_refresh,
         } => {
-            info!("Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
+            info!(
+                "Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
+            );
 
             let video_config = VideoConfig {
                 display_id,
@@ -201,7 +203,9 @@ async fn handle_command(
             intra_refresh,
             metrics_uri,
         } => {
-            info!("Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
+            info!(
+                "Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
+            );
 
             let video_config = VideoConfig {
                 display_id,

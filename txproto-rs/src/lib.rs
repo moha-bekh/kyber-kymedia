@@ -511,24 +511,26 @@ impl Txproto {
     where
         Cb: FnMut(&[Metrics]),
     {
-        let data: &mut MetricsCbData<Cb> = unsafe { &mut *(userdata as *mut _) };
+        unsafe {
+            let data: &mut MetricsCbData<Cb> = &mut *(userdata as *mut _);
 
-        let slice = std::slice::from_raw_parts(entries, count);
+            let slice = std::slice::from_raw_parts(entries, count);
 
-        let slice: Vec<_> = slice
-            .iter()
-            .map(|entry| {
-                let key = CStr::from_ptr(entry.key).to_str().unwrap();
-                Metrics {
-                    key,
-                    value: entry.value,
-                }
-            })
-            .collect();
+            let slice: Vec<_> = slice
+                .iter()
+                .map(|entry| {
+                    let key = CStr::from_ptr(entry.key).to_str().unwrap();
+                    Metrics {
+                        key,
+                        value: entry.value,
+                    }
+                })
+                .collect();
 
-        (data.cb)(&slice);
+            (data.cb)(&slice);
 
-        0
+            0
+        }
     }
 
     pub fn set_metrics_cb<Cb>(&self, cb: Cb) -> Result<()>
