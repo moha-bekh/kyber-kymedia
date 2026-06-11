@@ -122,8 +122,6 @@ endif
 common_conf = [
   '--prefix=' + prefix_opt,
   '--libdir=' + join_paths(prefix_opt, libdir_opt),
-  '--disable-shared',
-  '--enable-static',
   '--disable-doc',
   '--enable-gpl',
   '--enable-libx264',
@@ -131,6 +129,16 @@ common_conf = [
   '--enable-zlib',
   '--disable-sdl2',
 ]
+
+# FFmpeg is built as shared libraries on Linux (dynamic .so) and static on
+# every other platform (Windows/macOS/iOS/Android ship a single self-contained
+# binary that statically bundles FFmpeg).
+ffmpeg_shared = host_machine.system() == 'linux'
+if ffmpeg_shared
+  common_conf += ['--enable-shared', '--disable-static']
+else
+  common_conf += ['--disable-shared', '--enable-static']
+endif
 
 host_cpu = host_machine.cpu_family()
 
@@ -185,7 +193,10 @@ elif host_machine.system() == 'windows' and meson.is_cross_build()
 elif host_machine.system() == 'linux'
   common_conf += [
     '--enable-pic',
-    '--extra-cflags=-fPIC -fvisibility=hidden',
+    # No -fvisibility=hidden for the shared build: FFmpeg relies on its
+    # generated linker version scripts to export the public av_* API, and
+    # hidden visibility would strip those symbols from the .so.
+    '--extra-cflags=-fPIC',
     '--enable-nvenc',
     '--enable-libdrm',
     '--enable-vulkan',
@@ -339,9 +350,17 @@ foreach dep_name, lib_name : libs
   )
   wrapped_deps += [dep]
   meson.override_dependency(dep_name, dep)
-  meson.override_dependency(dep_name, dep, static : true)
+  if not ffmpeg_shared
+    # Static platforms (Windows/macOS/iOS/Android): consumers such as VLC
+    # request these with dependency(..., static : true). On Linux FFmpeg is
+    # shared and consumers request the default variant, so only the generic
+    # override above is registered there.
+    meson.override_dependency(dep_name, dep, static : true)
+  endif
 endforeach
 
 ffmpeg_dep = declare_dependency(dependencies : wrapped_deps)
 meson.override_dependency('ffmpeg', ffmpeg_dep)
-meson.override_dependency('ffmpeg', ffmpeg_dep, static : true)
+if not ffmpeg_shared
+  meson.override_dependency('ffmpeg', ffmpeg_dep, static : true)
+endif
