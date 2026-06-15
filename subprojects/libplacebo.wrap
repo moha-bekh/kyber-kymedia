@@ -24,7 +24,7 @@ source_url = https://github.com/haasn/libplacebo/archive/refs/tags/v7.351.0.tar.
 source_filename = libplacebo-7.351.0.tar.gz
 source_hash = 716954501d9b76e6906fddda66febc5886493d0673dd265ec1e6e52f4e5cd7c6
 patch_directory = libplacebo
-diff_files = libplacebo/patches/0001-glsl-Make-it-build-with-mingw-w64.patch, libplacebo/patches/0002-vulkan-Disable-stub.patch, libplacebo/patches/0003-utils-libav-initial-attempt-at-d3d11-hwframe-mapping.patch, libplacebo/patches/0004-utils-libav-init-proper-d3d11-texture-size-when-mapp.patch, libplacebo/patches/0005-utils-libav-fix-component-mapping-order-for-BGR-formats.patch, libplacebo/patches/0007-vulkan-skip-dependency-when-disabled.patch, libplacebo/patches/0008-components-defaults.patch, libplacebo/patches/0009-export-libplacebo-dep.patch
+diff_files = libplacebo/patches/0001-glsl-Make-it-build-with-mingw-w64.patch, libplacebo/patches/0002-vulkan-Disable-stub.patch, libplacebo/patches/0003-utils-libav-initial-attempt-at-d3d11-hwframe-mapping.patch, libplacebo/patches/0004-utils-libav-init-proper-d3d11-texture-size-when-mapp.patch, libplacebo/patches/0005-utils-libav-fix-component-mapping-order-for-BGR-formats.patch, libplacebo/patches/0006-vulkan-utils_gen-fix-for-python-3-14.patch, libplacebo/patches/0007-vulkan-skip-dependency-when-disabled.patch, libplacebo/patches/0008-components-defaults.patch, libplacebo/patches/0009-export-libplacebo-dep.patch
 
 [provide]
 dependency_names = libplacebo
