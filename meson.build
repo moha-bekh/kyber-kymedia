@@ -186,6 +186,7 @@ vlc_common_options = {
   'glspectrum': 'disabled',
   'ogg_demux': 'disabled',
   'mux_ogg': 'disabled',
+  'spatialaudio': 'disabled',
 }
 
 vlc_win32_options = {
