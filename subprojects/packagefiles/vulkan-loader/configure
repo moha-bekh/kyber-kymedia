@@ -50,6 +50,18 @@ if [ "${MESON_CROSS:-0}" != "1" ]; then
     WSI_ARGS="-DBUILD_WSI_XCB_SUPPORT=ON -DBUILD_WSI_XLIB_SUPPORT=ON -DBUILD_WSI_WAYLAND_SUPPORT=ON"
 fi
 
+_cc_launcher=""
+_cmake_cc="${CC:-cc}"
+case "${CC:-}" in
+    */ccache\ * | ccache\ *)
+        _cc_launcher="${CC%% *}"
+        _cmake_cc="${CC#* }"
+        ;;
+esac
+NATIVE_CC_ARGS="-DCMAKE_C_COMPILER=${_cmake_cc}"
+[ -n "$_cc_launcher" ] && NATIVE_CC_ARGS="$NATIVE_CC_ARGS -DCMAKE_C_COMPILER_LAUNCHER=${_cc_launcher}"
+unset _cc_launcher _cmake_cc
+
 # shellcheck disable=SC2086
 cmake "$SRC_DIR" \
     -G "Unix Makefiles" \
@@ -59,5 +71,6 @@ cmake "$SRC_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
     "-DVULKAN_HEADERS_INSTALL_DIR=$VULKAN_HEADERS_DIST_PREFIX" \
     "-DCMAKE_PREFIX_PATH=$VULKAN_HEADERS_DIST_PREFIX" \
+    $NATIVE_CC_ARGS \
     $WSI_ARGS \
     ${CROSS_CMAKE_ARGS:-}
