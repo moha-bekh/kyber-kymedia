@@ -8,6 +8,7 @@ default = ["watermark"]
 watermark = ["txproto-rs/watermark"]
 
 [dependencies]
+libc = "0.2"
 log = { version = "0.4.21", features = ["serde"] }
 log4ky = { version = "0.1.0", features = ["toml"] }
 rmp-serde = "1.1.2"
@@ -21,6 +22,7 @@ libkypc = "0.1.0"
 kyavservice-types = { path = "../kyavservice-types" }
 kycom = "0.1.0"
 txproto-rs = { path = "../txproto-rs", default-features = false }
+libavconv-rs = { path = "../libavconv-rs" }
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
