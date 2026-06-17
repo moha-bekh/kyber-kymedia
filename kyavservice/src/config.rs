@@ -27,7 +27,25 @@ use serde::Deserialize;
 
 use txproto_rs::{DictionaryEntry, DictionaryValue};
 
-use crate::{Error, Result};
+/// Errors of the shared config module. Public because `parse`, `from_table`
+/// and `kyavserver_log_extras` are called from the binary before either
+/// backend (and therefore either backend's `Error`) is in play; each backend
+/// bridges this into its own `Error` with a `From` impl.
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+    #[error("Failed to read configuration file: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("Configuration file is not valid UTF-8: {0}")]
+    InvalidUtf8(std::string::FromUtf8Error),
+    #[error("Failed to parse configuration file: {0}")]
+    Parse(toml::de::Error),
+    #[error("Failed to load configuration: {0}")]
+    Load(toml::de::Error),
+    #[error("Failed to write configuration: {0}")]
+    Write(toml::ser::Error),
+}
+
+pub type Result<T> = std::result::Result<T, ConfigError>;
 
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -160,10 +178,7 @@ pub fn kyavserver_log_extras(table: &toml::Table) -> Result<KyavserverLogExtras>
     let Some(section) = table.get(SECTION) else {
         return Ok(KyavserverLogExtras::default());
     };
-    section
-        .clone()
-        .try_into()
-        .map_err(|reason| Error::ConfigParseFail { reason })
+    section.clone().try_into().map_err(ConfigError::Parse)
 }
 
 /// Read and parse the configuration file, without deserializing it. Returns
@@ -185,12 +200,9 @@ pub fn parse() -> Result<(toml::Table, Option<PathBuf>)> {
         Err(err) => return Err(err.into()),
     };
 
-    let content =
-        String::from_utf8(content).map_err(|reason| Error::ConfigInvalidUtf8 { reason })?;
+    let content = String::from_utf8(content).map_err(ConfigError::InvalidUtf8)?;
 
-    let table = content
-        .parse()
-        .map_err(|reason| Error::ConfigParseFail { reason })?;
+    let table = content.parse().map_err(ConfigError::Parse)?;
 
     Ok((table, Some(path)))
 }
@@ -204,7 +216,7 @@ pub fn from_table(table: &toml::Table) -> Result<Config> {
     kyavserver_conf
         .clone()
         .try_into()
-        .map_err(|err| Error::ConfigLoadFail { reason: err })
+        .map_err(ConfigError::Load)
 }
 
 pub(crate) fn dump_encoder_config(
@@ -229,8 +241,7 @@ pub(crate) fn dump_encoder_config(
         })
         .collect();
 
-    let encoder_config =
-        toml::to_string(&map).map_err(|err| Error::ConfigWriteFail { reason: err })?;
+    let encoder_config = toml::to_string(&map).map_err(ConfigError::Write)?;
 
     Ok((
         format!("kyavserver.{encoder_type}_encoder_config"),

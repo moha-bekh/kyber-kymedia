@@ -80,4 +80,16 @@ impl<T> From<std::sync::PoisonError<T>> for Error {
     }
 }
 
+impl From<crate::config::ConfigError> for Error {
+    fn from(err: crate::config::ConfigError) -> Self {
+        match err {
+            crate::config::ConfigError::Io(source) => Error::IO { source },
+            crate::config::ConfigError::InvalidUtf8(reason) => Error::ConfigInvalidUtf8 { reason },
+            crate::config::ConfigError::Parse(reason) => Error::ConfigParseFail { reason },
+            crate::config::ConfigError::Load(reason) => Error::ConfigLoadFail { reason },
+            crate::config::ConfigError::Write(reason) => Error::ConfigWriteFail { reason },
+        }
+    }
+}
+
 pub type Result<T> = std::result::Result<T, Error>;
