@@ -111,8 +111,6 @@ async fn main() -> ExitCode {
     #[cfg(target_os = "windows")]
     set_process_dpi_aware();
 
-    txproto_rs::init_logger();
-
     match real_main(config, log_handle).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

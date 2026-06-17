@@ -152,6 +152,12 @@ pub async fn run(
     config: Config,
     log_levels: &dyn TargetLogLevel,
 ) -> Result<()> {
+    // Route txproto's native log callback into `log`. This lives here rather
+    // than in kyavserver so the binary does not need a txproto-rs dependency,
+    // and so a future backend can install its own routing at its own entry
+    // point.
+    txproto_rs::init_logger();
+
     info!("AV service started");
 
     let mut ctx = None;
