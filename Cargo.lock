@@ -495,7 +495,6 @@ dependencies = [
  "log4ky",
  "tokio",
  "toml",
- "txproto-rs",
  "windows-sys 0.52.0",
 ]
 
