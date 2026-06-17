@@ -270,6 +270,11 @@ elif host_machine.system() == 'darwin'
     '--disable-nvenc',
     '--enable-videotoolbox',
     '--enable-audiotoolbox',
+    # unused, pull unlinked frameworks (AVFoundation/CoreImage/OpenGL/Metal) → break static link
+    '--disable-indev=avfoundation',
+    '--disable-filter=coreimage',
+    '--disable-filter=coreimagesrc',
+    '--disable-filter=yadif_videotoolbox',
   ]
   if meson.is_cross_build()
     # macOS cross-arch (e.g. arm64 runner building x86_64): tell FFmpeg configure

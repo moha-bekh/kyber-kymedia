@@ -39,7 +39,11 @@ diff_files =
   ffmpeg/patches/0012-avcodec-videotoolboxenc-disable-calls-on-unsupported.patch,
   ffmpeg/patches/0013-avcodec-fix-compilation-visionos.patch,
   ffmpeg/patches/0014-dxva_vc1_crash.patch,
-  ffmpeg/patches/0015-h264_early_SAR.patch
+  ffmpeg/patches/0015-h264_early_SAR.patch,
+  ffmpeg/patches/0016-avcodec-videotoolboxenc-switch-to-receive_packet-API.patch,
+  ffmpeg/patches/0017-avcodec-videotoolboxenc-add-signpost-timing.patch,
+  ffmpeg/patches/0018-avcodec-videotoolboxenc-set-expected-framerate.patch,
+  ffmpeg/patches/0019-avcodec-videotoolboxenc-make-VT-blocking.patch
 
 [provide]
 dependency_names = ffmpeg, libavcodec, libavformat, libavutil, libswresample, libswscale, libavfilter, libavdevice

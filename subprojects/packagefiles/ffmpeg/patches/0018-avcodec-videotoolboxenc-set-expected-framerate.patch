@@ -1,0 +1,40 @@
+From 00a31512a6f075a59124e9bccd2a6fb5c81aac1c Mon Sep 17 00:00:00 2001
+From: Marvin Scholz <epirat07@gmail.com>
+Date: Wed, 12 Mar 2025 13:13:16 +0100
+Subject: [PATCH 4/5] videotoolboxenc: set expected framerate
+
+---
+ libavcodec/videotoolboxenc.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/libavcodec/videotoolboxenc.c b/libavcodec/videotoolboxenc.c
+index 24ebe48d37..b931dcd983 100644
+--- a/libavcodec/videotoolboxenc.c
++++ b/libavcodec/videotoolboxenc.c
+@@ -1260,6 +1260,23 @@ static int vtenc_create_encoder(AVCodecContext   *avctx,
+         av_log(avctx, AV_LOG_ERROR, "-q:v qscale not available for encoder. Use -b:v bitrate instead.\n");
+         return AVERROR_EXTERNAL;
+     }
+ 
++    {
++        CFNumberRef framerate_num = CFNumberCreate(kCFAllocatorDefault,
++            kCFNumberFloatType,
++            &(float){ 60 });
++        if (!framerate_num)
++            return AVERROR(ENOMEM);
++
++        status = VTSessionSetProperty(vtctx->session,
++            kVTCompressionPropertyKey_ExpectedFrameRate,
++            framerate_num);
++        if (status == kVTPropertyNotSupportedErr) {
++            av_log(avctx, AV_LOG_ERROR, "Error: kVTCompressionPropertyKey_ExpectedFrameRate is not supported by the encoder.\n");
++            return AVERROR_EXTERNAL;
++        }
++        CFRelease(framerate_num);
++    }
++
+     if (avctx->flags & AV_CODEC_FLAG_QSCALE || avctx->global_quality > 0) {
+         float factor = (avctx->flags & AV_CODEC_FLAG_QSCALE) ?
+                        FF_QP2LAMBDA * 100.0f : 100.0f;
+--
+2.39.5

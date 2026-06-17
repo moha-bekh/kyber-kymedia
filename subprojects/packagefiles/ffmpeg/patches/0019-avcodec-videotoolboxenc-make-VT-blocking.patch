@@ -1,0 +1,33 @@
+From bf5203852dd9369c4c45b83d0189a87f615615a0 Mon Sep 17 00:00:00 2001
+From: Marvin Scholz <epirat07@gmail.com>
+Date: Wed, 2 Apr 2025 15:39:22 +0200
+Subject: [PATCH 5/5] Make VT blocking
+
+(This will probably break when not using low latency rate control mode)
+---
+ libavcodec/videotoolboxenc.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/libavcodec/videotoolboxenc.c b/libavcodec/videotoolboxenc.c
+index dd78782..2ee5378 100644
+--- a/libavcodec/videotoolboxenc.c
++++ b/libavcodec/videotoolboxenc.c
+@@ -435,6 +435,15 @@ static int vtenc_q_pop(VTEncContext *vtctx, bool wait, CMSampleBufferRef *buf, E
+         return 0;
+     }
+ 
++    if (vtctx->frame_ct_in && (vtctx->frame_ct_in - 1 == vtctx->frame_ct_out)) {
++        // If we have no pending frames, switch to blocking mode
++        av_log(vtctx, AV_LOG_DEBUG, "Waiting blocking for packet\n");
++        wait = true;
++    } else {
++        av_log(vtctx, AV_LOG_DEBUG, "Count in %lld out %lld\n",
++            vtctx->frame_ct_in, vtctx->frame_ct_out);
++    }
++
+     while (!vtctx->q_head && !vtctx->async_error && wait && !vtctx->flushing) {
+         pthread_cond_wait(&vtctx->cv_sample_sent, &vtctx->lock);
+     }
+-- 
+2.39.5
+

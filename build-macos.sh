@@ -167,9 +167,14 @@ export PKG_CONFIG_ALLOW_CROSS=1
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
 # Build dependencies (kyaudioreg + native deps via meson)
 if [ "$BUILD_DEPS" = true ]; then
-    ./build-kyaudioreg.sh -p macos -a "$HOST_ARCH" -o "$OUT_DIR"
-
-    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=disabled")
+    # Always build server deps; add client deps (kyaudioreg + libvlc) only when KYBER_BUILD_CLIENT_DEPS=1.
+    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=enabled")
+    if [ "${KYBER_BUILD_CLIENT_DEPS:-0}" = "1" ]; then
+        ./build-kyaudioreg.sh -p macos -a "$HOST_ARCH" -o "$OUT_DIR"
+        MESON_SETUP_ARGS+=("-Dbuild_client=enabled")
+    else
+        MESON_SETUP_ARGS+=("-Dbuild_client=disabled")
+    fi
 
     # When cross-compiling
     if [ "$HOST_ARCH" != "$BUILD_ARCH" ]; then

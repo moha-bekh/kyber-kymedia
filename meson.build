@@ -153,6 +153,9 @@ if build_server.enabled()
       'pulse': 'disabled',
       'wayland': 'disabled',
     }
+  elif host_machine.system() == 'darwin'
+    # xcb unused on macOS
+    _txproto_options += {'xcb': 'disabled'}
   endif
   txproto = subproject('txproto', default_options : _txproto_options)
 endif
