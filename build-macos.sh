@@ -82,6 +82,38 @@ get_cargo_target()
     esac
 }
 
+bison_version()
+{
+    "$1" --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | head -n1
+}
+
+# VLC's JSON parser needs Bison >= 3; macOS ships 2.3, which meson silently picks
+# then fails on. Prefer a modern bison on PATH, else a keg-only Homebrew one.
+ensure_modern_bison()
+{
+    local ver
+    ver=$(bison_version bison)
+    if [ -n "$ver" ] && [ "${ver%%.*}" -ge 3 ] 2>/dev/null; then
+        return 0
+    fi
+
+    if command -v brew >/dev/null 2>&1; then
+        local prefix
+        prefix=$(brew --prefix bison 2>/dev/null)
+        if [ -x "$prefix/bin/bison" ]; then
+            ver=$(bison_version "$prefix/bin/bison")
+            if [ -n "$ver" ] && [ "${ver%%.*}" -ge 3 ] 2>/dev/null; then
+                export PATH="$prefix/bin:$PATH"
+                echo "Using Homebrew Bison $ver"
+                return 0
+            fi
+        fi
+    fi
+
+    echo "Error: VLC needs Bison >= 3 (have: ${ver:-none}); macOS ships 2.3. Run: brew install bison" >&2
+    exit 1
+}
+
 BUILD_DEPS=true
 BUILD_KYBER_DEPS=false
 ACTION="build"
@@ -170,6 +202,7 @@ if [ "$BUILD_DEPS" = true ]; then
     # Always build server deps; add client deps (kyaudioreg + libvlc) only when KYBER_BUILD_CLIENT_DEPS=1.
     MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=enabled")
     if [ "${KYBER_BUILD_CLIENT_DEPS:-0}" = "1" ]; then
+        ensure_modern_bison
         ./build-kyaudioreg.sh -p macos -a "$HOST_ARCH" -o "$OUT_DIR"
         MESON_SETUP_ARGS+=("-Dbuild_client=enabled")
     else
