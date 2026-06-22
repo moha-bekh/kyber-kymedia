@@ -174,6 +174,19 @@ lua_dep = declare_dependency(
 meson.override_dependency('lua', lua_dep)
 meson.override_dependency('lua-5.4', lua_dep)
 
+# Build luac for txproto when none on PATH (e.g. macOS); independent of the interpreter.
+luac_name = 'luac' + lua_versions[0] + '.' + lua_versions[1]
+if not find_program(luac_name, 'luac', required: false).found()
+  luac_exe = executable(
+    'luac',
+    'src/luac.c',
+    dependencies: [lua_dep] + lua_lib_deps,
+    implicit_include_directories: false,
+  )
+  meson.override_find_program(luac_name, luac_exe)
+  meson.override_find_program('luac', luac_exe)
+endif
+
 pkg = import('pkgconfig')
 pkg.generate(
   name: 'lua',
