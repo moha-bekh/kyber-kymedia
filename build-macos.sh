@@ -32,7 +32,7 @@ usage()
 cat << EOF
 usage: $0 -o <path> [options] [action]
 
-Build kymedia application for macOS (kyaudioreg only - kyavserver not supported).
+Build kymedia application for macOS (kyaudioreg + kyavserver).
 
 OPTIONS:
    -h            Show some help
@@ -42,7 +42,7 @@ OPTIONS:
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
 
 ACTIONS:
-   build                Build kyaudioreg (default)
+   build                Build kyavserver (kyaudioreg + native deps are built in the deps phase) (default)
    test                 Run tests on kyaudioreg
    clippy               Run clippy on kyaudioreg
 EOF
@@ -154,13 +154,6 @@ if [ "x$1" != "x" ]; then
     exit 1
 fi
 
-# Validate action
-if [[ "$ACTION" == *"kyavserver"* ]]; then
-    echo "Error: kyavserver is not supported on macOS"
-    usage
-    exit 1
-fi
-
 if [ -z ${OUT_DIR} ]; then
     usage
     exit 1
@@ -230,10 +223,25 @@ else
     echo "Skip dependencies build"
 fi
 
+# Build kyavserver against the libtxproto installed by the deps phase above.
+kyavserver_macos_do_build() {
+    local cargo_target=$1
+    local out_dir=$2
+
+    cargo build \
+        -p kyavserver \
+        --target "$cargo_target" \
+        --no-default-features \
+        --release
+
+    mkdir -p "$out_dir/bin"
+    cp "target/$cargo_target/release/kyavserver" "$out_dir/bin"
+}
+
 # Run action
 case "$ACTION" in
     "build")
-        echo "Nothing to do: kyaudioreg is built during the deps phase"
+        kyavserver_macos_do_build "$(get_cargo_target $HOST_ARCH)" "$OUT_DIR"
         ;;
     "test")
         echo "Test action not yet implemented for macOS"
