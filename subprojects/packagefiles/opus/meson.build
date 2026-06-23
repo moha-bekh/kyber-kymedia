@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-project('opus', 'c', version : '1.3.1')
+project('opus', 'c', version : '1.6.1')
 
 ext = import('unstable-external_project')
 
