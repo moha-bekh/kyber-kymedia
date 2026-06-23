@@ -32,10 +32,7 @@ mod bindgen_extras {
     // System-V x86_64 (macOS/Linux) exposes va_list as `[__va_list_tag; 1]`,
     // which decays to a pointer; the simpler pointer-shaped va_list on macOS
     // aarch64 and Windows is emitted by bindgen as the `va_list` alias.
-    #[cfg(all(
-        any(target_os = "macos", target_os = "linux"),
-        target_arch = "x86_64"
-    ))]
+    #[cfg(all(any(target_os = "macos", target_os = "linux"), target_arch = "x86_64"))]
     pub type Valist = *mut crate::sys::__va_list_tag;
 
     #[cfg(any(
