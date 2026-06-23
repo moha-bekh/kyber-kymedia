@@ -27,12 +27,14 @@ SRC_DIR="$(cd "$(dirname "$0")" && pwd)"
 PREFIX=/usr/local
 LIBDIR=lib
 INCLUDEDIR=include
+VERSION=1.4.313
 
 for arg; do
     case "$arg" in
         --prefix=*)     PREFIX="${arg#*=}" ;;
         --libdir=*)     LIBDIR="${arg#*=}" ;;
         --includedir=*) INCLUDEDIR="${arg#*=}" ;;
+        --version=*)    VERSION="${arg#*=}" ;;
     esac
 done
 
@@ -51,3 +53,15 @@ cmake "$SRC_DIR" \
 
 cmake --build . --parallel "$(nproc)"
 cmake --install .
+
+PC_DIR="$PREFIX/$LIBDIR/pkgconfig"
+mkdir -p "$PC_DIR"
+cat > "$PC_DIR/vulkan.pc" <<EOF
+prefix=$PREFIX
+includedir=\${prefix}/$INCLUDEDIR
+
+Name: Vulkan-Headers
+Description: Vulkan Header files and API registry (Project Kyber, headers only)
+Version: $VERSION
+Cflags: -I\${includedir}
+EOF
