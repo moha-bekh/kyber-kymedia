@@ -19,6 +19,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use log::{error, info};
 use serde::Deserialize;
@@ -125,11 +126,23 @@ impl Config {
 }
 
 pub(crate) async fn load() -> Result<Config> {
-    let path = utils::get_resource_path("kyber_config.toml");
+    // A KYBER_CONFIG pointer must resolve to a readable file; with none set, a
+    // missing executable-relative default falls back to the built-in defaults.
+    let (path, required) = match std::env::var_os("KYBER_CONFIG") {
+        Some(path) => (PathBuf::from(path), true),
+        None => (utils::get_resource_path("kyber_config.toml"), false),
+    };
 
-    let Ok(content) = fs::read(&path).await else {
-        info!("Use default configuration");
-        return Ok(Config::default());
+    let content = match fs::read(&path).await {
+        Ok(content) => content,
+        Err(err) if required => {
+            error!("Cannot read configuration file {path:?}: {err}");
+            return Err(Error::ConfigParseFail);
+        }
+        Err(_) => {
+            info!("Use default configuration");
+            return Ok(Config::default());
+        }
     };
 
     info!("Using configuration file {path:?}");
