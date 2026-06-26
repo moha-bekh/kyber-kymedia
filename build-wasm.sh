@@ -21,9 +21,6 @@
 
 set -e
 
-# Default web features
-WEB_FEATURES="js"
-
 usage()
 {
 cat << EOF
@@ -34,7 +31,7 @@ Build kymedia application for WASM (kyaudioreg only - kyavserver not supported).
 OPTIONS:
    -h            Show some help
    -k            Build Kyber dependencies
-   -f <features> Specify features (default: $WEB_FEATURES)
+   -f <features> Specify features
 
 ACTIONS:
    build                Build kyaudioreg for WASM (default)
@@ -62,6 +59,7 @@ git_clone() {
 
 BUILD_KYBER_DEPS=false
 ACTION="build"
+WEB_FEATURES=""
 
 while getopts "hkf:" OPTION
 do

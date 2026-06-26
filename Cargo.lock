@@ -503,7 +503,6 @@ version = "0.1.0"
 dependencies = [
  "js-sys",
  "kywasmtime",
- "libc",
  "log",
  "wasm-bindgen",
 ]

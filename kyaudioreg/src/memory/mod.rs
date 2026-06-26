@@ -26,7 +26,7 @@ use std::sync::atomic::Ordering;
 #[allow(unused_imports)]
 use crate::NotAvailable;
 
-#[cfg(all(feature = "js", target_family = "wasm"))]
+#[cfg(target_family = "wasm")]
 mod js;
 mod native;
 
@@ -48,7 +48,7 @@ impl AudioRegulatorSharedMemory {
         ))
     }
 
-    #[cfg(all(feature = "js", target_family = "wasm"))]
+    #[cfg(target_family = "wasm")]
     pub fn available() -> bool {
         use js_sys::wasm_bindgen::JsCast;
 
@@ -64,7 +64,7 @@ impl AudioRegulatorSharedMemory {
         }
     }
 
-    #[cfg(all(feature = "js", target_family = "wasm"))]
+    #[cfg(target_family = "wasm")]
     pub fn create_sab(
         alloc_size: u32,
         sample_size: u32,
@@ -80,7 +80,7 @@ impl AudioRegulatorSharedMemory {
         ))
     }
 
-    #[cfg(all(feature = "js", target_family = "wasm"))]
+    #[cfg(target_family = "wasm")]
     pub fn js(sab: js_sys::SharedArrayBuffer, alloc_size: u32, sample_size: u32) -> Self {
         Self::new(js::AudioRegulatorJSSharedMemoryDriver::from(
             sab,

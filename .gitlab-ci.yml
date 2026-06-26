@@ -5,7 +5,6 @@ variables:
   WIN64_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-win64:a3d1e282885b1ef5fd5fdbbf7a7d8e0b3a33de15
   ANDROID_IMAGE: ${CI_REGISTRY}/${ROOT_NAMESPACE}/ops/docker-images/debian-android:fbcb780ae307a192d9037db595c02d755be9d83e
   MACOS_RUST_VERSION: 1.89.0
-  WEB_FEATURES: js
 
 stages:
   - lint
@@ -255,7 +254,7 @@ build-wasm:
     - lint
   script: |
     # Build
-    ./build-wasm.sh -k -f $WEB_FEATURES build
+    ./build-wasm.sh -k build
 
 test-debian-trixie-x86_64:
   stage: test
@@ -374,4 +373,4 @@ clippy-wasm:
   needs:
     - lint
   script: |
-    ./build-wasm.sh -k -f $WEB_FEATURES clippy
+    ./build-wasm.sh -k clippy

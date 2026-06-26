@@ -153,7 +153,7 @@ pub unsafe extern "C" fn kyaudioreg_push(
     audioreg: &mut KyAudioRegulator,
     missing_samples: u32,
     src: *const u8,
-    len: libc::size_t,
+    len: usize,
 ) {
     unsafe {
         let data = std::slice::from_raw_parts(src, len);
@@ -165,7 +165,7 @@ pub unsafe extern "C" fn kyaudioreg_push(
 pub unsafe extern "C" fn kyaudioreg_pull(
     audioreg: &mut KyAudioRegulator,
     dst: *mut u8,
-    len: libc::size_t,
+    len: usize,
 ) {
     unsafe {
         let data = std::slice::from_raw_parts_mut(dst, len);

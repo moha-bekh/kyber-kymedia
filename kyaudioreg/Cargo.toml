@@ -9,14 +9,12 @@ edition = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-js-sys = { version = "=0.3.77", optional = true }
-libc = { version = "0.2", optional = true }
 log = { version = "0.4.21", features = ["std"] }
-wasm-bindgen = { version = "0.2.84", optional = true }
 
 [target.'cfg(target_family = "wasm")'.dependencies]
+js-sys = { version = "=0.3.77" }
 kywasmtime = { git = "https://github.com/rom1v/kywasmtime.git", tag = "0.1" }
+wasm-bindgen = { version = "0.2.84" }
 
 [features]
-capi = ["libc"]
-js = ["dep:js-sys", "dep:wasm-bindgen"]
+capi = []
