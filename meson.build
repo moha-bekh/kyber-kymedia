@@ -40,6 +40,15 @@ build_server = get_option('build_server').enable_auto_if(
 
 build_client = get_option('build_client').enable_auto_if(true)
 
+build_watermark = get_option('build_watermark').enable_auto_if(
+  host_machine.system() in ['linux', 'windows'],
+)
+
+# libplacebo and its Vulkan toolchain (spirv, vulkan-headers, glslang) are needed
+# by the server-side watermark filter and, on the Windows client, by VLC (which
+# leaves libplacebo at 'auto'). Build them when either consumer is present.
+_need_libplacebo = build_watermark.allowed() or build_client.enabled()
+
 _win32_cross = meson.is_cross_build() and host_machine.system() == 'windows'
 
 if build_server.enabled()
@@ -62,47 +71,51 @@ if build_server.enabled()
     vpl_dep = disabler()
   endif
 
-  # These dependencies are declared here to ensure their subprojects are built
-  # before libplacebo, which requires them (spirv, vulkan-headers, glslang).
-  spirv_headers_dep  = dependency('spirv-headers',
-    required : true,
-    fallback : ['spirv-headers', 'spirv_headers_dep'],
-  )
-  spirv_tools_dep    = dependency('SPIRV-Tools',
-    required : true,
-    fallback : ['spirv-tools', 'spirv_tools_dep'],
-  )
-  spirv_cross_dep    = dependency('spirv-cross-c-shared',
-    required : true,
-    fallback : ['spirv-cross', 'spirv_cross_dep'],
-  )
-  vulkan_headers_dep = dependency('vulkan-headers',
-    required : true,
-    fallback : ['vulkan-headers', 'vulkan_headers_dep'],
-  )
-  glslang_dep        = dependency('glslang',
-    required : true,
-    fallback : ['glslang', 'glslang_dep'],
-  )
+  # libplacebo and its Vulkan toolchain are only pulled in when something
+  # consumes them (the watermark filter, or the Windows VLC client).
+  if _need_libplacebo
+    # These dependencies are declared here to ensure their subprojects are built
+    # before libplacebo, which requires them (spirv, vulkan-headers, glslang).
+    spirv_headers_dep  = dependency('spirv-headers',
+      required : true,
+      fallback : ['spirv-headers', 'spirv_headers_dep'],
+    )
+    spirv_tools_dep    = dependency('SPIRV-Tools',
+      required : true,
+      fallback : ['spirv-tools', 'spirv_tools_dep'],
+    )
+    spirv_cross_dep    = dependency('spirv-cross-c-shared',
+      required : true,
+      fallback : ['spirv-cross', 'spirv_cross_dep'],
+    )
+    vulkan_headers_dep = dependency('vulkan-headers',
+      required : true,
+      fallback : ['vulkan-headers', 'vulkan_headers_dep'],
+    )
+    glslang_dep        = dependency('glslang',
+      required : true,
+      fallback : ['glslang', 'glslang_dep'],
+    )
 
-  _libplacebo_options = {
-    'shaderc': 'disabled',
-    'lcms': 'disabled',
-    'opengl': 'disabled',
-    'demos': false,
-    'default_library': 'static',
-  }
-  if _win32_cross
-    _libplacebo_options += {'vulkan': 'disabled', 'd3d11': 'enabled'}
-  else
-    _libplacebo_options += {'vulkan': 'enabled'}
+    _libplacebo_options = {
+      'shaderc': 'disabled',
+      'lcms': 'disabled',
+      'opengl': 'disabled',
+      'demos': false,
+      'default_library': 'static',
+    }
+    if _win32_cross
+      _libplacebo_options += {'vulkan': 'disabled', 'd3d11': 'enabled'}
+    else
+      _libplacebo_options += {'vulkan': 'enabled'}
+    endif
+
+    libplacebo_dep = dependency('libplacebo',
+      required        : true,
+      fallback        : ['libplacebo', 'libplacebo_dep'],
+      default_options : _libplacebo_options,
+    )
   endif
-
-  libplacebo_dep = dependency('libplacebo',
-    required        : true,
-    fallback        : ['libplacebo', 'libplacebo_dep'],
-    default_options : _libplacebo_options,
-  )
 
 endif
 
@@ -130,7 +143,10 @@ endif
 ffmpeg_dep = dependency('ffmpeg', required : true, fallback : ['ffmpeg', 'ffmpeg_dep'])
 
 if build_server.enabled()
-  _txproto_options = {'interface': 'disabled'}
+  _txproto_options = {
+    'interface': 'disabled',
+    'watermark': build_watermark.allowed() ? 'enabled' : 'disabled',
+  }
   if _win32_cross
     _txproto_options += {
       'xcb': 'disabled',

@@ -44,6 +44,7 @@ pub(crate) enum ClockType {
     System,
 }
 
+#[cfg(feature = "watermark")]
 #[derive(Clone, Debug, Deserialize)]
 pub(crate) struct WatermarkConfig {
     pub file: String,
@@ -53,10 +54,12 @@ pub(crate) struct WatermarkConfig {
     pub y: f32, // Vertical position [-1.0 = top, 0.0 = center, 1.0 = bottom]
 }
 
+#[cfg(feature = "watermark")]
 fn default_position() -> f32 {
     0.0 // Center
 }
 
+#[cfg(feature = "watermark")]
 impl WatermarkConfig {
     pub(crate) fn position(&self) -> txproto_rs::TxWatermarkPosition {
         txproto_rs::TxWatermarkPosition {
@@ -86,6 +89,7 @@ pub(crate) struct Config {
     minimum_bitrate: Option<u32>,
     pub(crate) video_encoder_config: Option<EncoderConfig>,
     clock_type: Option<ClockType>,
+    #[cfg(feature = "watermark")]
     pub(crate) watermark: Option<WatermarkConfig>,
     #[cfg(target_os = "linux")]
     pub(crate) grab_backend: Option<GrabBackend>,
@@ -99,6 +103,7 @@ impl Default for Config {
             minimum_bitrate: None,
             video_encoder_config: None,
             clock_type: None,
+            #[cfg(feature = "watermark")]
             watermark: None,
             #[cfg(target_os = "linux")]
             grab_backend: Some(GrabBackend::NvFBC),

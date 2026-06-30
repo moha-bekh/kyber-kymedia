@@ -9,10 +9,10 @@ log = "0.4.21"
 log4rs = "1.3.0"
 tokio = {version = "1.36.0", features = ["io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
 
-kyavservice = { path = "../kyavservice" }
+kyavservice = { path = "../kyavservice", default-features = false }
 kyavservice-types = { path = "../kyavservice-types" }
 libkypc = "0.1.0"
-txproto-rs = { path = "../txproto-rs" }
+txproto-rs = { path = "../txproto-rs", default-features = false }
 
 [target.'cfg(target_os = "windows")'.dependencies.windows-sys]
 version = "0.52.0"
@@ -22,4 +22,6 @@ features = [
 ]
 
 [features]
+default = ["watermark"]
+watermark = ["kyavservice/watermark", "txproto-rs/watermark"]
 win32-hide-console = []

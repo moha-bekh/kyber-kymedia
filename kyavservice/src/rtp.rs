@@ -92,6 +92,7 @@ pub(crate) async fn generate_sdp(
         intra_refresh,
         encoder_config: encoder_config.clone(),
         clock_type: config::ClockType::ZeroedOrigin,
+        #[cfg(feature = "watermark")]
         watermark: None,
         #[cfg(target_os = "linux")]
         grab_backend: Some(config::GrabBackend::NvFBC),

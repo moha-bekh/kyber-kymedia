@@ -31,3 +31,10 @@ option(
   value       : 'auto',
   description : 'Build client-side components (VLC). Auto-enabled on all platforms.',
 )
+
+option(
+  'build_watermark',
+  type        : 'feature',
+  value       : 'auto',
+  description : 'Build watermark filter support (libplacebo + Vulkan stack, server-side). Auto-enabled on Linux and Windows.',
+)

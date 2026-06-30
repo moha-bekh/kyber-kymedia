@@ -41,12 +41,14 @@ pub use event::{Event, EventType};
 pub use io::{IOEntryType, IOSysEntry, IOSysType};
 pub use logging::init_logger;
 
+#[cfg(feature = "watermark")]
 #[derive(Clone, Copy, Debug)]
 pub struct TxWatermarkPosition {
     pub x: f32, // Horizontal position [-1.0 = left, 0.0 = center, 1.0 = right]
     pub y: f32, // Vertical position [-1.0 = top, 0.0 = center, 1.0 = bottom]
 }
 
+#[cfg(feature = "watermark")]
 impl TxWatermarkPosition {
     fn to_sys(self) -> sys::TxWatermarkPosition {
         sys::TxWatermarkPosition {
@@ -435,6 +437,7 @@ impl Txproto {
         Ok(Handle { h })
     }
 
+    #[cfg(feature = "watermark")]
     pub fn watermark_filter_create(
         &self,
         image_path: &str,

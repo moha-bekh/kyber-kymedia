@@ -50,6 +50,7 @@ pub(crate) struct VideoConfig {
     pub(crate) intra_refresh: bool,
     pub(crate) encoder_config: Option<config::EncoderConfig>,
     pub(crate) clock_type: config::ClockType,
+    #[cfg(feature = "watermark")]
     pub(crate) watermark: Option<config::WatermarkConfig>,
     #[cfg(target_os = "linux")]
     pub(crate) grab_backend: Option<config::GrabBackend>,
@@ -562,6 +563,7 @@ pub(crate) fn configure(
     let video_source = ctx.create_io(video_config.display_id, grab_options)?;
 
     // Watermark
+    #[cfg(feature = "watermark")]
     let video_source = if let Some(watermark_config) = &video_config.watermark {
         let watermark =
             ctx.watermark_filter_create(&watermark_config.file, watermark_config.position())?;

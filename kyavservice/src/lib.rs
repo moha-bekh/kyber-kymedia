@@ -200,6 +200,7 @@ pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
                     clock_type: config.clock_type(),
+                    #[cfg(feature = "watermark")]
                     watermark: None,
                     #[cfg(target_os = "linux")]
                     grab_backend: config.grab_backend(),
@@ -244,6 +245,7 @@ pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
                     intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
                     encoder_config: config.video_encoder_config.clone(),
                     clock_type: config.clock_type(),
+                    #[cfg(feature = "watermark")]
                     watermark: config.watermark.clone(),
                     #[cfg(target_os = "linux")]
                     grab_backend: config.grab_backend(),

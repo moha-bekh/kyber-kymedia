@@ -3,6 +3,10 @@ name = "kyavservice"
 version = "0.1.0"
 edition = { workspace = true }
 
+[features]
+default = ["watermark"]
+watermark = ["txproto-rs/watermark"]
+
 [dependencies]
 log = "0.4.21"
 rmp-serde = "1.1.2"
@@ -15,7 +19,7 @@ toml = "1.1"
 libkypc = "0.1.0"
 kyavservice-types = { path = "../kyavservice-types" }
 kycom = "0.1.0"
-txproto-rs = { path = "../txproto-rs" }
+txproto-rs = { path = "../txproto-rs", default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1.36.0", features = ["macros", "rt-multi-thread"] }
