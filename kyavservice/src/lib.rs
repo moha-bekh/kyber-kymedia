@@ -35,7 +35,7 @@ use kyavservice_types::{
     Command, Event, IpcApi, PipelineEvent, PipelineEventType, PipelineStage, PipelineType,
     Response, VideoCodec,
 };
-use libkypc::{EventSender, Worker};
+use libkypc::{EventSender, ReceivedCommand, Worker};
 use txproto_rs::Txproto;
 
 use crate::config::Config;
@@ -60,17 +60,28 @@ fn forward_init_error(sender: &EventSender<IpcApi>, err: Error, type_: PipelineT
     }));
 }
 
-fn handle_video_set_bitrate(ctx: &mut Option<Context>, bitrate: i32) -> Result<()> {
+fn handle_video_set_bitrate(
+    ctx: &mut Option<Context>,
+    response: ReceivedCommand<'_, IpcApi>,
+    bitrate: i32,
+) -> Result<()> {
     info!("Set bitrate to {bitrate}");
 
-    let ctx = ctx
-        .as_ref()
-        .ok_or_else(|| std::io::Error::other("No session started"))?;
+    let Some(ctx) = &ctx else {
+        info!("No session started");
+        response.send(Err(kyavservice_types::Error("No session started".into())))?;
 
-    let encoder = ctx
-        .encoder
-        .as_ref()
-        .ok_or_else(|| std::io::Error::other("No active encoder"))?;
+        return Ok(());
+    };
+
+    let Some(encoder) = &ctx.encoder else {
+        info!("No active encoder");
+        response.send(Err(kyavservice_types::Error("No active encoder".into())))?;
+
+        return Ok(());
+    };
+
+    response.send(Ok(Response::None))?;
 
     ctx.ctx.encoder_set_bitrate(encoder, bitrate)?;
     ctx.ctx.commit()?;
@@ -78,17 +89,27 @@ fn handle_video_set_bitrate(ctx: &mut Option<Context>, bitrate: i32) -> Result<(
     Ok(())
 }
 
-fn handle_video_force_idr(ctx: &mut Option<Context>) -> Result<()> {
+fn handle_video_force_idr(
+    ctx: &mut Option<Context>,
+    response: ReceivedCommand<'_, IpcApi>,
+) -> Result<()> {
     info!("Video force IDR");
 
-    let ctx = ctx
-        .as_ref()
-        .ok_or_else(|| std::io::Error::other("No session started"))?;
+    let Some(ctx) = &ctx else {
+        info!("No session started");
+        response.send(Err(kyavservice_types::Error("No session started".into())))?;
 
-    let encoder = ctx
-        .encoder
-        .as_ref()
-        .ok_or_else(|| std::io::Error::other("No active encoder"))?;
+        return Ok(());
+    };
+
+    let Some(encoder) = &ctx.encoder else {
+        info!("No active encoder");
+        response.send(Err(kyavservice_types::Error("No active encoder".into())))?;
+
+        return Ok(());
+    };
+
+    response.send(Ok(Response::None))?;
 
     ctx.ctx.encoder_force_idr(encoder)?;
     ctx.ctx.commit()?;
@@ -106,165 +127,158 @@ fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
     }
 }
 
-async fn handle_command(
-    cmd: Command,
-    sender: &EventSender<IpcApi>,
-    stop: &mut bool,
-    ctx: &mut Option<Context>,
-    config: &Config,
-) -> Result<Response> {
-    match cmd {
-        Command::EnumerateDisplays => {
-            info!("Start display enumeration");
-
-            #[cfg(target_os = "linux")]
-            let api_list = video::grab_backend_api_list(config.grab_backend());
-            #[cfg(not(target_os = "linux"))]
-            let api_list: Vec<&str> = vec![];
-
-            let (c, display_list) = displays::enumerate(sender, &api_list)?;
-
-            *ctx = Some(c);
-
-            return Ok(Response::DisplayList {
-                displays: display_list,
-            });
-        }
-        Command::RtpGenerateVideoSdp {
-            display_id,
-            yuv444,
-            intra_refresh,
-        } => {
-            info!("Generate RTP Video SDP: yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
-            let ret = rtp::generate_sdp(
-                display_id,
-                config.encoder,
-                VideoCodec::H264,
-                yuv444,
-                intra_refresh.unwrap_or(config.intra_refresh()),
-                &config.video_encoder_config,
-            )
-            .await;
-
-            match ret {
-                Ok(sdp) => return Ok(Response::RtpSdpGenerated { sdp }),
-                Err(err) => {
-                    error!("Failed to generate Video SDP: {err:?}");
-                }
-            }
-        }
-        Command::RtpStartVideo {
-            display_id,
-            ip,
-            port,
-            bitrate,
-            yuv444,
-            intra_refresh,
-        } => {
-            info!(
-                "Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
-            );
-
-            let video_config = VideoConfig {
-                display_id,
-                encoder: config.encoder,
-                bitrate: ajust_min_bitrate(config, bitrate),
-                codec: VideoCodec::H264,
-                yuv444,
-                intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
-                encoder_config: config.video_encoder_config.clone(),
-                clock_type: config.clock_type(),
-                watermark: None,
-                #[cfg(target_os = "linux")]
-                grab_backend: config.grab_backend(),
-            };
-
-            let ret = rtp::start_video(video_config, ip, port, sender);
-            match ret {
-                Ok(c) => *ctx = Some(c),
-                Err(err) => forward_init_error(sender, err, PipelineType::Video),
-            }
-        }
-        Command::RtpStartAudio { ip, port } => {
-            info!("Start RTP Audio: {ip}:{port}");
-
-            let ret = rtp::start_audio(ip, port, config.clock_type(), sender);
-            match ret {
-                Ok(c) => *ctx = Some(c),
-                Err(err) => forward_init_error(sender, err, PipelineType::Audio),
-            }
-        }
-        Command::KymuxStartVideo {
-            display_id,
-            uri,
-            bitrate,
-            codec,
-            yuv444,
-            intra_refresh,
-            metrics_uri,
-        } => {
-            info!(
-                "Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
-            );
-
-            let video_config = VideoConfig {
-                display_id,
-                encoder: config.encoder,
-                bitrate: ajust_min_bitrate(config, bitrate),
-                codec,
-                yuv444,
-                intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
-                encoder_config: config.video_encoder_config.clone(),
-                clock_type: config.clock_type(),
-                watermark: config.watermark.clone(),
-                #[cfg(target_os = "linux")]
-                grab_backend: config.grab_backend(),
-            };
-
-            let ret = kymux::start_video(video_config, &uri, metrics_uri.as_deref(), sender);
-            match ret {
-                Ok(c) => *ctx = Some(c),
-                Err(err) => forward_init_error(sender, err, PipelineType::Video),
-            }
-        }
-        Command::KymuxStartAudio { uri } => {
-            info!("Start Kymux Audio: URI {uri:?}");
-
-            let ret = kymux::start_audio(&uri, config.clock_type(), sender);
-            match ret {
-                Ok(c) => *ctx = Some(c),
-                Err(err) => forward_init_error(sender, err, PipelineType::Audio),
-            }
-        }
-        Command::VideoSetBitrate { bitrate } => handle_video_set_bitrate(ctx, bitrate)?,
-        Command::VideoForceIdr => handle_video_force_idr(ctx)?,
-        Command::Stop => {
-            *stop = true;
-            drop(ctx.take());
-        }
-    }
-
-    Ok(Response::None)
-}
-
 pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
     info!("AV service started");
 
     let mut ctx = None;
     let config = config::load().await?;
 
-    loop {
-        let (response, cmd) = worker.commands.recv().await?;
+    while let Ok((response, cmd)) = worker.commands.recv().await {
+        match cmd {
+            Command::EnumerateDisplays => {
+                info!("Start display enumeration");
 
-        let mut stop = false;
-        let res = handle_command(cmd, &worker.events, &mut stop, &mut ctx, &config)
-            .await
-            .map_err(|err| kyavservice_types::Error(err.to_string()));
+                #[cfg(target_os = "linux")]
+                let api_list = video::grab_backend_api_list(config.grab_backend());
+                #[cfg(not(target_os = "linux"))]
+                let api_list: Vec<&str> = vec![];
 
-        response.send(res)?;
+                let (c, display_list) = displays::enumerate(&worker.events, &api_list)?;
 
-        if stop {
-            break;
+                response.send(Ok(Response::DisplayList {
+                    displays: display_list,
+                }))?;
+
+                ctx = Some(c);
+            }
+            Command::RtpGenerateVideoSdp {
+                display_id,
+                yuv444,
+                intra_refresh,
+            } => {
+                info!("Generate RTP Video SDP: yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
+                let ret = rtp::generate_sdp(
+                    display_id,
+                    config.encoder,
+                    VideoCodec::H264,
+                    yuv444,
+                    intra_refresh.unwrap_or(config.intra_refresh()),
+                    &config.video_encoder_config,
+                )
+                .await;
+
+                match ret {
+                    Ok(sdp) => {
+                        response.send(Ok(Response::RtpSdpGenerated { sdp }))?;
+                    }
+                    Err(err) => {
+                        error!("Failed to generate Video SDP: {err:?}");
+
+                        response.send(Err(kyavservice_types::Error(err.to_string())))?;
+                    }
+                }
+            }
+            Command::RtpStartVideo {
+                display_id,
+                ip,
+                port,
+                bitrate,
+                yuv444,
+                intra_refresh,
+            } => {
+                response.send(Ok(Response::None))?;
+                info!(
+                    "Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
+                );
+
+                let video_config = VideoConfig {
+                    display_id,
+                    encoder: config.encoder,
+                    bitrate: ajust_min_bitrate(&config, bitrate),
+                    codec: VideoCodec::H264,
+                    yuv444,
+                    intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
+                    encoder_config: config.video_encoder_config.clone(),
+                    clock_type: config.clock_type(),
+                    watermark: None,
+                    #[cfg(target_os = "linux")]
+                    grab_backend: config.grab_backend(),
+                };
+
+                let ret = rtp::start_video(video_config, ip, port, &worker.events);
+                match ret {
+                    Ok(c) => ctx = Some(c),
+                    Err(err) => forward_init_error(&worker.events, err, PipelineType::Video),
+                }
+            }
+            Command::RtpStartAudio { ip, port } => {
+                response.send(Ok(Response::None))?;
+                info!("Start RTP Audio: {ip}:{port}");
+
+                let ret = rtp::start_audio(ip, port, config.clock_type(), &worker.events);
+                match ret {
+                    Ok(c) => ctx = Some(c),
+                    Err(err) => forward_init_error(&worker.events, err, PipelineType::Audio),
+                }
+            }
+            Command::KymuxStartVideo {
+                display_id,
+                uri,
+                bitrate,
+                codec,
+                yuv444,
+                intra_refresh,
+                metrics_uri,
+            } => {
+                response.send(Ok(Response::None))?;
+                info!(
+                    "Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
+                );
+
+                let video_config = VideoConfig {
+                    display_id,
+                    encoder: config.encoder,
+                    bitrate: ajust_min_bitrate(&config, bitrate),
+                    codec,
+                    yuv444,
+                    intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
+                    encoder_config: config.video_encoder_config.clone(),
+                    clock_type: config.clock_type(),
+                    watermark: config.watermark.clone(),
+                    #[cfg(target_os = "linux")]
+                    grab_backend: config.grab_backend(),
+                };
+
+                let ret =
+                    kymux::start_video(video_config, &uri, metrics_uri.as_deref(), &worker.events);
+                match ret {
+                    Ok(c) => ctx = Some(c),
+                    Err(err) => forward_init_error(&worker.events, err, PipelineType::Video),
+                }
+            }
+            Command::KymuxStartAudio { uri } => {
+                response.send(Ok(Response::None))?;
+                info!("Start Kymux Audio: URI {uri:?}");
+
+                let ret = kymux::start_audio(&uri, config.clock_type(), &worker.events);
+                match ret {
+                    Ok(c) => ctx = Some(c),
+                    Err(err) => forward_init_error(&worker.events, err, PipelineType::Audio),
+                }
+            }
+            Command::VideoSetBitrate { bitrate } => {
+                handle_video_set_bitrate(&mut ctx, response, bitrate)?;
+            }
+            Command::VideoForceIdr => {
+                handle_video_force_idr(&mut ctx, response)?;
+            }
+            Command::Stop => {
+                response.send(Ok(Response::None))?;
+
+                drop(ctx);
+
+                break;
+            }
         }
     }
 
