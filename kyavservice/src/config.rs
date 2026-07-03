@@ -97,7 +97,11 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn encoder(&self) -> VideoEncoder {
-        self.encoder.unwrap_or(VideoEncoder::NVENC)
+        #[cfg(target_os = "macos")]
+        let default = VideoEncoder::VIDEOTOOLBOX;
+        #[cfg(not(target_os = "macos"))]
+        let default = VideoEncoder::NVENC;
+        self.encoder.unwrap_or(default)
     }
 
     pub(crate) fn intra_refresh(&self) -> bool {
