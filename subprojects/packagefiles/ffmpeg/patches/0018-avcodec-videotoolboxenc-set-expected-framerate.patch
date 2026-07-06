@@ -26,11 +26,11 @@ index 24ebe48d37..b931dcd983 100644
 +        status = VTSessionSetProperty(vtctx->session,
 +            kVTCompressionPropertyKey_ExpectedFrameRate,
 +            framerate_num);
++        CFRelease(framerate_num);
 +        if (status == kVTPropertyNotSupportedErr) {
 +            av_log(avctx, AV_LOG_ERROR, "Error: kVTCompressionPropertyKey_ExpectedFrameRate is not supported by the encoder.\n");
 +            return AVERROR_EXTERNAL;
 +        }
-+        CFRelease(framerate_num);
 +    }
 +
      if (avctx->flags & AV_CODEC_FLAG_QSCALE || avctx->global_quality > 0) {
