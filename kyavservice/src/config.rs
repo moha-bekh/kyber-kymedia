@@ -84,7 +84,7 @@ pub(crate) enum GrabBackend {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
-    pub(crate) encoder: VideoEncoder,
+    encoder: Option<VideoEncoder>,
     intra_refresh: Option<bool>,
     minimum_bitrate: Option<u32>,
     pub(crate) video_encoder_config: Option<EncoderConfig>,
@@ -98,7 +98,7 @@ pub(crate) struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            encoder: VideoEncoder::NVENC,
+            encoder: None,
             intra_refresh: None,
             minimum_bitrate: None,
             video_encoder_config: None,
@@ -112,6 +112,10 @@ impl Default for Config {
 }
 
 impl Config {
+    pub(crate) fn encoder(&self) -> VideoEncoder {
+        self.encoder.unwrap_or(VideoEncoder::NVENC)
+    }
+
     pub(crate) fn intra_refresh(&self) -> bool {
         self.intra_refresh.unwrap_or(true)
     }

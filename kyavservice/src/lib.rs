@@ -159,7 +159,7 @@ pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
                 info!("Generate RTP Video SDP: yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
                 let ret = rtp::generate_sdp(
                     display_id,
-                    config.encoder,
+                    config.encoder(),
                     VideoCodec::H264,
                     yuv444,
                     intra_refresh.unwrap_or(config.intra_refresh()),
@@ -195,7 +195,7 @@ pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
 
                 let video_config = VideoConfig {
                     display_id,
-                    encoder: config.encoder,
+                    encoder: config.encoder(),
                     bitrate: ajust_min_bitrate(&config, bitrate),
                     codec: VideoCodec::H264,
                     yuv444,
@@ -240,7 +240,7 @@ pub async fn run(mut worker: Worker<IpcApi>) -> Result<()> {
 
                 let video_config = VideoConfig {
                     display_id,
-                    encoder: config.encoder,
+                    encoder: config.encoder(),
                     bitrate: ajust_min_bitrate(&config, bitrate),
                     codec,
                     yuv444,
