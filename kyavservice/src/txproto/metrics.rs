@@ -33,15 +33,15 @@ pub(crate) struct Metrics {
 
 async fn forward_task(mut rx: mpsc::Receiver<Vec<Metrics>>, uri: String) -> Result<()> {
     let addr = uri.parse::<kycom::KyComAddr>()?;
-    let kycom_client = kycom::Channel::connect(addr).into_metrics_server_endpoint();
-    let mut ipc = kycom_client.ready().await?;
+    let kycom_client = kycom::Channel::connect(addr).into_endpoint();
+    let mut ipc: kycom::ProtocolSend<_> = kycom_client.ready().await?;
 
     while let Some(metrics) = rx.recv().await {
         let buf = rmp_serde::to_vec(&metrics)?;
         let packet = kycom::MetricsPacket {
             payload: buf.into(),
         };
-        ipc.send.send(packet).await?;
+        ipc.send(packet).await?;
     }
 
     Ok(())

@@ -119,23 +119,11 @@ async fn forward_task(
     kind: StreamKind,
     metrics: Option<MetricsForwarder>,
 ) -> Result<()> {
-    // Both video and audio server endpoints expose `send: ProtocolSend<AVPacket>`.
-    let mut send: ProtocolSend<AVPacket> = match kind {
-        StreamKind::Video => {
-            kycom::Channel::connect(addr)
-                .into_video_server_endpoint()
-                .ready()
-                .await?
-                .send
-        }
-        StreamKind::Audio => {
-            kycom::Channel::connect(addr)
-                .into_audio_server_endpoint()
-                .ready()
-                .await?
-                .send
-        }
-    };
+    // Both video and audio server endpoints use `ProtocolSend<AVPacket>`.
+    let mut send: ProtocolSend<AVPacket> = kycom::Channel::connect(addr)
+        .into_endpoint()
+        .ready()
+        .await?;
     info!("kymux_sink: connected to {} ({kind:?})", addr.addr);
 
     let mut packets_sent: u64 = 0;
