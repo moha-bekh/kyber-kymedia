@@ -603,6 +603,7 @@ name = "libkypc"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "libc",
  "log",
  "rmp-serde",
  "serde",

@@ -45,9 +45,9 @@ build_watermark = get_option('build_watermark').enable_auto_if(
 )
 
 # libplacebo and its Vulkan toolchain (spirv, vulkan-headers, glslang) are needed
-# by the server-side watermark filter and, on the Windows client, by VLC (which
-# leaves libplacebo at 'auto'). Build them when either consumer is present.
-_need_libplacebo = build_watermark.allowed() or build_client.enabled()
+# by the server-side watermark filter and, on the Windows client, by VLC. Build
+# them when a consumer is enabled; macOS keeps the watermark at 'auto' (off).
+_need_libplacebo = build_watermark.enabled() or (build_client.enabled() and host_machine.system() != 'darwin')
 
 _win32_cross = meson.is_cross_build() and host_machine.system() == 'windows'
 
@@ -145,7 +145,7 @@ ffmpeg_dep = dependency('ffmpeg', required : true, fallback : ['ffmpeg', 'ffmpeg
 if build_server.enabled()
   _txproto_options = {
     'interface': 'disabled',
-    'watermark': build_watermark.allowed() ? 'enabled' : 'disabled',
+    'watermark': build_watermark.enabled() ? 'enabled' : 'disabled',
   }
   if _win32_cross
     _txproto_options += {
