@@ -1,25 +1,26 @@
-From 00a31512a6f075a59124e9bccd2a6fb5c81aac1c Mon Sep 17 00:00:00 2001
+From 5ab288f4c28a4a084c26e295a72d3ef7559d95c8 Mon Sep 17 00:00:00 2001
 From: Marvin Scholz <epirat07@gmail.com>
 Date: Wed, 12 Mar 2025 13:13:16 +0100
 Subject: [PATCH 4/5] videotoolboxenc: set expected framerate
 
 ---
- libavcodec/videotoolboxenc.c | 17 +++++++++++++++++
- 1 file changed, 17 insertions(+)
+ libavcodec/videotoolboxenc.c | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
 
 diff --git a/libavcodec/videotoolboxenc.c b/libavcodec/videotoolboxenc.c
-index 24ebe48d37..b931dcd983 100644
+index bb53367..dd78782 100644
 --- a/libavcodec/videotoolboxenc.c
 +++ b/libavcodec/videotoolboxenc.c
-@@ -1260,6 +1260,23 @@ static int vtenc_create_encoder(AVCodecContext   *avctx,
-         av_log(avctx, AV_LOG_ERROR, "-q:v qscale not available for encoder. Use -b:v bitrate instead.\n");
+@@ -1262,6 +1262,25 @@ static int vtenc_create_encoder(AVCodecContext   *avctx,
          return AVERROR_EXTERNAL;
      }
  
 +    {
++        float fps = (avctx->framerate.num && avctx->framerate.den)
++            ? av_q2d(avctx->framerate) : 60.0f;
 +        CFNumberRef framerate_num = CFNumberCreate(kCFAllocatorDefault,
 +            kCFNumberFloatType,
-+            &(float){ 60 });
++            &fps);
 +        if (!framerate_num)
 +            return AVERROR(ENOMEM);
 +
@@ -36,5 +37,6 @@ index 24ebe48d37..b931dcd983 100644
      if (avctx->flags & AV_CODEC_FLAG_QSCALE || avctx->global_quality > 0) {
          float factor = (avctx->flags & AV_CODEC_FLAG_QSCALE) ?
                         FF_QP2LAMBDA * 100.0f : 100.0f;
---
+-- 
 2.39.5
+
