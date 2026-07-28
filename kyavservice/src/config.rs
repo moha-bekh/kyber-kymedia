@@ -82,7 +82,7 @@ pub(crate) enum GrabBackend {
     Wlroots,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub(crate) struct Config {
     encoder: Option<VideoEncoder>,
     intra_refresh: Option<bool>,
@@ -93,22 +93,6 @@ pub(crate) struct Config {
     pub(crate) watermark: Option<WatermarkConfig>,
     #[cfg(target_os = "linux")]
     pub(crate) grab_backend: Option<GrabBackend>,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            encoder: None,
-            intra_refresh: None,
-            minimum_bitrate: None,
-            video_encoder_config: None,
-            clock_type: None,
-            #[cfg(feature = "watermark")]
-            watermark: None,
-            #[cfg(target_os = "linux")]
-            grab_backend: None,
-        }
-    }
 }
 
 impl Config {
