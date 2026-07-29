@@ -191,6 +191,15 @@ export PKG_CONFIG_ALLOW_CROSS=1
 # internal PkgConfigInterface.setup_env() override (unlike PKG_CONFIG_PATH which
 # gets replaced with [meson-uninstalled]).
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+
+# libavconv is integrated as a git submodule (see .gitmodules). Its repo is
+# autotools-style and ships no native meson.build, so we overlay the build
+# wrapper from subprojects/packagefiles/libavconv/ - the same files meson would
+# overlay automatically with a wrap-git's patch_directory mechanism. Copy the
+# whole subtree (not individual files) so overlay additions such as
+# wayland-protocols/*.xml are mirrored without touching this script again.
+cp -a subprojects/packagefiles/libavconv/. subprojects/libavconv/
+
 # Build dependencies (kyaudioreg + native deps via meson)
 if [ "$BUILD_DEPS" = true ]; then
     # Always build server deps; add client deps (kyaudioreg + libvlc) only when KYBER_BUILD_CLIENT_DEPS=1.
@@ -223,6 +232,10 @@ if [ "$BUILD_DEPS" = true ]; then
 else
     echo "Skip dependencies build"
 fi
+
+# libavconv-sys bindgen needs these to find installed headers and libraries.
+export AVCONV_INCLUDE_DIR=$OUT_DIR/include
+export AVCONV_LIB_DIR=$OUT_DIR/lib
 
 # Build kyavserver against the libtxproto installed by the deps phase above.
 kyavserver_macos_do_build() {

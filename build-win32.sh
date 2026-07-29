@@ -149,6 +149,17 @@ export PKG_CONFIG_ALLOW_CROSS=1
 # internal PkgConfigInterface.setup_env() override (unlike PKG_CONFIG_PATH which
 # gets replaced with [meson-uninstalled]).
 export PKG_CONFIG_LIBDIR=$OUT_DIR/lib/pkgconfig
+# libavconv-sys bindgen needs these to find installed headers and libraries.
+export AVCONV_INCLUDE_DIR=$OUT_DIR/include
+export AVCONV_LIB_DIR=$OUT_DIR/lib
+
+# libavconv is integrated as a git submodule (see .gitmodules). Its repo is
+# autotools-style and ships no native meson.build, so we overlay the build
+# wrapper from subprojects/packagefiles/libavconv/ - the same files meson would
+# overlay automatically with a wrap-git's patch_directory mechanism. Copy the
+# whole subtree (not individual files) so overlay additions such as
+# wayland-protocols/*.xml are mirrored without touching this script again.
+cp -a subprojects/packagefiles/libavconv/. subprojects/libavconv/
 
 # Build dependencies (kyaudioreg + native deps via meson)
 if [ "$BUILD_DEPS" = true ]; then
@@ -171,6 +182,15 @@ if [ "$BUILD_DEPS" = true ]; then
     fi
     meson compile -C builddir-win32 -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
     meson install -C builddir-win32
+
+    strip_tool="${MINGW_TRIPLE}-strip"
+    if command -v "$strip_tool" >/dev/null 2>&1; then
+        echo "Stripping debug symbols from $OUT_DIR/bin binaries"
+        find "$OUT_DIR/bin" -maxdepth 1 -type f \( -name '*.dll' -o -name '*.exe' \) \
+            -exec "$strip_tool" --strip-debug {} +
+    else
+        echo "Warning: $strip_tool not found; shipped binaries left unstripped"
+    fi
 else
     echo "Skip dependencies build"
 fi

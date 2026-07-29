@@ -141,6 +141,14 @@ _sys_pc=$(pkg-config --variable pc_path pkg-config 2>/dev/null || true)
 export PKG_CONFIG_LIBDIR="$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig:$OUT_DIR/lib64/pkgconfig${_sys_pc:+:$_sys_pc}"
 unset _sys_pc
 
+# libavconv is integrated as a git submodule (see .gitmodules). Its repo is
+# autotools-style and ships no native meson.build, so we overlay the build
+# wrapper from subprojects/packagefiles/libavconv/ - the same files meson would
+# overlay automatically with a wrap-git's patch_directory mechanism. Copy the
+# whole subtree (not individual files) so overlay additions such as
+# wayland-protocols/*.xml are mirrored without touching this script again.
+cp -a subprojects/packagefiles/libavconv/. subprojects/libavconv/
+
 # Build dependencies (contrib builds kyaudioreg + native deps)
 if [ "$BUILD_DEPS" = true ]; then
     "$BASE_DIR/build-kyaudioreg.sh" -p linux -o "$OUT_DIR"
@@ -167,6 +175,19 @@ fi
 export PATH=$OUT_DIR/bin:$PATH
 export PKG_CONFIG_PATH=$OUT_DIR/lib/pkgconfig:$OUT_DIR/lib/x86_64-linux-gnu/pkgconfig:$OUT_DIR/lib64/pkgconfig
 export LD_LIBRARY_PATH=$OUT_DIR/lib:$OUT_DIR/lib/x86_64-linux-gnu:$OUT_DIR/lib64
+# libavconv-sys bindgen needs these to find installed headers and libraries.
+export AVCONV_INCLUDE_DIR=$OUT_DIR/include
+export AVCONV_LIB_DIR=$OUT_DIR/lib
+# bindgen (via libclang) picks the newest libclang by default, but clang >= 17's
+# <stdatomic.h> defers to the system header through #include_next, which libclang
+# does not resolve on its own (unlike the clang driver, which adds the gcc
+# toolchain include paths). The C11 atomic typedefs used by libavconv headers
+# (e.g. atomic_uint_least64_t in libavconv/filter.h) then go undefined and
+# bindgen aborts. Pin to the self-contained libclang-18 unless the caller
+# already selected one.
+if [ -z "${LIBCLANG_PATH:-}" ] && [ -d /usr/lib/llvm-18/lib ]; then
+    export LIBCLANG_PATH=/usr/lib/llvm-18/lib
+fi
 
 # Avserver build functions
 kyavserver_linux_do_build() {

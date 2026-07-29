@@ -4,3 +4,5 @@
 !packagefiles/**
 !.gitignore
 !txproto
+!libavconv
+!ffmpeg

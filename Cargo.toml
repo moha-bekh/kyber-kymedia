@@ -8,4 +8,6 @@ members = [
     "kyavservice",
     "kyaudioreg",
     "txproto-rs",
+    "libavconv-rs",
+    "libavconv-rs/libavconv-sys",
 ]

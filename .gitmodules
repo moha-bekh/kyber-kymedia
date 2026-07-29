@@ -10,3 +10,6 @@
 [submodule "subprojects/libvlcjni"]
 	path = subprojects/libvlcjni
 	url = ../../deps/libvlcjni.git
+[submodule "subprojects/libavconv"]
+	path = subprojects/libavconv
+	url = https://gitlab.com/avconv/avconv.git

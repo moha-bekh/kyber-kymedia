@@ -53,30 +53,41 @@ fn main() {
         bindings = bindings.clang_arg(format!("-I{prefix}/toolchain-x86_64/mingw/include"));
     }
 
-    // Probe all required libraries. Include paths are extracted only for
-    // txproto and libavutil (needed by bindgen). The remaining probes ensure
-    // Cargo emits the correct linker flags for txproto's transitive deps, which
-    // live in a non-standard pkg-config path when built via meson subprojects.
-    let header_libs = ["txproto", "libavutil"];
-    let extra_libs = [
-        "libavcodec",
-        "libavformat",
-        "libswresample",
-        "libswscale",
-        "libavfilter",
-        "libavdevice",
-        "liblua",
-    ];
-
-    for lib in header_libs {
-        let pkg_config_library = pkg_config::Config::new().probe(lib).unwrap();
-        for include_path in &pkg_config_library.include_paths {
-            bindings = bindings.clang_arg(format!("-I{}", include_path.display()));
-        }
+    // Link against the txproto shared library only. Its import library resolves
+    // the tx_*/sp_* API together with the handful of libavutil functions we call
+    // (av_dict_*, av_buffer_*, av_strerror), which libtxproto-0.dll re-exports.
+    //
+    // `.statik(false)` is essential: txproto.pc lists the full static FFmpeg
+    // chain (libavcodec, libavformat, libavfilter, ...) under `Libs.private`.
+    // A static probe expands those and bundles a second, full copy of FFmpeg
+    // (~30 MB) into kyavserver.exe on top of the one already inside
+    // libtxproto-0.dll. Forcing a dynamic probe uses only the public
+    // `Libs: -ltxproto`; the DLL is self-contained, so the executable needs
+    // nothing beyond its import library.
+    let txproto = pkg_config::Config::new()
+        .statik(false)
+        .probe("txproto")
+        .unwrap();
+    for include_path in &txproto.include_paths {
+        bindings = bindings.clang_arg(format!("-I{}", include_path.display()));
     }
 
-    for lib in extra_libs {
-        pkg_config::Config::new().probe(lib).unwrap();
+    // libavutil is required for its headers (bindgen sees av_* / AV_*
+    // declarations through the txproto wrapper).
+    //
+    // Cargo link metadata is suppressed on Windows, where libtxproto-0.dll
+    // re-exports the libavutil functions we call and this probe would otherwise
+    // emit `-lavutil` against the static archive. On Linux libtxproto.so
+    // re-exports nothing, so our own av_dict_* / av_buffer_* / av_strerror calls
+    // need `-lavutil` on the link line: reaching it only through
+    // libtxproto.so's DT_NEEDED makes ld fail with "DSO missing from command
+    // line".
+    let libavutil = pkg_config::Config::new()
+        .cargo_metadata(env::var("CARGO_CFG_TARGET_OS").as_deref() != Ok("windows"))
+        .probe("libavutil")
+        .unwrap();
+    for include_path in &libavutil.include_paths {
+        bindings = bindings.clang_arg(format!("-I{}", include_path.display()));
     }
 
     let bindings = bindings.generate().expect("Unable to generate bindings");

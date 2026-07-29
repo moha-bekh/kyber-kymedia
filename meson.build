@@ -158,6 +158,7 @@ if build_server.enabled()
     _txproto_options += {'xcb': 'disabled'}
   endif
   txproto = subproject('txproto', default_options : _txproto_options)
+  subproject('libavconv')
 endif
 
 vlc_common_options = {

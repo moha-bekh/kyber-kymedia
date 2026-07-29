@@ -1,0 +1,13 @@
+#!/bin/sh
+# Wrapper for meson unstable-external_project.
+# Unsets PKG_CONFIG_SYSROOT_DIR so pkg-config does not prepend the sysroot
+# to absolute -I/-L paths (meson sets this via sys_root in the cross-file).
+set -e
+
+SRC_DIR="${0%/*}"
+
+unset PKG_CONFIG_SYSROOT_DIR
+
+"$SRC_DIR/configure" "$@"
+make -j"$(nproc 2>/dev/null || sysctl -n hw.logicalcpu)"
+make install
