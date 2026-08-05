@@ -38,6 +38,7 @@ OPTIONS:
    -h            Show some help
    -k            Build Kyber dependencies
    -s            Skip native dependencies build
+   -d            Build only native dependencies
    -o <path>     Install the built binaries in the absolute path (required)
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
 
@@ -116,9 +117,10 @@ ensure_modern_bison()
 
 BUILD_DEPS=true
 BUILD_KYBER_DEPS=false
+DEPS_ONLY=false
 ACTION="build"
 
-while getopts "hkso:a:" OPTION
+while getopts "hksdo:a:" OPTION
 do
     case $OPTION in
         h)
@@ -130,6 +132,9 @@ do
             ;;
         s)
             BUILD_DEPS=false
+            ;;
+        d)
+            DEPS_ONLY=true
             ;;
         o)
             OUT_DIR=$OPTARG
@@ -231,6 +236,10 @@ if [ "$BUILD_DEPS" = true ]; then
     meson install -C builddir-macos
 else
     echo "Skip dependencies build"
+fi
+
+if [ "$DEPS_ONLY" = true ]; then
+    exit 0
 fi
 
 # libavconv-sys bindgen needs these to find installed headers and libraries.

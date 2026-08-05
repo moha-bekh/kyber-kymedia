@@ -154,6 +154,29 @@ build-windows-x86_64:
   before_script: |
     rustup override set $MACOS_RUST_VERSION
 
+.contrib-macos-common:
+  extends: .macos-common
+  stage: contrib
+  tags:
+    - macos
+  only:
+    - main
+    - merge_requests
+    - tags
+  script: |
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Build contribs
+    ./build-macos.sh -k -d -a $HOST_ARCH -o $KYBER_PREFIX
+    # Prepare rootfs to be shared to other jobs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh $(pwd)
+    cd -
+  artifacts:
+    paths:
+      - rootfs
+    expire_in: 1 week
+
 .build-macos-common:
   extends: .macos-common
   stage: build
@@ -163,23 +186,43 @@ build-windows-x86_64:
     - main
     - merge_requests
     - tags
-  needs:
-    - lint
   script: |
-    ./build-macos.sh -k -a $HOST_ARCH -o $(pwd)/rootfs build
+    export KYBER_DIRNAME=rootfs
+    export KYBER_PREFIX=$(pwd)/$KYBER_DIRNAME
+    # Configure imported rootfs
+    cd $KYBER_PREFIX
+    ../scripts/change_prefix.sh
+    cd -
+    # Build component with Cargo, skip Meson dependencies
+    ./build-macos.sh -k -s -a $HOST_ARCH -o $KYBER_PREFIX build
   artifacts:
     paths:
       - rootfs
     expire_in: 1 week
 
+contrib-macos-x86_64:
+  extends: .contrib-macos-common
+  when: manual
+  variables: *variables-macos-x86_64
+
 build-macos-x86_64:
   extends: .build-macos-common
   when: manual
   variables: *variables-macos-x86_64
+  needs:
+    - lint
+    - contrib-macos-x86_64
+
+contrib-macos-arm64:
+  extends: .contrib-macos-common
+  variables: *variables-macos-arm64
 
 build-macos-arm64:
   extends: .build-macos-common
   variables: *variables-macos-arm64
+  needs:
+    - lint
+    - contrib-macos-arm64
 
 .build-android-common:
   stage: build
