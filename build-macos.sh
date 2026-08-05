@@ -43,7 +43,9 @@ OPTIONS:
    -a <arch>     Use the specified arch (default: $HOST_ARCH)
 
 ACTIONS:
-   build                Build kyavserver (kyaudioreg + native deps are built in the deps phase) (default)
+   build                Build client and server components (default)
+   build-client         Build client components only
+   build-server         Build server components only
    test                 Run tests on kyaudioreg
    clippy               Run clippy on kyaudioreg
 EOF
@@ -164,6 +166,26 @@ if [ -z ${OUT_DIR} ]; then
     exit 1
 fi
 
+case "$ACTION" in
+    build|test|clippy)
+        BUILD_CLIENT=true
+        BUILD_SERVER=true
+        ;;
+    build-client)
+        BUILD_CLIENT=true
+        BUILD_SERVER=false
+        ;;
+    build-server)
+        BUILD_CLIENT=false
+        BUILD_SERVER=true
+        ;;
+    *)
+        echo "Error: Unknown action '$ACTION'" >&2
+        usage
+        exit 1
+        ;;
+esac
+
 # Create folders
 mkdir -p $OUT_DIR
 
@@ -207,14 +229,19 @@ cp -a subprojects/packagefiles/libavconv/. subprojects/libavconv/
 
 # Build dependencies (kyaudioreg + native deps via meson)
 if [ "$BUILD_DEPS" = true ]; then
-    # Always build server deps; add client deps (kyaudioreg + libvlc) only when KYBER_BUILD_CLIENT_DEPS=1.
-    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback" "-Dbuild_server=enabled")
-    if [ "${KYBER_BUILD_CLIENT_DEPS:-0}" = "1" ]; then
+    MESON_SETUP_ARGS=("--buildtype=release" "--wrap-mode=forcefallback")
+    if [ "$BUILD_CLIENT" = true ]; then
         ensure_modern_bison
         ./build-kyaudioreg.sh -p macos -a "$HOST_ARCH" -o "$OUT_DIR"
         MESON_SETUP_ARGS+=("-Dbuild_client=enabled")
     else
         MESON_SETUP_ARGS+=("-Dbuild_client=disabled")
+    fi
+
+    if [ "$BUILD_SERVER" = true ]; then
+        MESON_SETUP_ARGS+=("-Dbuild_server=enabled")
+    else
+        MESON_SETUP_ARGS+=("-Dbuild_server=disabled")
     fi
 
     # When cross-compiling
@@ -239,12 +266,15 @@ else
 fi
 
 if [ "$DEPS_ONLY" = true ]; then
+    echo "Dependencies built successfully"
     exit 0
 fi
 
 # libavconv-sys bindgen needs these to find installed headers and libraries.
 export AVCONV_INCLUDE_DIR=$OUT_DIR/include
 export AVCONV_LIB_DIR=$OUT_DIR/lib
+
+CARGO_TARGET=$(get_cargo_target "$HOST_ARCH")
 
 # Build kyavserver against the libtxproto installed by the deps phase above.
 kyavserver_macos_do_build() {
@@ -264,7 +294,13 @@ kyavserver_macos_do_build() {
 # Run action
 case "$ACTION" in
     "build")
-        kyavserver_macos_do_build "$(get_cargo_target $HOST_ARCH)" "$OUT_DIR"
+        kyavserver_macos_do_build "$CARGO_TARGET" "$OUT_DIR"
+        ;;
+    "build-client")
+        # Client components are produced during the dependencies phase.
+        ;;
+    "build-server")
+        kyavserver_macos_do_build "$CARGO_TARGET" "$OUT_DIR"
         ;;
     "test")
         echo "Test action not yet implemented for macOS"
