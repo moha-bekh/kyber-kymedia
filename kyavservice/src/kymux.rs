@@ -22,11 +22,10 @@ use kyavservice_types::IpcApi;
 use log::info;
 
 use libkypc::EventSender;
-use txproto_rs::Txproto;
 
 use crate::config::ClockType;
 use crate::metrics;
-use crate::{Context, Result, VideoConfig};
+use crate::{Context, Result, TargetLogLevel, VideoConfig, open_txproto};
 use crate::{audio, configure_clock, video};
 
 pub(crate) fn start_video(
@@ -34,8 +33,9 @@ pub(crate) fn start_video(
     uri: &str,
     metrics_uri: Option<&str>,
     sender: &EventSender<IpcApi>,
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<Context> {
-    let ctx = Txproto::new()?;
+    let ctx = open_txproto(log_levels)?;
 
     info!("Start video, using clock {:?}", video_config.clock_type);
     configure_clock(&ctx, &video_config.clock_type)?;
@@ -60,8 +60,9 @@ pub(crate) fn start_audio(
     uri: &str,
     clock_type: ClockType,
     sender: &EventSender<IpcApi>,
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<Context> {
-    let ctx = Txproto::new()?;
+    let ctx = open_txproto(log_levels)?;
 
     info!("Start audio, using clock {:?}", clock_type);
     configure_clock(&ctx, &clock_type)?;

@@ -32,7 +32,7 @@ use txproto_rs::{Dictionary, Txproto};
 
 use crate::config::{self, ClockType};
 use crate::video::{VideoConfig, VideoEncoder};
-use crate::{Context, Error, Result};
+use crate::{Context, Error, Result, TargetLogLevel, open_txproto};
 use crate::{audio, configure_clock, utils, video};
 
 fn create_muxer(
@@ -57,6 +57,7 @@ fn create_muxer(
     Ok(muxer)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn generate_sdp(
     display_id: u32,
     encoder: VideoEncoder,
@@ -65,6 +66,7 @@ pub(crate) async fn generate_sdp(
     intra_refresh: bool,
     encoder_config: &Option<config::EncoderConfig>,
     #[cfg(target_os = "linux")] grab_backend: config::GrabBackend,
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<String> {
     // Prepare target file
     let sdp_path = env::temp_dir().join("video.sdp");
@@ -78,7 +80,7 @@ pub(crate) async fn generate_sdp(
     }
 
     // Run txproto
-    let ctx = Txproto::new()?;
+    let ctx = open_txproto(log_levels)?;
     ctx.set_epoch_offset(0)?;
 
     let sdp_path_str = utils::path_to_string(&sdp_path)?;
@@ -144,8 +146,9 @@ pub(crate) fn start_video(
     ip: String,
     port: u16,
     sender: &EventSender<IpcApi>,
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<Context> {
-    let ctx = Txproto::new()?;
+    let ctx = open_txproto(log_levels)?;
 
     info!("Start video, using clock {:?}", video_config.clock_type);
     configure_clock(&ctx, &video_config.clock_type)?;
@@ -167,8 +170,9 @@ pub(crate) fn start_audio(
     port: u16,
     clock_type: ClockType,
     sender: &EventSender<IpcApi>,
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<Context> {
-    let ctx = Txproto::new()?;
+    let ctx = open_txproto(log_levels)?;
 
     info!("Start audio, using clock {:?}", clock_type);
     configure_clock(&ctx, &clock_type)?;

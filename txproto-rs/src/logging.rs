@@ -114,6 +114,27 @@ pub fn init_logger() {
     set_log_cb(rslog_cb);
 }
 
+fn level_str(level: log::LevelFilter) -> &'static str {
+    match level {
+        log::LevelFilter::Off => "quiet",
+        log::LevelFilter::Error => "error",
+        log::LevelFilter::Warn => "warn",
+        log::LevelFilter::Info => "info",
+        log::LevelFilter::Debug => "debug",
+        log::LevelFilter::Trace => "trace",
+    }
+}
+
+/// Apply `level` to txproto's process-wide log level table. `tx_init` resets
+/// this table to debug on every call, so the caller must call this again
+/// after each one.
+pub(crate) fn apply_level(level: log::LevelFilter) {
+    let level = level_str(level);
+    if let Err(e) = set_log_level("global", level) {
+        warn!("Failed to set txproto log level to {level}: {e:?}");
+    }
+}
+
 pub fn set_log_level(component: &str, level: &str) -> Result<()> {
     let component = CString::new(component)?;
     let level = CString::new(level)?;

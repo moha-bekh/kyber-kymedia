@@ -55,7 +55,7 @@ async fn main() -> ExitCode {
         }
     };
 
-    let _log_handle = match log4ky::LoggerBuilder::new("kyavserver")
+    let log_handle = match log4ky::LoggerBuilder::new("kyavserver")
         .toml(&config_table)
         .base(log4ky::LogConfig {
             include_pid: true,
@@ -91,7 +91,7 @@ async fn main() -> ExitCode {
 
     txproto_rs::init_logger();
 
-    match real_main(config).await {
+    match real_main(config, log_handle).await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             error!("kyavserver exited with error: {e}");
@@ -100,7 +100,7 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn real_main(config: kyavservice::Config) -> Result<()> {
+async fn real_main(config: kyavservice::Config, log_handle: log4ky::LoggerHandle) -> Result<()> {
     let worker = libkypc::process::connect_to_commander().await?;
-    kyavservice::run(worker, config).await
+    kyavservice::run(worker, config, &log_handle).await
 }

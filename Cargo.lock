@@ -507,6 +507,7 @@ dependencies = [
  "kycom",
  "libkypc",
  "log",
+ "log4ky",
  "rmp-serde",
  "serde",
  "serde_json",

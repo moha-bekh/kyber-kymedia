@@ -23,17 +23,18 @@ use std::sync::{Arc, Mutex};
 
 use log::warn;
 
-use crate::{Context, Result};
+use crate::{Context, Result, TargetLogLevel, open_txproto};
 
 use kyavservice_types::{Display, Event, IpcApi};
 use libkypc::EventSender;
-use txproto_rs::{IOEntryType, IOSysEntry, Txproto};
+use txproto_rs::{IOEntryType, IOSysEntry};
 
 pub(crate) fn enumerate(
     sender: &EventSender<IpcApi>,
     api_list: &[&str],
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<(Context, Vec<Display>)> {
-    let ctx = Txproto::new()?;
+    let ctx = open_txproto(log_levels)?;
 
     let send_notifications = Arc::new(AtomicBool::new(false));
     let displays: Arc<Mutex<Vec<Display>>> = Default::default();

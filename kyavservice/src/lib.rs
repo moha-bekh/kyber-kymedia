@@ -40,9 +40,28 @@ use txproto_rs::Txproto;
 
 pub(crate) use clock::configure_clock;
 pub use config::parse as parse_config;
-pub use config::{from_table, Config};
+pub use config::{Config, from_table};
 pub use error::{Error, Result};
 pub(crate) use video::{VideoConfig, VideoEncoder};
+
+/// Per-target log level lookup, so a new pipeline backend (e.g. `avconv`,
+/// alongside today's `txproto`) only needs its own `level_for` call at its
+/// own `Txproto::new`/equivalent site, not a new parameter threaded through
+/// every function between `run` and there.
+pub trait TargetLogLevel {
+    fn level_for(&self, target: &str) -> log::LevelFilter;
+}
+
+impl TargetLogLevel for log4ky::LoggerHandle {
+    fn level_for(&self, target: &str) -> log::LevelFilter {
+        log4ky::LoggerHandle::level_for(self, target)
+    }
+}
+
+/// Opens a `Txproto` context at the `txproto` target's level.
+pub(crate) fn open_txproto(log_levels: &dyn TargetLogLevel) -> Result<Txproto> {
+    Ok(Txproto::new(log_levels.level_for("txproto"))?)
+}
 
 #[allow(unused)]
 struct Context {
@@ -128,7 +147,11 @@ fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
     }
 }
 
-pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
+pub async fn run(
+    mut worker: Worker<IpcApi>,
+    config: Config,
+    log_levels: &dyn TargetLogLevel,
+) -> Result<()> {
     info!("AV service started");
 
     let mut ctx = None;
@@ -143,7 +166,7 @@ pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
                 #[cfg(not(target_os = "linux"))]
                 let api_list: Vec<&str> = vec![];
 
-                let (c, display_list) = displays::enumerate(&worker.events, &api_list)?;
+                let (c, display_list) = displays::enumerate(&worker.events, &api_list, log_levels)?;
 
                 response.send(Ok(Response::DisplayList {
                     displays: display_list,
@@ -166,6 +189,7 @@ pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
                     &config.video_encoder_config,
                     #[cfg(target_os = "linux")]
                     config.grab_backend(),
+                    log_levels,
                 )
                 .await;
 
@@ -208,7 +232,7 @@ pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
                     grab_backend: config.grab_backend(),
                 };
 
-                let ret = rtp::start_video(video_config, ip, port, &worker.events);
+                let ret = rtp::start_video(video_config, ip, port, &worker.events, log_levels);
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&worker.events, err, PipelineType::Video),
@@ -218,7 +242,8 @@ pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
                 response.send(Ok(Response::None))?;
                 info!("Start RTP Audio: {ip}:{port}");
 
-                let ret = rtp::start_audio(ip, port, config.clock_type(), &worker.events);
+                let ret =
+                    rtp::start_audio(ip, port, config.clock_type(), &worker.events, log_levels);
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&worker.events, err, PipelineType::Audio),
@@ -253,8 +278,13 @@ pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
                     grab_backend: config.grab_backend(),
                 };
 
-                let ret =
-                    kymux::start_video(video_config, &uri, metrics_uri.as_deref(), &worker.events);
+                let ret = kymux::start_video(
+                    video_config,
+                    &uri,
+                    metrics_uri.as_deref(),
+                    &worker.events,
+                    log_levels,
+                );
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&worker.events, err, PipelineType::Video),
@@ -264,7 +294,7 @@ pub async fn run(mut worker: Worker<IpcApi>, config: Config) -> Result<()> {
                 response.send(Ok(Response::None))?;
                 info!("Start Kymux Audio: URI {uri:?}");
 
-                let ret = kymux::start_audio(&uri, config.clock_type(), &worker.events);
+                let ret = kymux::start_audio(&uri, config.clock_type(), &worker.events, log_levels);
                 match ret {
                     Ok(c) => ctx = Some(c),
                     Err(err) => forward_init_error(&worker.events, err, PipelineType::Audio),
@@ -298,6 +328,18 @@ mod tests {
     use kyavservice_types::{Command, Event, IpcApi, PipelineStage, PipelineType, Response};
     use libkypc::channel::create_pair;
 
+    use crate::{Config, TargetLogLevel};
+
+    /// A fixed level for every target, so tests don't need a real installed
+    /// logger just to get a `TargetLogLevel`.
+    struct FixedLogLevel(log::LevelFilter);
+
+    impl TargetLogLevel for FixedLogLevel {
+        fn level_for(&self, _target: &str) -> log::LevelFilter {
+            self.0
+        }
+    }
+
     #[tokio::test(flavor = "current_thread")]
     async fn rtp_start_audio_error_reports_audio_pipeline_type() {
         let local = tokio::task::LocalSet::new();
@@ -306,7 +348,12 @@ mod tests {
                 let (mut commander, worker) = create_pair::<IpcApi>().unwrap();
 
                 let worker_handle = tokio::task::spawn_local(async move {
-                    super::run(worker, Config::default()).await
+                    super::run(
+                        worker,
+                        Config::default(),
+                        &FixedLogLevel(log::LevelFilter::Off),
+                    )
+                    .await
                 });
 
                 let ack = commander

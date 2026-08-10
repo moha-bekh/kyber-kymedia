@@ -154,7 +154,7 @@ pub struct Txproto {
 }
 
 impl Txproto {
-    pub fn new() -> Result<Self> {
+    pub fn new(txproto_log_level: log::LevelFilter) -> Result<Self> {
         let ctx = unsafe { sys::tx_new() };
 
         let ret = unsafe { sys::tx_init(ctx) };
@@ -162,6 +162,8 @@ impl Txproto {
             unsafe { sys::tx_free(ctx) };
             return Err(ret.into());
         }
+
+        logging::apply_level(txproto_log_level);
 
         Ok(Self {
             ctx: AtomicPtr::new(ctx),
