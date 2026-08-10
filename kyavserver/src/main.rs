@@ -22,7 +22,8 @@
 
 use std::process::ExitCode;
 
-use log::{error, info, LevelFilter};
+use log::{error, info};
+use log4ky::notice;
 
 use kyavservice::Result;
 
@@ -44,61 +45,6 @@ fn set_process_dpi_aware() {
     }
 }
 
-fn setup_logs(logfile: &str, level: LevelFilter) -> log4rs::Handle {
-    use std::path::Path;
-
-    use log4rs::{
-        append::{console::ConsoleAppender, file::FileAppender},
-        config::{Appender, Config, Root},
-        encode::pattern::PatternEncoder,
-    };
-
-    // Setup pattern
-    let pattern_encoder =
-        PatternEncoder::new("{d(%Y-%m-%dT%H:%M:%S.%3f)}[{P}] {h({l})} {t} - {m}{n}");
-
-    // Setup Console output
-    let stdout = ConsoleAppender::builder()
-        .encoder(Box::new(pattern_encoder.clone()))
-        .build();
-
-    // Compute log file
-    let log_folder = "log";
-    let log_file = format!("{logfile}.log");
-
-    // KYBER_LOG_DIR overrides the log directory; the file name is unchanged.
-    let log_path = if let Some(dir) = std::env::var_os("KYBER_LOG_DIR") {
-        Path::new(&dir).join(log_file)
-    } else if cfg!(windows) {
-        let mut exe_path = std::env::current_exe().unwrap();
-        exe_path.pop();
-
-        Path::new(&exe_path).join(log_folder).join(log_file)
-    } else {
-        Path::new(log_folder).join(log_file)
-    };
-
-    // Setup File output
-    let file = FileAppender::builder()
-        .encoder(Box::new(pattern_encoder))
-        .build(log_path)
-        .unwrap();
-
-    // Configure logger
-    let config = Config::builder()
-        .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .appender(Appender::builder().build("file", Box::new(file)))
-        .build(
-            Root::builder()
-                .appender("file")
-                .appender("stdout")
-                .build(level),
-        )
-        .unwrap();
-
-    log4rs::init_config(config).unwrap()
-}
-
 #[tokio::main]
 async fn main() -> ExitCode {
     let (config_table, config_path) = match kyavservice::parse_config() {
@@ -109,12 +55,24 @@ async fn main() -> ExitCode {
         }
     };
 
-    let log_level = if std::env::var("KYBER_VERBOSE").is_ok() {
-        LevelFilter::Debug
-    } else {
-        LevelFilter::Info
+    let _log_handle = match log4ky::LoggerBuilder::new("kyavserver")
+        .toml(&config_table)
+        .base(log4ky::LogConfig {
+            include_pid: true,
+            ..Default::default()
+        })
+        .console(!cfg!(feature = "win32-hide-console"))
+        .init()
+    {
+        Ok(h) => h,
+        // Config-key warnings already went to stderr and the log file; a
+        // hard install failure (no log file exists yet) has not.
+        Err(e) => {
+            notice!("Failed to initialize logger: {e}");
+            return ExitCode::FAILURE;
+        }
     };
-    let _log_handle = setup_logs("kyavserver", log_level);
+
     match &config_path {
         Some(path) => info!("Using configuration file {path:?}"),
         None => info!("No configuration file found, using defaults"),

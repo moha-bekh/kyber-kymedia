@@ -128,6 +128,7 @@ if [ "$BUILD_KYBER_DEPS" = true ]; then
     mkdir -p .cargo
     echo '[patch.crates-io]' > .cargo/config.toml
     echo 'kycom = { path = "kymux/kycom" }' >> .cargo/config.toml
+    echo 'log4ky = { path = "kyutil/log4ky" }' >> .cargo/config.toml
     echo 'libkypc = { path = "kyutil/libkypc" }' >> .cargo/config.toml
 fi
 
