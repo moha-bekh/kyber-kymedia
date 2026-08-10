@@ -46,9 +46,9 @@ pub enum Error {
     ConfigInvalidUtf8 { reason: std::string::FromUtf8Error },
     #[error("Failed to parse configuration file: {reason}")]
     ConfigParseFail { reason: toml::de::Error },
-    #[error("Fail to load configuration: {reason:?}")]
+    #[error("Failed to load configuration: {reason}")]
     ConfigLoadFail { reason: toml::de::Error },
-    #[error("Fail to write configuration: {reason:?}")]
+    #[error("Failed to write configuration: {reason}")]
     ConfigWriteFail { reason: toml::ser::Error },
     #[error("Thread has panicked")]
     ThreadPanicked,

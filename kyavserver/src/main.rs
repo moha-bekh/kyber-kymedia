@@ -47,21 +47,31 @@ fn set_process_dpi_aware() {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    let (config_table, config_path) = match kyavservice::parse_config() {
-        Ok(parsed) => parsed,
-        Err(e) => {
-            eprintln!("Failed to load configuration: {e}");
-            return ExitCode::FAILURE;
-        }
+    let parsed = kyavservice::parse_config();
+    let empty_table = toml::Table::new();
+    let table_ref = match &parsed {
+        Ok((table, _)) => table,
+        Err(_) => &empty_table,
     };
 
+    let default_log_extras = kyavservice::KyavserverLogExtras::default();
+    let log_extras = kyavservice::kyavserver_log_extras(table_ref);
+    let log_extras_ref = match &log_extras {
+        Ok(extras) => extras,
+        Err(_) => &default_log_extras,
+    };
+
+    // Initialize the logger before reporting parse status: a hidden-console
+    // Windows build has no stderr, so a config or log-extras failure must
+    // reach the log file, not disappear.
     let log_handle = match log4ky::LoggerBuilder::new("kyavserver")
-        .toml(&config_table)
+        .toml(table_ref)
         .base(log4ky::LogConfig {
             include_pid: true,
             ..Default::default()
         })
         .console(!cfg!(feature = "win32-hide-console"))
+        .default_target_level("txproto", log_extras_ref.txproto_log_level)
         .init()
     {
         Ok(h) => h,
@@ -72,6 +82,18 @@ async fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+
+    let (config_table, config_path) = match parsed {
+        Ok(parsed) => parsed,
+        Err(e) => {
+            error!("Failed to load configuration: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+    if let Err(e) = &log_extras {
+        error!("Failed to read log configuration: {e}");
+        return ExitCode::FAILURE;
+    }
 
     match &config_path {
         Some(path) => info!("Using configuration file {path:?}"),

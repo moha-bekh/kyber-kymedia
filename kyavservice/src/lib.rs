@@ -40,7 +40,7 @@ use txproto_rs::Txproto;
 
 pub(crate) use clock::configure_clock;
 pub use config::parse as parse_config;
-pub use config::{Config, from_table};
+pub use config::{Config, KyavserverLogExtras, from_table, kyavserver_log_extras};
 pub use error::{Error, Result};
 pub(crate) use video::{VideoConfig, VideoEncoder};
 

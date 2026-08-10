@@ -122,6 +122,29 @@ impl Config {
     }
 }
 
+const SECTION: &str = "kyavserver";
+
+/// Extra log filters used by `kyavserver`: separate level for the txproto
+/// pipeline target (capture, encoders, FFmpeg internals routed through it).
+/// When `None`, the caller's configured root level is used.
+#[derive(Debug, Default, Clone, Deserialize)]
+pub struct KyavserverLogExtras {
+    pub txproto_log_level: Option<log::LevelFilter>,
+}
+
+/// Parse the kyavserver-specific log extras from the `[kyavserver]` section.
+/// Runs before the logger is set up, so it must not log; the caller reports
+/// the error once logging is available.
+pub fn kyavserver_log_extras(table: &toml::Table) -> Result<KyavserverLogExtras> {
+    let Some(section) = table.get(SECTION) else {
+        return Ok(KyavserverLogExtras::default());
+    };
+    section
+        .clone()
+        .try_into()
+        .map_err(|reason| Error::ConfigParseFail { reason })
+}
+
 /// Read and parse the configuration file, without deserializing it. Returns
 /// an empty table and no path when the file does not exist. Runs before the
 /// logger is set up, so it must not log; the caller reports the returned path
@@ -152,7 +175,7 @@ pub fn parse() -> Result<(toml::Table, Option<PathBuf>)> {
 }
 
 pub fn from_table(table: &toml::Table) -> Result<Config> {
-    let Some(kyavserver_conf) = table.get("kyavserver") else {
+    let Some(kyavserver_conf) = table.get(SECTION) else {
         info!("No kyavserver section found, using defaults");
         return Ok(Config::default());
     };
@@ -192,4 +215,32 @@ pub(crate) fn dump_encoder_config(
         format!("kyavserver.{encoder_type}_encoder_config"),
         encoder_config,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn log_extras_default_when_section_missing() {
+        let extras = kyavserver_log_extras(&toml::Table::new()).unwrap();
+        assert!(extras.txproto_log_level.is_none());
+    }
+
+    #[test]
+    fn log_extras_parses_level_and_ignores_other_keys() {
+        let table: toml::Table = "[kyavserver]\nencoder = \"NVENC\"\ntxproto_log_level = \"warn\""
+            .parse()
+            .unwrap();
+        let extras = kyavserver_log_extras(&table).unwrap();
+        assert_eq!(extras.txproto_log_level, Some(log::LevelFilter::Warn));
+    }
+
+    #[test]
+    fn log_extras_invalid_level_is_fatal() {
+        let table: toml::Table = "[kyavserver]\ntxproto_log_level = \"nope\""
+            .parse()
+            .unwrap();
+        assert!(kyavserver_log_extras(&table).is_err());
+    }
 }
