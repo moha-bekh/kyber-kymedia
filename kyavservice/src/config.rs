@@ -97,9 +97,12 @@ fn default_position() -> f32 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Deserialize)]
+// Off Linux the enum has no variants, so it can have no default either.
+#[cfg_attr(target_os = "linux", derive(Default))]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum GrabBackend {
     #[cfg(target_os = "linux")]
+    #[default]
     NvFBC,
     #[cfg(target_os = "linux")]
     Drm,
@@ -121,7 +124,7 @@ pub struct Config {
     #[cfg(feature = "watermark")]
     pub(crate) watermark: Option<WatermarkConfig>,
     #[cfg(target_os = "linux")]
-    pub(crate) grab_backend: Option<GrabBackend>,
+    grab_backend: Option<GrabBackend>,
 }
 
 impl Config {
@@ -151,7 +154,7 @@ impl Config {
 
     #[cfg(target_os = "linux")]
     pub(crate) fn grab_backend(&self) -> GrabBackend {
-        self.grab_backend.unwrap_or(GrabBackend::NvFBC)
+        self.grab_backend.unwrap_or_default()
     }
 }
 

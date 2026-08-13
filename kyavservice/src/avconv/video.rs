@@ -52,7 +52,7 @@ pub(crate) struct VideoConfig {
     #[cfg(feature = "watermark")]
     pub(crate) watermark: Option<config::WatermarkConfig>,
     #[cfg(target_os = "linux")]
-    pub(crate) grab_backend: Option<config::GrabBackend>,
+    pub(crate) grab_backend: config::GrabBackend,
 }
 
 /// Selects the grab provider name for the current platform.
@@ -63,7 +63,7 @@ pub(crate) fn grab_provider_name(_backend: Option<config::GrabBackend>) -> &'sta
 
 #[cfg(target_os = "linux")]
 pub(crate) fn grab_provider_name(backend: Option<config::GrabBackend>) -> &'static str {
-    match backend.unwrap_or(config::GrabBackend::NvFBC) {
+    match backend.unwrap_or_default() {
         // NvFBC is a capture mode of the x11 provider (auto-selected when
         // the NVIDIA driver exposes it), not a standalone provider. Selecting
         // Xcb resolves to the same x11 provider; libavconv-rs doesn't expose
@@ -91,7 +91,7 @@ fn create_grab_source(
     metrics: Option<&MetricsForwarder>,
 ) -> Result<(GrabCapture, Handle)> {
     #[cfg(target_os = "linux")]
-    let backend = video_config.grab_backend;
+    let backend = Some(video_config.grab_backend);
     #[cfg(not(target_os = "linux"))]
     let backend: Option<config::GrabBackend> = None;
 

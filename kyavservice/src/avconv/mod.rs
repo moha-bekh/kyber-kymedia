@@ -229,7 +229,7 @@ async fn handle_command(
                 #[cfg(feature = "watermark")]
                 watermark: None,
                 #[cfg(target_os = "linux")]
-                grab_backend: Some(config.grab_backend()),
+                grab_backend: config.grab_backend(),
             };
 
             let ret = rtp::start_video(video_config, ip, port, sender.clone());
@@ -272,7 +272,7 @@ async fn handle_command(
                 #[cfg(feature = "watermark")]
                 watermark: config.watermark.clone(),
                 #[cfg(target_os = "linux")]
-                grab_backend: Some(config.grab_backend()),
+                grab_backend: config.grab_backend(),
             };
 
             let ret =

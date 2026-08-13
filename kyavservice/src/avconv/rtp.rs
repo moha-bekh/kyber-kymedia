@@ -180,7 +180,7 @@ fn build_and_capture_sdp(
         #[cfg(feature = "watermark")]
         watermark: None,
         #[cfg(target_os = "linux")]
-        grab_backend: Some(config::GrabBackend::NvFBC),
+        grab_backend: config::GrabBackend::NvFBC,
     };
 
     let ctx = Arc::new(AvconvContext::new()?);
