@@ -470,10 +470,6 @@ fn create_x264(
             ("tune", "zerolatency").into(),
             ("b", config.bitrate as i64).into(),
             ("flags", "+global_header").into(),
-            // On AWS EC2 (Windows Server 2023), sometimes x264 is broken and just
-            // return empty frames. Set this setting to workaround this issue.
-            // It seems to add between 1 and 2 latency frames
-            ("x264-params", "force-cfr=0").into(),
         ]
     };
 

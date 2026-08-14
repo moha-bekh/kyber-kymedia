@@ -366,7 +366,6 @@ fn configure_x264() -> Vec<(&'static str, String)> {
     vec![
         ("preset", "ultrafast".to_string()),
         ("tune", "zerolatency".to_string()),
-        ("x264-params", "force-cfr=0".to_string()),
     ]
 }
 
