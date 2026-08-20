@@ -316,20 +316,7 @@ fn print_options(encoder: &str, options: &[(&str, String)]) {
 /// Must be called before `EncoderBuilder::build` (which initialises the
 /// encoder and locks out further configuration).
 fn configure_enc_ctx(enc: &EncoderBuilder, config: &VideoConfig) -> Result<()> {
-    if let Some(encoder_config) = &config.encoder_config {
-        warn!("Using custom video encoder configuration");
-        let opts = encoder_config_to_opt_string(encoder_config);
-        if !opts.is_empty() {
-            enc.set_options_string(&opts)?;
-        }
-        enc.enable_global_header();
-        return Ok(());
-    }
-
-    enc.set_bit_rate(config.bitrate as i64);
-    enc.enable_global_header();
-
-    let (name, options) = match config.encoder {
+    let (name, default_options) = match config.encoder {
         VideoEncoder::NVENC => ("nvenc", configure_nvenc(config)),
         VideoEncoder::AMF => ("amf", configure_amf(config)),
         VideoEncoder::VAAPI => ("vaapi", configure_vaapi(config)),
@@ -340,10 +327,26 @@ fn configure_enc_ctx(enc: &EncoderBuilder, config: &VideoConfig) -> Result<()> {
         VideoEncoder::VIDEOTOOLBOX => ("videotoolbox", Vec::new()),
     };
 
-    print_options(name, &options);
-    for (key, value) in &options {
-        enc.set_option(key, value)?;
+    let mut options: Vec<(&str, String)> = default_options;
+    options.push(("b", config.bitrate.to_string()));
+
+    if let Some(encoder_config) = &config.encoder_config {
+        warn!("Using custom video encoder configuration");
+        for (key, value) in encoder_config_to_options(encoder_config) {
+            if let Some(index) = options
+                .iter()
+                .position(|(option_key, _)| *option_key == key)
+            {
+                options[index].1 = value;
+            } else {
+                options.push((key, value));
+            }
+        }
     }
+
+    print_options(name, &options);
+    enc.set_options_string(&encoder_options_to_opt_string(&options))?;
+    enc.enable_global_header();
 
     Ok(())
 }
@@ -435,7 +438,7 @@ fn configure_x264() -> Vec<(&'static str, String)> {
     ]
 }
 
-fn encoder_config_to_opt_string(encoder_config: &config::EncoderConfig) -> String {
+fn encoder_config_to_options(encoder_config: &config::EncoderConfig) -> Vec<(&str, String)> {
     encoder_config
         .iter()
         .filter_map(|(k, v)| {
@@ -448,8 +451,15 @@ fn encoder_config_to_opt_string(encoder_config: &config::EncoderConfig) -> Strin
                     None
                 }
             };
-            val.map(|v| format!("{k}={v}"))
+            val.map(|v| (k.as_str(), v))
         })
+        .collect()
+}
+
+fn encoder_options_to_opt_string(options: &[(&str, String)]) -> String {
+    options
+        .iter()
+        .map(|(key, value)| format!("{key}={value}"))
         .collect::<Vec<_>>()
         .join(",")
 }

@@ -138,50 +138,48 @@ fn create_nvenc(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let options = if let Some(encoder_config) = &config.encoder_config {
-        encoder_config_to_dict(encoder_config)
+    let mut options = vec![
+        ("preset", "p2").into(),
+        ("tune", "ull").into(),
+        ("zerolatency", true).into(),
+        ("delay", 1).into(),
+        ("bf", 0).into(),
+        ("b_ref_mode", 0).into(),
+        ("b", config.bitrate as i64).into(),
+        ("flags", "+global_header").into(),
+    ];
+
+    if config.intra_refresh {
+        options.push(("intra-refresh", 1).into());
+        options.push(("g", 120).into());
     } else {
-        let mut options = vec![
-            ("preset", "p2").into(),
-            ("tune", "ull").into(),
-            ("zerolatency", true).into(),
-            ("delay", 1).into(),
-            ("bf", 0).into(),
-            ("b_ref_mode", 0).into(),
-            ("b", config.bitrate as i64).into(),
-            ("flags", "+global_header").into(),
-        ];
+        options.push(("g", 600).into());
+    }
 
-        if config.intra_refresh {
-            options.push(("intra-refresh", 1).into());
-            options.push(("g", 120).into());
-        } else {
-            options.push(("g", 600).into());
-        }
-
-        match config.codec {
-            VideoCodec::H264 => {
-                if config.yuv444 {
-                    options.push(("profile", "high444p").into());
-                    options.push(("rgb_mode", "yuv444").into());
-                } else {
-                    options.push(("profile", "high").into());
-                }
-            }
-            VideoCodec::HEVC => {
-                if config.yuv444 {
-                    options.push(("rgb_mode", "yuv444").into());
-                }
-            }
-            VideoCodec::AV1 => {
-                if config.yuv444 {
-                    options.push(("rgb_mode", "yuv444").into());
-                }
+    match config.codec {
+        VideoCodec::H264 => {
+            if config.yuv444 {
+                options.push(("profile", "high444p").into());
+                options.push(("rgb_mode", "yuv444").into());
+            } else {
+                options.push(("profile", "high").into());
             }
         }
+        VideoCodec::HEVC => {
+            if config.yuv444 {
+                options.push(("rgb_mode", "yuv444").into());
+            }
+        }
+        VideoCodec::AV1 => {
+            if config.yuv444 {
+                options.push(("rgb_mode", "yuv444").into());
+            }
+        }
+    }
 
-        options
-    };
+    if let Some(encoder_config) = &config.encoder_config {
+        options.extend(encoder_config_to_dict(encoder_config));
+    }
 
     print_options("nvenc", &options);
     let options = Dictionary::from_entries(&options)?;
@@ -215,25 +213,23 @@ fn create_vaapi(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let options = if let Some(encoder_config) = &config.encoder_config {
-        encoder_config_to_dict(encoder_config)
-    } else {
-        let mut options = vec![
-            ("bf", 0).into(),
-            ("b", config.bitrate as i64).into(),
-            ("async_depth", 1).into(),
-            ("flags", "+global_header").into(),
-        ];
+    let mut options = vec![
+        ("bf", 0).into(),
+        ("b", config.bitrate as i64).into(),
+        ("async_depth", 1).into(),
+        ("flags", "+global_header").into(),
+    ];
 
-        match config.codec {
-            VideoCodec::H264 => {
-                options.push(("profile", "high").into());
-            }
-            VideoCodec::HEVC | VideoCodec::AV1 => {}
-        };
-
-        options
+    match config.codec {
+        VideoCodec::H264 => {
+            options.push(("profile", "high").into());
+        }
+        VideoCodec::HEVC | VideoCodec::AV1 => {}
     };
+
+    if let Some(encoder_config) = &config.encoder_config {
+        options.extend(encoder_config_to_dict(encoder_config));
+    }
 
     print_options("vaapi", &options);
     let options = Dictionary::from_entries(&options)?;
@@ -312,32 +308,30 @@ fn create_qsv(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec options
-    let options = if let Some(encoder_config) = &config.encoder_config {
-        encoder_config_to_dict(encoder_config)
-    } else {
-        let mut options = vec![
-            ("preset", "veryfast").into(),
-            ("bf", 0).into(),
-            ("g", 600).into(),
-            ("b", config.bitrate as i64).into(),
-            ("async_depth", 1).into(),
-            ("flags", "+global_header").into(),
-        ];
+    let mut options = vec![
+        ("preset", "veryfast").into(),
+        ("bf", 0).into(),
+        ("g", 600).into(),
+        ("b", config.bitrate as i64).into(),
+        ("async_depth", 1).into(),
+        ("flags", "+global_header").into(),
+    ];
 
-        match config.codec {
-            VideoCodec::H264 => {
-                options.push(("profile", "high").into());
-            }
-            VideoCodec::HEVC => {
-                if config.yuv444 {
-                    options.push(("profile", "rext").into());
-                }
-            }
-            VideoCodec::AV1 => {}
+    match config.codec {
+        VideoCodec::H264 => {
+            options.push(("profile", "high").into());
         }
+        VideoCodec::HEVC => {
+            if config.yuv444 {
+                options.push(("profile", "rext").into());
+            }
+        }
+        VideoCodec::AV1 => {}
+    }
 
-        options
-    };
+    if let Some(encoder_config) = &config.encoder_config {
+        options.extend(encoder_config_to_dict(encoder_config));
+    }
 
     print_options("qsv", &options);
     let options = Dictionary::from_entries(&options)?;
@@ -393,31 +387,29 @@ fn create_amf(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let options = if let Some(encoder_config) = &config.encoder_config {
-        encoder_config_to_dict(encoder_config)
-    } else {
-        let mut options = vec![
-            ("bf", 0).into(),
-            ("b", config.bitrate as i64).into(),
-            ("flags", "+global_header+low_delay").into(),
-            ("async_depth", 1).into(),
-        ];
+    let mut options = vec![
+        ("bf", 0).into(),
+        ("b", config.bitrate as i64).into(),
+        ("flags", "+global_header+low_delay").into(),
+        ("async_depth", 1).into(),
+    ];
 
-        match config.codec {
-            VideoCodec::H264 => {
-                options.push(("usage", "ultralowlatency").into());
-                options.push(("profile", "high").into());
-            }
-            VideoCodec::HEVC => {
-                options.push(("usage", "ultralowlatency").into());
-            }
-            VideoCodec::AV1 => {
-                options.push(("usage", "lowlatency").into());
-            }
-        };
-
-        options
+    match config.codec {
+        VideoCodec::H264 => {
+            options.push(("usage", "ultralowlatency").into());
+            options.push(("profile", "high").into());
+        }
+        VideoCodec::HEVC => {
+            options.push(("usage", "ultralowlatency").into());
+        }
+        VideoCodec::AV1 => {
+            options.push(("usage", "lowlatency").into());
+        }
     };
+
+    if let Some(encoder_config) = &config.encoder_config {
+        options.extend(encoder_config_to_dict(encoder_config));
+    }
 
     print_options("amf", &options);
     let options = Dictionary::from_entries(&options)?;
@@ -464,20 +456,19 @@ fn create_x264(
         ctx.create_filtergraph(&filter_desc, txproto_rs::HWDeviceType::NONE, Some(options))?;
 
     // Configure Codec
-    let options = if let Some(encoder_config) = &config.encoder_config {
-        encoder_config_to_dict(encoder_config)
-    } else {
-        let mut options = vec![
-            ("preset", "ultrafast").into(),
-            ("tune", "zerolatency").into(),
-            ("b", config.bitrate as i64).into(),
-            ("flags", "+global_header").into(),
-        ];
-        if config.yuv444 {
-            options.push(("profile", "high444").into());
-        }
-        options
-    };
+    let mut options = vec![
+        ("preset", "ultrafast").into(),
+        ("tune", "zerolatency").into(),
+        ("b", config.bitrate as i64).into(),
+        ("flags", "+global_header").into(),
+    ];
+    if config.yuv444 {
+        options.push(("profile", "high444").into());
+    }
+
+    if let Some(encoder_config) = &config.encoder_config {
+        options.extend(encoder_config_to_dict(encoder_config));
+    }
 
     print_options("libx264", &options);
 
@@ -510,23 +501,23 @@ fn create_videotoolbox(
     video_source: &txproto_rs::Handle,
 ) -> Result<txproto_rs::Handle> {
     // Configure Codec
-    let options = if let Some(encoder_config) = &config.encoder_config {
-        encoder_config_to_dict(encoder_config)
-    } else {
-        vec![
-            ("preset", "medium").into(),
-            ("hardware", true).into(),
-            ("pix_fmt", "nv12").into(),
-            ("flags", "+global_header").into(),
-            ("prio_speed", true).into(),
-            ("realtime", true).into(),
-            ("power_efficient", 0).into(),
-            ("low_delay", true).into(),
-            ("bf", 0).into(),
-            ("b_ref_mode", 0).into(),
-            ("b", config.bitrate as i64).into(),
-        ]
-    };
+    let mut options = vec![
+        ("preset", "medium").into(),
+        ("hardware", true).into(),
+        ("pix_fmt", "nv12").into(),
+        ("flags", "+global_header").into(),
+        ("prio_speed", true).into(),
+        ("realtime", true).into(),
+        ("power_efficient", 0).into(),
+        ("low_delay", true).into(),
+        ("bf", 0).into(),
+        ("b_ref_mode", 0).into(),
+        ("b", config.bitrate as i64).into(),
+    ];
+
+    if let Some(encoder_config) = &config.encoder_config {
+        options.extend(encoder_config_to_dict(encoder_config));
+    }
 
     print_options("videotoolbox", &options);
     let options = Dictionary::from_entries(&options)?;
