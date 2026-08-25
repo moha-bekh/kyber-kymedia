@@ -458,7 +458,7 @@ fn create_x264(
     #[cfg(target_os = "windows")]
     let filter_desc = format!("hwdownload,format=bgra,format={pix_fmt}");
     #[cfg(not(target_os = "windows"))]
-    let filter_desc = format!("scale=w=1920:h=-1,format={pix_fmt}");
+    let filter_desc = format!("format={pix_fmt}");
 
     let filter =
         ctx.create_filtergraph(&filter_desc, txproto_rs::HWDeviceType::NONE, Some(options))?;
