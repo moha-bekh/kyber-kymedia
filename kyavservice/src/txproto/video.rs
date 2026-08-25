@@ -453,24 +453,30 @@ fn create_x264(
 ) -> Result<txproto_rs::Handle> {
     let options = Dictionary::from_entries(&[("dump_graph", false).into()])?;
 
+    let pix_fmt = if config.yuv444 { "yuv444p" } else { "nv12" };
+
     #[cfg(target_os = "windows")]
-    let filter_desc = "hwdownload,format=bgra,format=nv12";
+    let filter_desc = format!("hwdownload,format=bgra,format={pix_fmt}");
     #[cfg(not(target_os = "windows"))]
-    let filter_desc = "scale=w=1920:h=-1,format=nv12";
+    let filter_desc = format!("scale=w=1920:h=-1,format={pix_fmt}");
 
     let filter =
-        ctx.create_filtergraph(filter_desc, txproto_rs::HWDeviceType::NONE, Some(options))?;
+        ctx.create_filtergraph(&filter_desc, txproto_rs::HWDeviceType::NONE, Some(options))?;
 
     // Configure Codec
     let options = if let Some(encoder_config) = &config.encoder_config {
         encoder_config_to_dict(encoder_config)
     } else {
-        vec![
+        let mut options = vec![
             ("preset", "ultrafast").into(),
             ("tune", "zerolatency").into(),
             ("b", config.bitrate as i64).into(),
             ("flags", "+global_header").into(),
-        ]
+        ];
+        if config.yuv444 {
+            options.push(("profile", "high444").into());
+        }
+        options
     };
 
     print_options("libx264", &options);
