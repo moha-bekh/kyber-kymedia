@@ -170,12 +170,13 @@ fn get_resource_path(resource_name: &str) -> PathBuf {
 
 const SECTION: &str = "kyavserver";
 
-/// Extra log filters used by `kyavserver`: separate level for the txproto
-/// pipeline target (capture, encoders, FFmpeg internals routed through it).
-/// When `None`, the caller's configured root level is used.
+/// Extra log filters used by `kyavserver`: separate levels for the txproto
+/// and FFmpeg (libavconv backend) pipeline targets. When `None`, the caller's
+/// configured root level is used.
 #[derive(Debug, Default, Clone, Deserialize)]
 pub struct KyavserverLogExtras {
     pub txproto_log_level: Option<log::LevelFilter>,
+    pub ffmpeg_log_level: Option<log::LevelFilter>,
 }
 
 /// Parse the kyavserver-specific log extras from the `[kyavserver]` section.
@@ -256,6 +257,7 @@ mod tests {
     fn log_extras_default_when_section_missing() {
         let extras = kyavserver_log_extras(&toml::Table::new()).unwrap();
         assert!(extras.txproto_log_level.is_none());
+        assert!(extras.ffmpeg_log_level.is_none());
     }
 
     #[test]
@@ -265,6 +267,15 @@ mod tests {
             .unwrap();
         let extras = kyavserver_log_extras(&table).unwrap();
         assert_eq!(extras.txproto_log_level, Some(log::LevelFilter::Warn));
+    }
+
+    #[test]
+    fn log_extras_parses_ffmpeg_level() {
+        let table: toml::Table = "[kyavserver]\nffmpeg_log_level = \"debug\""
+            .parse()
+            .unwrap();
+        let extras = kyavserver_log_extras(&table).unwrap();
+        assert_eq!(extras.ffmpeg_log_level, Some(log::LevelFilter::Debug));
     }
 
     #[test]

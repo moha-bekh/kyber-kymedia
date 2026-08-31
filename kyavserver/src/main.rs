@@ -72,6 +72,7 @@ async fn main() -> ExitCode {
         })
         .console(!cfg!(feature = "win32-hide-console"))
         .default_target_level("txproto", log_extras_ref.txproto_log_level)
+        .default_target_level("ffmpeg", log_extras_ref.ffmpeg_log_level)
         .init()
     {
         Ok(h) => h,

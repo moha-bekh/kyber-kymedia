@@ -142,6 +142,17 @@ fn handle_video_force_idr(ctx: &mut Option<Context>) -> Result<()> {
     }
 }
 
+fn av_log_level(level: log::LevelFilter) -> i32 {
+    match level {
+        log::LevelFilter::Off => sys::AV_LOG_QUIET,
+        log::LevelFilter::Error => sys::AV_LOG_ERROR as i32,
+        log::LevelFilter::Warn => sys::AV_LOG_WARNING as i32,
+        log::LevelFilter::Info => sys::AV_LOG_INFO as i32,
+        log::LevelFilter::Debug => sys::AV_LOG_VERBOSE as i32,
+        log::LevelFilter::Trace => sys::AV_LOG_TRACE as i32,
+    }
+}
+
 fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
     let min_bitrate = config.minimum_bitrate();
     if bitrate < min_bitrate {
@@ -308,9 +319,9 @@ async fn handle_command(
 pub(super) async fn run(
     mut worker: Worker<IpcApi>,
     config: Config,
-    _log_levels: &dyn TargetLogLevel,
+    log_levels: &dyn TargetLogLevel,
 ) -> Result<()> {
-    libavconv_rs::set_log_level(libavconv_rs::sys::AV_LOG_TRACE as i32);
+    libavconv_rs::set_log_level(av_log_level(log_levels.level_for("ffmpeg")));
 
     libavconv_rs::route_logs_to_sink(|level, msg| {
         if level <= sys::AV_LOG_ERROR as i32 {
