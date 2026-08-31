@@ -50,8 +50,9 @@ fn main() {
     //   This directory must contain libavconv/, libavgrab/, all libav*
     //   headers, and the generated avconfig.h.
     //   Fallback: $AVCONV_LIB_DIR/../include (derived automatically).
-    //   Default (no env vars): in-tree subprojects/ffmpeg source tree plus
-    //   builddir/subprojects/ffmpeg/build for generated headers.
+    //   Default (no env vars): the include dirs pkg-config reports for
+    //   libavgrab / libavcodec (same PKG_CONFIG_LIBDIR used for linking
+    //   below).
     //
     // AVCONV_LIB_DIR: path to the directory containing the compiled
     //   .so / .a / .lib files (e.g. $OUT_DIR/lib set by build-win32.sh).
@@ -59,52 +60,6 @@ fn main() {
 
     println!("cargo:rerun-if-env-changed=AVCONV_INCLUDE_DIR");
     println!("cargo:rerun-if-env-changed=AVCONV_LIB_DIR");
-
-    // Resolve the include directory(ies).
-    //
-    // Primary:  AVCONV_INCLUDE_DIR (the meson install prefix's include dir,
-    //           e.g. $OUT_DIR/include set by build-win32.sh).
-    //           This single directory has everything: libavconv/, libavgrab/,
-    //           all libav* headers, AND the generated avconfig.h.
-    //
-    // Fallback: derive $AVCONV_LIB_DIR/../include when AVCONV_INCLUDE_DIR
-    //           is absent but AVCONV_LIB_DIR is set.
-    //
-    // Default:  the in-tree source headers + the meson build dir (which
-    //           holds generated files like avconfig.h not present in the
-    //           source tree).
-    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    // workspace root is two levels up from libavconv-rs/libavconv-sys/
-    let workspace = manifest.join("../..");
-
-    let (include_dirs, extra_include): (Vec<PathBuf>, Option<PathBuf>) =
-        if let Ok(d) = env::var("AVCONV_INCLUDE_DIR") {
-            (vec![PathBuf::from(d)], None)
-        } else if let Ok(lib) = env::var("AVCONV_LIB_DIR") {
-            // Derive include from lib: $AVCONV_LIB_DIR/../include
-            (vec![PathBuf::from(&lib).join("../include")], None)
-        } else {
-            // In-tree defaults: source tree + meson build dir for generated headers.
-            let source = workspace.join("subprojects/ffmpeg");
-            let build_gen = workspace.join("builddir/subprojects/ffmpeg/build");
-            // Surface a clear hint before bindgen fails with an opaque
-            // "header not found" if neither the env vars nor the in-tree
-            // layout are present (e.g. the meson tree was never built).
-            for (label, dir) in [
-                ("ffmpeg source", &source),
-                ("generated headers", &build_gen),
-            ] {
-                if !dir.is_dir() {
-                    println!(
-                        "cargo:warning=libavconv-sys: {label} dir {} not found; \
-                         set AVCONV_INCLUDE_DIR (or AVCONV_LIB_DIR), or run \
-                         ./build-linux.sh / build-win32.sh first",
-                        dir.display()
-                    );
-                }
-            }
-            (vec![source], Some(build_gen))
-        };
 
     // ---- linking ----
     //
@@ -146,6 +101,8 @@ fn main() {
     ];
     let dedup_ffmpeg_via_txproto = env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows");
 
+    let mut pkg_config_include_paths: Vec<PathBuf> = Vec::new();
+
     if dedup_ffmpeg_via_txproto {
         let mut search_paths: Vec<PathBuf> = Vec::new();
         let mut keep_libs: Vec<String> = Vec::new();
@@ -163,6 +120,11 @@ fn main() {
             for path in probed.link_paths {
                 if !search_paths.contains(&path) {
                     search_paths.push(path);
+                }
+            }
+            for path in probed.include_paths {
+                if !pkg_config_include_paths.contains(&path) {
+                    pkg_config_include_paths.push(path);
                 }
             }
             // Preserve order and repeats of the kept libraries (they matter for
@@ -183,13 +145,18 @@ fn main() {
         println!("cargo:rustc-link-lib=dylib=txproto");
     } else {
         for lib in &["libavgrab", "libavcodec"] {
-            pkg_config::Config::new().probe(lib).unwrap_or_else(|e| {
+            let probed = pkg_config::Config::new().probe(lib).unwrap_or_else(|e| {
                 panic!(
                     "pkg-config probe for '{lib}' failed: {e}\n\
                      hint: set PKG_CONFIG_LIBDIR to the rootfs's lib/pkgconfig, \
                      and PKG_CONFIG_ALLOW_CROSS=1 when cross-compiling"
                 )
             });
+            for path in probed.include_paths {
+                if !pkg_config_include_paths.contains(&path) {
+                    pkg_config_include_paths.push(path);
+                }
+            }
         }
     }
 
@@ -201,6 +168,22 @@ fn main() {
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
         println!("cargo:rustc-link-lib=advapi32");
     }
+
+    let include_dirs: Vec<PathBuf> = if let Ok(d) = env::var("AVCONV_INCLUDE_DIR") {
+        vec![PathBuf::from(d)]
+    } else if let Ok(lib) = env::var("AVCONV_LIB_DIR") {
+        // Derive include from lib: $AVCONV_LIB_DIR/../include
+        vec![PathBuf::from(&lib).join("../include")]
+    } else {
+        if pkg_config_include_paths.is_empty() {
+            println!(
+                "cargo:warning=libavconv-sys: no include dirs reported by \
+                 pkg-config for 'libavgrab' / 'libavcodec'; set AVCONV_INCLUDE_DIR \
+                 (or AVCONV_LIB_DIR), or run ./build-linux.sh / build-win32.sh first"
+            );
+        }
+        pkg_config_include_paths
+    };
 
     // ---- C log shim ----
     //
@@ -214,9 +197,6 @@ fn main() {
     shim.std("c11"); // log_shim.c uses <stdatomic.h> for the sink pointer
     for dir in &include_dirs {
         shim.include(dir);
-    }
-    if let Some(ref gen_dir) = extra_include {
-        shim.include(gen_dir);
     }
     shim.compile("kyav_log_shim");
 
@@ -299,9 +279,6 @@ fn main() {
     // all libav* headers, and generated files like avconfig.h.
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.to_string_lossy()));
-    }
-    if let Some(ref gen_dir) = extra_include {
-        builder = builder.clang_arg(format!("-I{}", gen_dir.to_string_lossy()));
     }
 
     // For cross-compilation: tell clang the target triple so it picks the

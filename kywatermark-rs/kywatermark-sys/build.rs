@@ -68,46 +68,49 @@ fn main() {
         "opus",
         "vpl",
     ];
-    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
-        let probed = pkg_config::Config::new()
-            .cargo_metadata(false)
-            .probe("kywatermark")
-            .unwrap_or_else(|e| {
-                panic!(
-                    "pkg-config probe for 'kywatermark' failed: {e}\n\
+    let pkg_config_include_paths: Vec<PathBuf> =
+        if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+            let probed = pkg_config::Config::new()
+                .cargo_metadata(false)
+                .probe("kywatermark")
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "pkg-config probe for 'kywatermark' failed: {e}\n\
                  hint: build the meson tree first (./build-win32.sh -k) so \
                  kywatermark.pc lands in $OUT_DIR/lib/pkgconfig, and ensure \
                  PKG_CONFIG_LIBDIR points at it."
-                )
-            });
-        let mut search_paths: Vec<PathBuf> = Vec::new();
-        for path in probed.link_paths {
-            if !search_paths.contains(&path) {
-                search_paths.push(path);
+                    )
+                });
+            let mut search_paths: Vec<PathBuf> = Vec::new();
+            for path in &probed.link_paths {
+                if !search_paths.contains(path) {
+                    search_paths.push(path.clone());
+                }
             }
-        }
-        for path in &search_paths {
-            println!("cargo:rustc-link-search=native={}", path.display());
-        }
-        for l in &probed.libs {
-            if !ffmpeg_from_txproto.contains(&l.as_str()) {
-                println!("cargo:rustc-link-lib={l}");
+            for path in &search_paths {
+                println!("cargo:rustc-link-search=native={}", path.display());
             }
-        }
-        // Every FFmpeg symbol is resolved from the txproto DLL's import library.
-        println!("cargo:rustc-link-lib=dylib=txproto");
-    } else {
-        pkg_config::Config::new()
-            .probe("kywatermark")
-            .unwrap_or_else(|e| {
-                panic!(
-                    "pkg-config probe for 'kywatermark' failed: {e}\n\
+            for l in &probed.libs {
+                if !ffmpeg_from_txproto.contains(&l.as_str()) {
+                    println!("cargo:rustc-link-lib={l}");
+                }
+            }
+            // Every FFmpeg symbol is resolved from the txproto DLL's import library.
+            println!("cargo:rustc-link-lib=dylib=txproto");
+            probed.include_paths
+        } else {
+            pkg_config::Config::new()
+                .probe("kywatermark")
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "pkg-config probe for 'kywatermark' failed: {e}\n\
                  hint: build the meson tree first (./build-linux.sh -k) so \
                  kywatermark.pc lands in $OUT_DIR/lib/pkgconfig, and ensure \
                  PKG_CONFIG_LIBDIR points at it."
-                )
-            });
-    }
+                    )
+                })
+                .include_paths
+        };
 
     let target = env::var("TARGET").unwrap_or_default();
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux") {
@@ -119,31 +122,25 @@ fn main() {
     // ---- bindgen ----
     //
     // The wrapper.h includes libavutil headers, so we need the same include
-    // resolution as libavconv-sys. Re-use AVCONV_INCLUDE_DIR for that, with
-    // the same fallback chain.
-    let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
-    let workspace = manifest.join("../..");
-
-    let (include_dirs, extra_include): (Vec<PathBuf>, Option<PathBuf>) =
-        if let Ok(d) = env::var("KYWATERMARK_INCLUDE_DIR") {
-            (vec![PathBuf::from(d)], None)
-        } else if let Ok(d) = env::var("AVCONV_INCLUDE_DIR") {
-            (vec![PathBuf::from(d)], None)
-        } else if let Ok(lib) = env::var("AVCONV_LIB_DIR") {
-            (vec![PathBuf::from(&lib).join("../include")], None)
-        } else {
-            // In-tree default: rootfs/include from a meson install.
-            let rootfs_inc = workspace.join("rootfs/include");
-            if !rootfs_inc.is_dir() {
-                println!(
-                    "cargo:warning=kywatermark-sys: include dir {} not found; \
-                     set KYWATERMARK_INCLUDE_DIR or AVCONV_INCLUDE_DIR, or run \
-                     ./build-linux.sh / build-win32.sh first",
-                    rootfs_inc.display()
-                );
-            }
-            (vec![rootfs_inc], None)
-        };
+    // resolution as libavconv-sys: KYWATERMARK_INCLUDE_DIR / AVCONV_INCLUDE_DIR
+    // / AVCONV_LIB_DIR overrides, falling back to the include dirs pkg-config
+    // reports for kywatermark (same PKG_CONFIG_LIBDIR used for linking above).
+    let include_dirs: Vec<PathBuf> = if let Ok(d) = env::var("KYWATERMARK_INCLUDE_DIR") {
+        vec![PathBuf::from(d)]
+    } else if let Ok(d) = env::var("AVCONV_INCLUDE_DIR") {
+        vec![PathBuf::from(d)]
+    } else if let Ok(lib) = env::var("AVCONV_LIB_DIR") {
+        vec![PathBuf::from(&lib).join("../include")]
+    } else {
+        if pkg_config_include_paths.is_empty() {
+            println!(
+                "cargo:warning=kywatermark-sys: no include dirs reported by \
+                 pkg-config for 'kywatermark'; set KYWATERMARK_INCLUDE_DIR or \
+                 AVCONV_INCLUDE_DIR, or run ./build-linux.sh / build-win32.sh first"
+            );
+        }
+        pkg_config_include_paths
+    };
 
     let mut builder = bindgen::Builder::default()
         .header("wrapper.h")
@@ -159,9 +156,6 @@ fn main() {
 
     for dir in &include_dirs {
         builder = builder.clang_arg(format!("-I{}", dir.to_string_lossy()));
-    }
-    if let Some(ref gen_dir) = extra_include {
-        builder = builder.clang_arg(format!("-I{}", gen_dir.to_string_lossy()));
     }
 
     let target = env::var("TARGET").unwrap_or_default();
