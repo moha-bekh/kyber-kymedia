@@ -51,6 +51,7 @@ cmake "$SRC_DIR" \
     "-DSPIRV-Headers_SOURCE_DIR=$SPIRV_HEADERS_SRC" \
     -DSPIRV_SKIP_EXECUTABLES=ON \
     -DSPIRV_SKIP_TESTS=ON \
+    -DCMAKE_CXX_FLAGS="-Wno-error=array-bounds" \
     ${CROSS_CMAKE_ARGS:-}
 
 # Build and install here so downstream subprojects (e.g. glslang) can find
