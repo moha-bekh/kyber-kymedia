@@ -1,0 +1,82 @@
+From: Generated patch
+From: Arthur Vasseur <arthur@kyber.tech>
+Date: Wed, 09 Sep 2026 00:00:00 +0000
+Subject: [PATCH] avutil/hwcontext: fix bogus unmap detection in av_hwframe_map
+
+av_hwframe_map() decides whether a call is really an "unmap" of a
+previous mapping purely by comparing src/dst hw_frames_ctx and pixel
+formats. That heuristic doesn't verify that src->buf[0] was actually
+produced by a prior ff_hwframe_map_create() call, only that the formats
+happen to line up.
+
+This misfires for callers that build a sw->hw mapping "in reverse", such
+as vf_hwmap's reverse mode: it attaches its own hwframes_ref to an
+independently-allocated software frame before calling av_hwframe_map(),
+purely so the format/context check above will match. When it does,
+src->buf[0]->data is cast to a HWMapDescriptor* and its "source" field
+is read as an AVFrame* to hand back via av_frame_replace() - but
+buf[0]->data here is real pixel data from the software frame, not a
+HWMapDescriptor. The "source" pointer read out of that pixel data is
+effectively garbage, and dereferencing it crashes.
+
+This was found with an XCB screen-grab source pushed through
+"hwmap,scale_vaapi=format=nv12" into a VAAPI encoder on a discrete GPU
+(Intel Arc): the software capture frame is independently allocated
+(never obtained via hwmap's own get_buffer hook), so it reliably takes
+this bogus path and segfaults on the very first frame.
+
+Require src->buf[0]'s underlying AVBuffer to have been created by
+ff_hwframe_map_create() (identified by its free callback being
+ff_hwframe_unmap) before trusting it to hold a HWMapDescriptor. If it
+isn't, fall through to the normal map_from/map_to path instead.
+---
+ libavutil/hwcontext.c | 20 ++++++++++++++++----
+ 1 file changed, 20 insertions(+), 6 deletions(-)
+
+--- a/libavutil/hwcontext.c
++++ b/libavutil/hwcontext.c
+@@ -20,6 +20,7 @@
+ 
+ #include "avassert.h"
+ #include "buffer.h"
++#include "buffer_internal.h"
+ #include "common.h"
+ #include "hwcontext.h"
+ #include "hwcontext_internal.h"
+@@ -807,17 +808,30 @@
+             (src_frames->source_frames &&
+              src_frames->source_frames->data ==
+              (uint8_t*)dst_frames)) {
+-            // This is an unmap operation.  We don't need to directly
+-            // do anything here other than fill in the original frame,
+-            // because the real unmap will be invoked when the last
+-            // reference to the mapped frame disappears.
++            // This looks like an unmap operation (src and dst agree on
++            // format/context), but that alone doesn't prove src actually
++            // came from a previous av_hwframe_map() call: a plain software
++            // frame that merely happens to have dst's hw_frames_ctx and
++            // sw_format attached (e.g. by a caller wanting a sw->hw map,
++            // such as vf_hwmap's reverse mode) matches the same condition.
++            // Require src->buf[0] to have actually been created by
++            // ff_hwframe_map_create() before trusting its data to be a
++            // HWMapDescriptor - otherwise buf[0]->data is plain frame data,
++            // and the "source" pointer read from it is garbage that
++            // av_frame_replace() would go on to dereference below.
+             if (!src->buf[0]) {
+                 av_log(src_frames, AV_LOG_ERROR, "Invalid mapping "
+                        "found when attempting unmap.\n");
+                 return AVERROR(EINVAL);
+             }
+-            hwmap = (HWMapDescriptor*)src->buf[0]->data;
+-            return av_frame_replace(dst, hwmap->source);
++            if (src->buf[0]->buffer->free == &ff_hwframe_unmap) {
++                // This is an unmap operation.  We don't need to directly
++                // do anything here other than fill in the original frame,
++                // because the real unmap will be invoked when the last
++                // reference to the mapped frame disappears.
++                hwmap = (HWMapDescriptor*)src->buf[0]->data;
++                return av_frame_replace(dst, hwmap->source);
++            }
+         }
+     }
+ 

@@ -247,14 +247,16 @@ fn create_vaapi(
         VideoCodec::AV1 => "av1_vaapi",
     };
 
-    // DRM, XCB and Wlroots grab backends output RGB, so we need a RGB->NV12 filter
     #[cfg(target_os = "linux")]
-    let needs_nv12_filter = matches!(
-        config.grab_backend,
-        config::GrabBackend::Drm | config::GrabBackend::Xcb | config::GrabBackend::Wlroots
-    );
+    let nv12_filter_graph: Option<&str> = match config.grab_backend {
+        config::GrabBackend::Xcb => Some("hwupload,scale_vaapi=format=nv12"),
+        config::GrabBackend::Drm | config::GrabBackend::Wlroots => {
+            Some("hwmap,scale_vaapi=format=nv12")
+        }
+        config::GrabBackend::NvFBC | config::GrabBackend::Gstreamer => None,
+    };
     #[cfg(not(target_os = "linux"))]
-    let needs_nv12_filter = false;
+    let nv12_filter_graph: Option<&str> = None;
 
     let init_opts = Dictionary::from_entries(&[("fifo_size", 2).into()])?;
 
@@ -269,8 +271,8 @@ fn create_vaapi(
     info!("Creating encoder {enc_name}");
     let encoder = ctx.create_encoder(config)?;
 
-    if needs_nv12_filter {
-        let filter = create_vaapi_nv12_filter(ctx)?;
+    if let Some(graph_str) = nv12_filter_graph {
+        let filter = create_vaapi_nv12_filter(ctx, graph_str)?;
         ctx.link(video_source, &filter, 0)?;
         ctx.link(&filter, &encoder, 0)?;
     } else {
@@ -296,14 +298,11 @@ fn create_qsv_nv12_filter(ctx: &Txproto) -> Result<txproto_rs::Handle> {
     Ok(filter)
 }
 
-fn create_vaapi_nv12_filter(ctx: &Txproto) -> Result<txproto_rs::Handle> {
+fn create_vaapi_nv12_filter(ctx: &Txproto, graph_str: &str) -> Result<txproto_rs::Handle> {
     let options = Dictionary::from_entries(&[("dump_graph", false).into()])?;
 
-    let filter = ctx.create_filtergraph(
-        "scale_vaapi=format=nv12",
-        txproto_rs::HWDeviceType::VAAPI,
-        Some(options),
-    )?;
+    let filter =
+        ctx.create_filtergraph(graph_str, txproto_rs::HWDeviceType::VAAPI, Some(options))?;
 
     Ok(filter)
 }

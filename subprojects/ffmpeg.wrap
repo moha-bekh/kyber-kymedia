@@ -43,7 +43,8 @@ diff_files =
   ffmpeg/patches/0016-avcodec-videotoolboxenc-switch-to-receive_packet-API.patch,
   ffmpeg/patches/0017-avcodec-videotoolboxenc-add-signpost-timing.patch,
   ffmpeg/patches/0018-avcodec-videotoolboxenc-set-expected-framerate.patch,
-  ffmpeg/patches/0019-avcodec-videotoolboxenc-make-VT-blocking.patch
+  ffmpeg/patches/0019-avcodec-videotoolboxenc-make-VT-blocking.patch,
+  ffmpeg/patches/0020-avutil-hwcontext-fix-bogus-unmap-detection-in-av_hw.patch
 
 [provide]
 dependency_names = ffmpeg, libavcodec, libavformat, libavutil, libswresample, libswscale, libavfilter, libavdevice
