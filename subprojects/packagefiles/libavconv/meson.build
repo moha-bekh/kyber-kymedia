@@ -1,4 +1,4 @@
-project('libavconv', 'c', version : '0.1.0', meson_version : '>=1.10.0')
+project('libavconv', 'c', 'cpp', version : '0.1.0', meson_version : '>=1.10.0')
 
 mod = import('unstable-external_project')
 

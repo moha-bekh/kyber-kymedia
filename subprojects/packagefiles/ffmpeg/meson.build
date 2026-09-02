@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-project('ffmpeg', 'c', version : '8.1.0')
+project('ffmpeg', 'c', 'cpp', version : '8.1.0')
 
 mod = import('unstable-external_project')
 
