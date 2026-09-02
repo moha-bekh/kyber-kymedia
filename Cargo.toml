@@ -13,3 +13,6 @@ members = [
     "kywatermark-rs",
     "kywatermark-rs/kywatermark-sys",
 ]
+
+[workspace.lints.clippy]
+unused_async = "warn"

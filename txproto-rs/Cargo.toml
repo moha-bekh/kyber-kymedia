@@ -7,6 +7,9 @@ edition = { workspace = true }
 default = ["watermark"]
 watermark = []
 
+[lints]
+workspace = true
+
 [dependencies]
 libc = "0.2.153"
 log = "0.4.21"

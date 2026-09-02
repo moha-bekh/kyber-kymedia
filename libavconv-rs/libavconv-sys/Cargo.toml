@@ -3,6 +3,9 @@ name = "libavconv-sys"
 version = "0.1.0"
 edition = "2021"
 
+[lints]
+workspace = true
+
 [dependencies]
 libc = "0.2"
 
