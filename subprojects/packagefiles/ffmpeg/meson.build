@@ -120,6 +120,9 @@ if meson.is_cross_build()
 endif
 
 common_conf = [
+  # FFmpeg configure ignores the CC env var and requires --cc= explicitly.
+  '--cc=' + ' '.join(meson.get_compiler('c').cmd_array()),
+  '--host-cc=' + ' '.join(meson.get_compiler('c', native: true).cmd_array()),
   '--prefix=' + prefix_opt,
   '--libdir=' + join_paths(prefix_opt, libdir_opt),
   '--disable-doc',
@@ -144,9 +147,6 @@ host_cpu = host_machine.cpu_family()
 
 if host_machine.system() == 'android'
   # Android cross-compile via NDK LLVM toolchain; no prefixed binaries exist.
-  # FFmpeg configure ignores the CC env var and requires --cc= explicitly.
-  _cc = meson.get_compiler('c')
-  _cc_path = _cc.cmd_array()[0]
   _ar     = find_program('llvm-ar',     required: true).full_path()
   _ranlib = find_program('llvm-ranlib', required: true).full_path()
   _strip  = find_program('llvm-strip',  required: true).full_path()
@@ -163,7 +163,6 @@ if host_machine.system() == 'android'
     '--target-os=android',
     '--arch=' + host_cpu,
     '--cross-prefix=',
-    '--cc='     + _cc_path,
     '--ar='     + _ar,
     '--ranlib=' + _ranlib,
     '--strip='  + _strip,
@@ -210,7 +209,6 @@ elif host_machine.system() == 'linux'
   cross_conf = []
 elif host_machine.system() in ['ios', 'tvos', 'visionos']
   # Apple mobile cross-compile.
-  _cc = meson.get_compiler('c')
   _c_args = get_option('c_args')
   # Extract --target and --sysroot separately from c_args.
   # Passing --sysroot (GCC-style) in extra-cflags or via ffmpeg's --sysroot=
@@ -257,14 +255,11 @@ elif host_machine.system() in ['ios', 'tvos', 'visionos']
     '--enable-cross-compile',
     '--target-os=darwin',
     '--arch=' + host_cpu,
-    '--cc=' + ' '.join(_cc.cmd_array()),
     '--pkg-config=pkg-config',
     '--pkg-config-flags=--static',
   ]
 elif host_machine.system() == 'darwin'
-  _cc = meson.get_compiler('c')
   common_conf += [
-    '--cc=' + ' '.join(_cc.cmd_array()),
     '--enable-pic',
     '--extra-cflags=-fPIC -fvisibility=hidden',
     '--disable-nvenc',
@@ -293,7 +288,7 @@ endif
 
 p = mod.add_project('meson-configure',
   configure_options : common_conf,
-  cross_configure_options : common_conf + cross_conf,
+  cross_configure_options : cross_conf,
   verbose : true,
   env : env,
 )
