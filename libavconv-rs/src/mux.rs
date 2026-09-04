@@ -281,7 +281,7 @@ unsafe extern "C" fn on_stream_params_thunk(
         return 0;
     };
     let ms_ref = unsafe { ms.as_ref() };
-    f(ms_ref, unsafe { &mut *params })
+    crate::error::catch_hook_panic(|| f(ms_ref, unsafe { &mut *params }))
 }
 
 unsafe extern "C" fn on_packet_in_thunk(
@@ -305,8 +305,10 @@ unsafe extern "C" fn on_packet_in_thunk(
     } else {
         Some(unsafe { &mut *pkt })
     };
-    f(unsafe { &mut *fc }, pkt_ref, flags_in, unsafe {
-        &mut *flags_out
+    crate::error::catch_hook_panic(|| {
+        f(unsafe { &mut *fc }, pkt_ref, flags_in, unsafe {
+            &mut *flags_out
+        })
     })
 }
 

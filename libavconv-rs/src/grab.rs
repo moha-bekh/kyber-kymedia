@@ -597,12 +597,14 @@ unsafe extern "C" fn grab_on_frame_thunk(
         // pool slots (observed as "Static surface pool size exceeded").
         return -libc::ENOSYS;
     };
-    f(
-        unsafe { &mut *stream_idx },
-        unsafe { &mut *frame },
-        flags_in,
-        unsafe { &mut *flags_out },
-    )
+    crate::error::catch_hook_panic(|| {
+        f(
+            unsafe { &mut *stream_idx },
+            unsafe { &mut *frame },
+            flags_in,
+            unsafe { &mut *flags_out },
+        )
+    })
 }
 
 // Stub thunks for events not exposed via closures.

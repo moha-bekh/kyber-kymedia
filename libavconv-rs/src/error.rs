@@ -48,6 +48,15 @@ pub(crate) const AVERROR_EOF: i32 =
 /// `AVERROR(EAGAIN)`; libav negates errno values.
 pub(crate) const AVERROR_EAGAIN: i32 = -libc::EAGAIN;
 
+/// `AVERROR_EXTERNAL` = `FFERRTAG('E','X','T',' ')`; same bindgen gap as
+/// `AVERROR_EOF` above.
+pub(crate) const AVERROR_EXTERNAL: i32 =
+    -(b'E' as i32 | (b'X' as i32) << 8 | (b'T' as i32) << 16 | (b' ' as i32) << 24);
+
+pub(crate) fn catch_hook_panic<F: FnOnce() -> i32>(f: F) -> i32 {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)).unwrap_or(AVERROR_EXTERNAL)
+}
+
 /// Wraps a raw AVERROR return code: returns Ok(ret) when ret >= 0,
 /// or Err(Error::AvError) otherwise.
 pub fn check_ret(ret: i32) -> Result<i32> {

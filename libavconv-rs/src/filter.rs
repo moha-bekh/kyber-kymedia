@@ -241,7 +241,7 @@ unsafe extern "C" fn fg_on_frame_in_thunk(
     } else {
         Some(unsafe { &mut *frame })
     };
-    f(frame_ref, flags_in, unsafe { &mut *flags_out })
+    crate::error::catch_hook_panic(|| f(frame_ref, flags_in, unsafe { &mut *flags_out }))
 }
 
 // Stub thunks for events not exposed via closures. Returning 0 lets

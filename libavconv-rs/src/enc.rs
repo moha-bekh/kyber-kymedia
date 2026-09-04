@@ -308,8 +308,10 @@ unsafe extern "C" fn enc_on_frame_in_thunk(
     } else {
         Some(unsafe { &mut *frame })
     };
-    f(unsafe { &mut *enc_ctx }, frame_ref, flags_in, unsafe {
-        &mut *flags_out
+    crate::error::catch_hook_panic(|| {
+        f(unsafe { &mut *enc_ctx }, frame_ref, flags_in, unsafe {
+            &mut *flags_out
+        })
     })
 }
 
@@ -337,8 +339,10 @@ unsafe extern "C" fn enc_on_packet_out_thunk(
     } else {
         Some(unsafe { &mut *pkt })
     };
-    f(unsafe { &mut *enc_ctx }, pkt_ref, flags_in, unsafe {
-        &mut *flags_out
+    crate::error::catch_hook_panic(|| {
+        f(unsafe { &mut *enc_ctx }, pkt_ref, flags_in, unsafe {
+            &mut *flags_out
+        })
     })
 }
 
@@ -355,5 +359,5 @@ unsafe extern "C" fn enc_on_stream_params_thunk(
     let Some(f) = storage.on_stream_params.as_mut() else {
         return 0;
     };
-    f(unsafe { &mut *enc_ctx }, unsafe { &mut *par }, flags)
+    crate::error::catch_hook_panic(|| f(unsafe { &mut *enc_ctx }, unsafe { &mut *par }, flags))
 }
