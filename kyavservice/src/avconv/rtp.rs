@@ -112,11 +112,10 @@ pub(crate) async fn generate_sdp(
     //   4. **Then** call ctx.stop() and remove the file.
     //
     // Step 4 must happen after step 3 because libavconv's `avconv_stop`
-    // does a `pthread_join` on every thread with no timeout on Windows the
-    // DXGI duplication thread can take >20 s to notice the terminate flag
-    // when the screen is idle.  The JoinHandle on the spawn_blocking task is
-    // dropped (detached), so that slow cleanup runs in the background while
-    // the caller already has its response.
+    // does a `pthread_join` on every pipeline thread with no timeout. The
+    // JoinHandle on the spawn_blocking task is dropped (detached), so that
+    // cleanup runs in the background while the caller already has its
+    // response.
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<String>>();
     let _detached: tokio::task::JoinHandle<()> = tokio::task::spawn_blocking(move || {
         let probe = build_and_capture_sdp(
@@ -136,7 +135,7 @@ pub(crate) async fn generate_sdp(
         // Reply *before* the slow teardown.
         let _ = tx.send(parsed);
 
-        // Cleanup may block for many seconds inside avconv_stop's pthread_join.
+        // Cleanup may block inside avconv_stop's pthread_join.
         // The SDP file at `probe_path` is intentionally left on disk: kyclient
         // reads it directly out of `%TEMP%\video.sdp` after the probe, matching
         // the original txproto behaviour.  It is overwritten on the next probe.
