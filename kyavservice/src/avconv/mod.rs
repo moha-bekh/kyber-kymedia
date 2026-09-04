@@ -104,6 +104,16 @@ pub(crate) enum Context {
     AvconvAudio { _ctx: AvconvAudioContext },
 }
 
+fn detach_teardown(old: Context) {
+    tokio::task::spawn_blocking(move || drop(old));
+}
+
+fn set_ctx(ctx: &mut Option<Context>, new: Context) {
+    if let Some(old) = ctx.replace(new) {
+        detach_teardown(old);
+    }
+}
+
 fn forward_init_error(sender: &EventSender<IpcApi>, err: Error, type_: PipelineType) {
     error!("Failed to start {type_:?} pipeline: {err:?}");
 
@@ -247,7 +257,7 @@ async fn handle_command(
 
             let ret = rtp::start_video(video_config, ip, port, sender.clone());
             match ret {
-                Ok(c) => *ctx = Some(c),
+                Ok(c) => set_ctx(ctx, c),
                 Err(err) => forward_init_error(sender, err, PipelineType::Video),
             }
         }
@@ -256,7 +266,7 @@ async fn handle_command(
 
             let ret = rtp::start_audio(ip, port, config.clock_type(), sender.clone());
             match ret {
-                Ok(c) => *ctx = Some(c),
+                Ok(c) => set_ctx(ctx, c),
                 Err(err) => forward_init_error(sender, err, PipelineType::Audio),
             }
         }
@@ -291,7 +301,7 @@ async fn handle_command(
             let ret =
                 kymux::start_video(video_config, &uri, metrics_uri.as_deref(), sender.clone());
             match ret {
-                Ok(c) => *ctx = Some(c),
+                Ok(c) => set_ctx(ctx, c),
                 Err(err) => forward_init_error(sender, err, PipelineType::Video),
             }
         }
@@ -300,7 +310,7 @@ async fn handle_command(
 
             let ret = kymux::start_audio(&uri, config.clock_type(), sender.clone());
             match ret {
-                Ok(c) => *ctx = Some(c),
+                Ok(c) => set_ctx(ctx, c),
                 Err(err) => forward_init_error(sender, err, PipelineType::Audio),
             }
         }
@@ -308,7 +318,9 @@ async fn handle_command(
         Command::VideoForceIdr => handle_video_force_idr(ctx)?,
         Command::Stop => {
             *stop = true;
-            drop(ctx.take());
+            if let Some(old) = ctx.take() {
+                detach_teardown(old);
+            }
             if let Some(watcher) = display_watcher.take() {
                 watcher.shutdown_and_join();
             }
