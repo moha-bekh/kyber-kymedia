@@ -234,7 +234,7 @@ unsafe extern "C" fn fg_on_frame_in_thunk(
     }
     let storage = unsafe { &mut *((*fg).opaque as *mut FilterGraphHookStorage) };
     let Some(f) = storage.on_frame_in.as_mut() else {
-        return 0;
+        return -libc::ENOSYS;
     };
     let frame_ref = if flags_in & sys::AVConvFGHookFlagsIn_AVCONV_FG_HOOK_FLAG_IN_EOS != 0 {
         None

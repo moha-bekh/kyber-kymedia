@@ -58,8 +58,14 @@ pub(crate) fn watermark_hook(
     })?;
 
     Ok(
-        move |frame: Option<&mut sys::AVFrame>, _flags_in, _flags_out: &mut u32| {
+        move |frame: Option<&mut sys::AVFrame>, flags_in: u32, flags_out: &mut u32| {
             let Some(frame) = frame else { return 0 };
+
+            if flags_in & sys::AVConvFGHookFlagsIn_AVCONV_FG_HOOK_FLAG_IN_HEARTBEAT != 0 {
+                *flags_out |= sys::AVConvFGHookFlagsOut_AVCONV_FG_HOOK_FLAG_OUT_HEARTBEAT;
+                return 0;
+            }
+
             if let Err(err) = watermark.apply_frame(frame) {
                 error!("kywatermark apply failed: {err:?}");
             }
