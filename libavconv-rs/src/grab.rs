@@ -494,9 +494,9 @@ impl GrabCaptureBuilder {
 
         check_ret(unsafe { sys::avgrab_capture_init(self.ptr, ctx.as_ptr()) })?;
 
-        let ptr = self.ptr;
-        let hooks = std::mem::take(&mut self.hooks);
-        std::mem::forget(self);
+        let this = std::mem::ManuallyDrop::new(self);
+        let ptr = this.ptr;
+        let hooks = unsafe { std::ptr::read(&this.hooks) };
         Ok(GrabCapture {
             ptr,
             _hooks: hooks,
