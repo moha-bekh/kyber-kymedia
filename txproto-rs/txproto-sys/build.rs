@@ -40,17 +40,23 @@ fn main() {
         .allowlist_type("TxWatermarkPosition")
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
 
-    // Try to guess the mingw-w64 include path on mac
-    #[cfg(target_os = "macos")]
-    if let Some(output) = env::var("CARGO_CFG_WINDOWS").ok().and_then(|_| {
-        std::process::Command::new("brew")
+    if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        let mingw_prefix =
+            env::var("MINGW_PREFIX").unwrap_or_else(|_| "/usr/x86_64-w64-mingw32".to_string());
+        let include_dir = PathBuf::from(mingw_prefix).join("include");
+        if include_dir.is_dir() {
+            bindings = bindings.clang_arg(format!("-I{}", include_dir.display()));
+        } else if let Ok(output) = std::process::Command::new("brew")
             .args(["--prefix", "mingw-w64"])
             .output()
-            .ok()
-    }) {
-        let prefix = String::from_utf8(output.stdout).expect("brew output not utf8");
-        let prefix = prefix.trim();
-        bindings = bindings.clang_arg(format!("-I{prefix}/toolchain-x86_64/mingw/include"));
+            && output.status.success()
+        {
+            let prefix = String::from_utf8(output.stdout).expect("brew output not utf8");
+            bindings = bindings.clang_arg(format!(
+                "-I{}/toolchain-x86_64/mingw/include",
+                prefix.trim()
+            ));
+        }
     }
 
     // Link against the txproto shared library only. Its import library resolves
