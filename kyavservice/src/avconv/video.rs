@@ -270,10 +270,11 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
             (enc, "hwmap,format=qsv,scale_qsv=format=nv12".to_string())
         }
         VideoEncoder::X264 => {
+            let pix_fmt = if config.yuv444 { "yuv444p" } else { "nv12" };
             #[cfg(target_os = "windows")]
-            let filter = "hwdownload,format=bgra,format=nv12".to_string();
+            let filter = format!("hwdownload,format=bgra,format={pix_fmt}");
             #[cfg(not(target_os = "windows"))]
-            let filter = "format=nv12".to_string();
+            let filter = format!("format={pix_fmt}");
             ("libx264", filter)
         }
         // Not implemented by the libavconv backend yet (txproto is the only
@@ -321,7 +322,7 @@ fn configure_enc_ctx(enc: &EncoderBuilder, config: &VideoConfig) -> Result<()> {
         VideoEncoder::AMF => ("amf", configure_amf(config)),
         VideoEncoder::VAAPI => ("vaapi", configure_vaapi(config)),
         VideoEncoder::QSV => ("qsv", configure_qsv(config)),
-        VideoEncoder::X264 => ("libx264", configure_x264()),
+        VideoEncoder::X264 => ("libx264", configure_x264(config)),
         // Unreachable in practice: encoder_names() already fails the
         // pipeline before configure_enc_ctx() runs (see the comment there).
         VideoEncoder::VIDEOTOOLBOX => ("videotoolbox", Vec::new()),
@@ -431,11 +432,15 @@ fn configure_qsv(config: &VideoConfig) -> Vec<(&'static str, String)> {
     options
 }
 
-fn configure_x264() -> Vec<(&'static str, String)> {
-    vec![
+fn configure_x264(config: &VideoConfig) -> Vec<(&'static str, String)> {
+    let mut options = vec![
         ("preset", "ultrafast".to_string()),
         ("tune", "zerolatency".to_string()),
-    ]
+    ];
+    if config.yuv444 {
+        options.push(("profile", "high444".to_string()));
+    }
+    options
 }
 
 fn encoder_config_to_options(encoder_config: &config::EncoderConfig) -> Vec<(&str, String)> {
