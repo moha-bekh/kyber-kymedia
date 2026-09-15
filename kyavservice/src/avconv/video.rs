@@ -273,7 +273,7 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
             #[cfg(target_os = "windows")]
             let filter = "hwdownload,format=bgra,format=nv12";
             #[cfg(not(target_os = "windows"))]
-            let filter = "scale=w=1920:h=-1,format=nv12";
+            let filter = "format=nv12";
             ("libx264", filter)
         }
         // Not implemented by the libavconv backend yet (txproto is the only
