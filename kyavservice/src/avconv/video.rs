@@ -235,7 +235,7 @@ fn install_capture_hook(
 }
 
 /// Returns `(encoder_name, filtergraph_description)`.
-fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
+fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
     match config.encoder {
         VideoEncoder::NVENC => {
             let enc = match config.codec {
@@ -243,7 +243,7 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
                 VideoCodec::HEVC => "hevc_nvenc",
                 VideoCodec::AV1 => "av1_nvenc",
             };
-            (enc, "null")
+            (enc, "null".to_string())
         }
         VideoEncoder::AMF => {
             let enc = match config.codec {
@@ -251,7 +251,7 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
                 VideoCodec::HEVC => "hevc_amf",
                 VideoCodec::AV1 => "av1_amf",
             };
-            (enc, "null")
+            (enc, "null".to_string())
         }
         VideoEncoder::VAAPI => {
             let enc = match config.codec {
@@ -259,7 +259,7 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
                 VideoCodec::HEVC => "hevc_vaapi",
                 VideoCodec::AV1 => "av1_vaapi",
             };
-            (enc, "null")
+            (enc, "null".to_string())
         }
         VideoEncoder::QSV => {
             let enc = match config.codec {
@@ -267,13 +267,13 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
                 VideoCodec::HEVC => "hevc_qsv",
                 VideoCodec::AV1 => "av1_qsv",
             };
-            (enc, "hwmap,format=qsv,scale_qsv=format=nv12")
+            (enc, "hwmap,format=qsv,scale_qsv=format=nv12".to_string())
         }
         VideoEncoder::X264 => {
             #[cfg(target_os = "windows")]
-            let filter = "hwdownload,format=bgra,format=nv12";
+            let filter = "hwdownload,format=bgra,format=nv12".to_string();
             #[cfg(not(target_os = "windows"))]
-            let filter = "format=nv12";
+            let filter = "format=nv12".to_string();
             ("libx264", filter)
         }
         // Not implemented by the libavconv backend yet (txproto is the only
@@ -286,7 +286,7 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, &'static str) {
                 VideoCodec::HEVC => "hevc_videotoolbox",
                 VideoCodec::AV1 => "av1_videotoolbox",
             };
-            (enc, "null")
+            (enc, "null".to_string())
         }
     }
 }
@@ -479,7 +479,7 @@ fn create_encoder_pipeline(
     let (enc_name, filter_desc) = encoder_names(video_config);
     info!("Create encoder {enc_name}, filter: {filter_desc}");
 
-    let mut fg = FilterGraphBuilder::new(Arc::clone(&ctx), filter_desc, Some(hw_device))?;
+    let mut fg = FilterGraphBuilder::new(Arc::clone(&ctx), &filter_desc, Some(hw_device))?;
 
     // Install watermark closure before build() libavconv copies the hook
     // pointers into its internal storage during init.
