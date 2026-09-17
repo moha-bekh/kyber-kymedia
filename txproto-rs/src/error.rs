@@ -43,15 +43,9 @@ pub enum Error {
 impl From<libc::c_int> for Error {
     fn from(value: libc::c_int) -> Self {
         const AV_ERROR_MAX_STRING_SIZE: usize = 64;
-        let mut buf = vec![0i8; AV_ERROR_MAX_STRING_SIZE];
+        let mut buf = vec![0; AV_ERROR_MAX_STRING_SIZE];
 
-        let ret = unsafe {
-            sys::av_strerror(
-                value,
-                buf.as_mut_slice().as_mut_ptr() as *mut _,
-                buf.len() as _,
-            )
-        };
+        let ret = unsafe { sys::av_strerror(value, buf.as_mut_ptr(), buf.len() as _) };
 
         let description = if ret == 0 {
             let s = unsafe { CStr::from_ptr(buf.as_ptr()) };

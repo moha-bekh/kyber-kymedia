@@ -30,13 +30,15 @@ use crate::Result;
 
 mod bindgen_extras {
     // System-V x86_64 (macOS/Linux) exposes va_list as `[__va_list_tag; 1]`,
-    // which decays to a pointer; the simpler pointer-shaped va_list on macOS
-    // aarch64 and Windows is emitted by bindgen as the `va_list` alias.
+    // which decays to a pointer; the va_list on aarch64 (macOS: `char *`,
+    // Linux: a single `struct __va_list` passed by value) and on Windows
+    // (`char *`) is emitted by bindgen as the `va_list` alias.
     #[cfg(all(any(target_os = "macos", target_os = "linux"), target_arch = "x86_64"))]
     pub type Valist = *mut crate::sys::__va_list_tag;
 
     #[cfg(any(
         all(target_os = "macos", target_arch = "aarch64"),
+        all(target_os = "linux", target_arch = "aarch64"),
         target_os = "windows"
     ))]
     pub type Valist = crate::sys::va_list;

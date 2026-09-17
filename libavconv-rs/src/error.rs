@@ -63,7 +63,7 @@ pub fn check_ret(ret: i32) -> Result<i32> {
     if ret >= 0 {
         Ok(ret)
     } else {
-        let mut buf = [0i8; 256];
+        let mut buf = [0; 256];
         let description = unsafe {
             sys::av_strerror(ret, buf.as_mut_ptr(), buf.len());
             CStr::from_ptr(buf.as_ptr()).to_string_lossy().into_owned()
