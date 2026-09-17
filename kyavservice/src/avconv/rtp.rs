@@ -169,6 +169,12 @@ fn build_and_capture_sdp(
 ) -> Result<(Result<String>, ProbeAnchor)> {
     let video_config = VideoConfig {
         display_id,
+        #[cfg(target_os = "linux")]
+        source_mode: config::VideoSourceMode::Raw,
+        #[cfg(target_os = "linux")]
+        source_size: None,
+        #[cfg(target_os = "linux")]
+        output_size: None,
         encoder,
         bitrate: 20_000_000,
         codec,
@@ -180,6 +186,8 @@ fn build_and_capture_sdp(
         watermark: None,
         #[cfg(target_os = "linux")]
         grab_backend: config::GrabBackend::NvFBC,
+        #[cfg(target_os = "linux")]
+        gstreamer_pipeline: None,
     };
 
     let ctx = Arc::new(AvconvContext::new()?);

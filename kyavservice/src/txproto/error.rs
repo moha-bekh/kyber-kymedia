@@ -50,6 +50,8 @@ pub enum Error {
     ConfigLoadFail { reason: toml::de::Error },
     #[error("Failed to write configuration: {reason}")]
     ConfigWriteFail { reason: toml::ser::Error },
+    #[error("Invalid configuration: {reason}")]
+    ConfigInvalid { reason: String },
     #[error("Thread has panicked")]
     ThreadPanicked,
     #[error("IO Error: {source:?}")]
@@ -88,6 +90,7 @@ impl From<crate::config::ConfigError> for Error {
             crate::config::ConfigError::Parse(reason) => Error::ConfigParseFail { reason },
             crate::config::ConfigError::Load(reason) => Error::ConfigLoadFail { reason },
             crate::config::ConfigError::Write(reason) => Error::ConfigWriteFail { reason },
+            crate::config::ConfigError::Invalid(reason) => Error::ConfigInvalid { reason },
         }
     }
 }

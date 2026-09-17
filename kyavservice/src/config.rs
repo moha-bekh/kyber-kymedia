@@ -19,11 +19,16 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+#[cfg(target_os = "linux")]
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
 use log::info;
 use serde::Deserialize;
+
+#[cfg(target_os = "linux")]
+use kyavservice_types::VideoCodec;
 
 /// Errors of the shared config module. Public because `parse`, `from_table`
 /// and `kyavserver_log_extras` are called from the binary before either
@@ -41,6 +46,8 @@ pub enum ConfigError {
     Load(toml::de::Error),
     #[error("Failed to write configuration: {0}")]
     Write(toml::ser::Error),
+    #[error("Invalid configuration: {0}")]
+    Invalid(String),
 }
 
 pub type Result<T> = std::result::Result<T, ConfigError>;
@@ -63,6 +70,7 @@ pub(crate) enum VideoEncoder {
     NVENC,
     QSV,
     VAAPI,
+    V4L2M2M,
     X264,
     VIDEOTOOLBOX,
 }
@@ -110,6 +118,96 @@ pub(crate) enum GrabBackend {
     Xcb,
     #[cfg(target_os = "linux")]
     Wlroots,
+    #[cfg(target_os = "linux")]
+    Gstreamer,
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum VideoSourceMode {
+    #[default]
+    Raw,
+    Encoded,
+}
+
+#[cfg(target_os = "linux")]
+fn default_raw_format() -> String {
+    "NV12".to_string()
+}
+
+#[cfg(target_os = "linux")]
+fn default_interlace_mode() -> String {
+    "progressive".to_string()
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Clone, Debug, Deserialize)]
+pub(crate) struct GstreamerVideoSource {
+    pub(crate) name: String,
+    source: String,
+    width: i32,
+    height: i32,
+    framerate: String,
+    #[serde(default = "default_raw_format")]
+    format: String,
+    #[serde(default = "default_interlace_mode", alias = "interlace-mode")]
+    interlace_mode: String,
+    output_width: Option<i32>,
+    output_height: Option<i32>,
+    pub(crate) codec: Option<VideoCodec>,
+    pub(crate) encoder: Option<VideoEncoder>,
+    #[serde(default)]
+    pub(crate) mode: VideoSourceMode,
+}
+
+#[cfg(target_os = "linux")]
+impl GstreamerVideoSource {
+    pub(crate) fn source_size(&self) -> (i32, i32) {
+        (self.width, self.height)
+    }
+
+    pub(crate) fn output_size(&self) -> (i32, i32) {
+        (
+            self.output_width.unwrap_or(self.width),
+            self.output_height.unwrap_or(self.height),
+        )
+    }
+
+    pub(crate) fn pipeline(&self) -> String {
+        match self.mode {
+            VideoSourceMode::Raw => format!(
+                "{} ! video/x-raw,width={},height={},framerate={},format={},interlace-mode={}",
+                self.source,
+                self.width,
+                self.height,
+                self.framerate,
+                self.format,
+                self.interlace_mode
+            ),
+            VideoSourceMode::Encoded => match self.codec {
+                Some(VideoCodec::H264) => format!(
+                    "{} ! video/x-h264,width={},height={},framerate={} ! h264parse config-interval=-1 ! video/x-h264,stream-format=byte-stream,alignment=au",
+                    self.source, self.width, self.height, self.framerate,
+                ),
+                Some(VideoCodec::HEVC) => format!(
+                    "{} ! video/x-h265,width={},height={},framerate={} ! h265parse config-interval=-1 ! video/x-h265,stream-format=byte-stream,alignment=au",
+                    self.source, self.width, self.height, self.framerate,
+                ),
+                Some(VideoCodec::AV1) | None => {
+                    unreachable!("GStreamer source codec is validated during configuration load")
+                }
+            },
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[derive(Clone, Debug, Default, Deserialize)]
+struct GstreamerConfig {
+    default_source: Option<String>,
+    #[serde(default)]
+    video_sources: Vec<GstreamerVideoSource>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -125,6 +223,8 @@ pub struct Config {
     pub(crate) watermark: Option<WatermarkConfig>,
     #[cfg(target_os = "linux")]
     grab_backend: Option<GrabBackend>,
+    #[cfg(target_os = "linux")]
+    gstreamer: Option<GstreamerConfig>,
 }
 
 impl Config {
@@ -155,6 +255,173 @@ impl Config {
     #[cfg(target_os = "linux")]
     pub(crate) fn grab_backend(&self) -> GrabBackend {
         self.grab_backend.unwrap_or_default()
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(crate) fn is_gstreamer(&self) -> bool {
+        matches!(self.grab_backend(), GrabBackend::Gstreamer)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn validate_gstreamer_source(source: &GstreamerVideoSource) -> Result<()> {
+        if source.name.trim().is_empty() {
+            return Err(ConfigError::Invalid(
+                "GStreamer video source name cannot be empty".to_string(),
+            ));
+        }
+        if source.source.trim().is_empty() {
+            return Err(ConfigError::Invalid(format!(
+                "GStreamer video source '{}' has an empty source",
+                source.name
+            )));
+        }
+        // Raw mode appends the raw caps to `source`, so it must be a single
+        // source element. Encoded mode passes `source` verbatim ahead of the
+        // parser, so it may be a full launch fragment (e.g. a hardware
+        // V4L2 capture-and-encode chain: `v4l2src ! NV12 caps ! v4l2h264enc`).
+        if matches!(source.mode, VideoSourceMode::Raw) && source.source.contains('!') {
+            return Err(ConfigError::Invalid(format!(
+                "GStreamer raw video source '{}' source must be a single source element; caps are configured separately",
+                source.name
+            )));
+        }
+        if source.width <= 0 || source.height <= 0 {
+            return Err(ConfigError::Invalid(format!(
+                "GStreamer video source '{}' width and height must be positive",
+                source.name
+            )));
+        }
+        if source.framerate.trim().is_empty() {
+            return Err(ConfigError::Invalid(format!(
+                "GStreamer video source '{}' framerate cannot be empty",
+                source.name
+            )));
+        }
+
+        match (source.output_width, source.output_height) {
+            (Some(width), Some(height)) if width > 0 && height > 0 => {}
+            (Some(_), Some(_)) => {
+                return Err(ConfigError::Invalid(format!(
+                    "GStreamer video source '{}' output_width and output_height must be positive",
+                    source.name
+                )));
+            }
+            (None, None) => {}
+            _ => {
+                return Err(ConfigError::Invalid(format!(
+                    "GStreamer video source '{}' must set both output_width and output_height, or neither",
+                    source.name
+                )));
+            }
+        }
+
+        match source.mode {
+            VideoSourceMode::Raw => {
+                if source.codec.is_some() {
+                    return Err(ConfigError::Invalid(format!(
+                        "GStreamer raw video source '{}' must not set codec",
+                        source.name
+                    )));
+                }
+            }
+            VideoSourceMode::Encoded => {
+                if !matches!(source.codec, Some(VideoCodec::H264 | VideoCodec::HEVC)) {
+                    return Err(ConfigError::Invalid(format!(
+                        "GStreamer encoded video source '{}' must set codec to H264 or HEVC",
+                        source.name
+                    )));
+                }
+                if source.encoder.is_some() {
+                    return Err(ConfigError::Invalid(format!(
+                        "GStreamer encoded video source '{}' must not set encoder",
+                        source.name
+                    )));
+                }
+                if source.output_size() != source.source_size() {
+                    return Err(ConfigError::Invalid(format!(
+                        "GStreamer encoded video source '{}' output size must match source size",
+                        source.name
+                    )));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(crate) fn gstreamer_video_sources(&self) -> Result<Vec<GstreamerVideoSource>> {
+        if !self.is_gstreamer() {
+            return Ok(Vec::new());
+        }
+
+        let mut sources = self
+            .gstreamer
+            .as_ref()
+            .map(|gstreamer| gstreamer.video_sources.clone())
+            .unwrap_or_default();
+        if sources.is_empty() {
+            return Err(ConfigError::Invalid(
+                "GStreamer backend requires configured video_sources".to_string(),
+            ));
+        }
+
+        let mut names = HashSet::new();
+        for source in &sources {
+            Self::validate_gstreamer_source(source)?;
+            if !names.insert(source.name.clone()) {
+                return Err(ConfigError::Invalid(format!(
+                    "Duplicate GStreamer video source '{}'",
+                    source.name
+                )));
+            }
+        }
+
+        let Some(default_source) = self
+            .gstreamer
+            .as_ref()
+            .and_then(|gstreamer| gstreamer.default_source.as_deref())
+        else {
+            return Ok(sources);
+        };
+        let Some(default_idx) = sources
+            .iter()
+            .position(|source| source.name == default_source)
+        else {
+            return Err(ConfigError::Invalid(format!(
+                "Unknown default GStreamer source '{default_source}'"
+            )));
+        };
+
+        let default_source = sources.remove(default_idx);
+        sources.insert(0, default_source);
+        Ok(sources)
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(crate) fn validate_gstreamer_config(&self) -> Result<()> {
+        if self.is_gstreamer() {
+            self.gstreamer_video_sources()?;
+        }
+        Ok(())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub(crate) fn gstreamer_video_source(
+        &self,
+        display_id: u32,
+    ) -> Result<Option<GstreamerVideoSource>> {
+        if !self.is_gstreamer() {
+            return Ok(None);
+        }
+
+        self.gstreamer_video_sources()?
+            .into_iter()
+            .nth(display_id as usize)
+            .map(Some)
+            .ok_or_else(|| {
+                ConfigError::Invalid(format!("Unknown GStreamer display id {display_id}"))
+            })
     }
 }
 
@@ -221,10 +488,15 @@ pub fn from_table(table: &toml::Table) -> Result<Config> {
         return Ok(Config::default());
     };
 
-    kyavserver_conf
+    let config: Config = kyavserver_conf
         .clone()
         .try_into()
-        .map_err(ConfigError::Load)
+        .map_err(ConfigError::Load)?;
+
+    #[cfg(target_os = "linux")]
+    config.validate_gstreamer_config()?;
+
+    Ok(config)
 }
 
 pub(crate) fn dump_encoder_config(
@@ -284,5 +556,234 @@ mod tests {
             .parse()
             .unwrap();
         assert!(kyavserver_log_extras(&table).is_err());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_sources_put_configured_default_first() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+default_source = "secondary"
+
+[[kyavserver.gstreamer.video_sources]]
+name = "primary"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "60/1"
+
+[[kyavserver.gstreamer.video_sources]]
+name = "secondary"
+source = "v4l2src device=/dev/video1"
+width = 1280
+height = 720
+framerate = "30/1"
+"#
+        .parse()
+        .unwrap();
+
+        let config = from_table(&table).unwrap();
+        let sources = config.gstreamer_video_sources().unwrap();
+
+        assert_eq!(sources[0].name, "secondary");
+        assert_eq!(sources[1].name, "primary");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_encoded_source_builds_h264_byte_stream_pipeline() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "encoded"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "60/1"
+codec = "H264"
+mode = "encoded"
+"#
+        .parse()
+        .unwrap();
+
+        let config = from_table(&table).unwrap();
+        config.validate_gstreamer_config().unwrap();
+        let source = config.gstreamer_video_source(0).unwrap().unwrap();
+
+        assert_eq!(
+            source.pipeline(),
+            "v4l2src device=/dev/video0 ! video/x-h264,width=1920,height=1080,framerate=60/1 ! h264parse config-interval=-1 ! video/x-h264,stream-format=byte-stream,alignment=au"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_encoded_source_builds_hevc_byte_stream_pipeline() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "encoded"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "60/1"
+codec = "HEVC"
+mode = "encoded"
+"#
+        .parse()
+        .unwrap();
+
+        let config = from_table(&table).unwrap();
+        config.validate_gstreamer_config().unwrap();
+        let source = config.gstreamer_video_source(0).unwrap().unwrap();
+
+        assert_eq!(
+            source.pipeline(),
+            "v4l2src device=/dev/video0 ! video/x-h265,width=1920,height=1080,framerate=60/1 ! h265parse config-interval=-1 ! video/x-h265,stream-format=byte-stream,alignment=au"
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_encoded_source_rejects_av1() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "encoded"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "60/1"
+codec = "AV1"
+mode = "encoded"
+"#
+        .parse()
+        .unwrap();
+
+        let err = from_table(&table).unwrap_err();
+
+        assert!(err.to_string().contains("must set codec to H264 or HEVC"));
+        assert!(matches!(err, ConfigError::Invalid(_)));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_source_rejects_embedded_pipeline() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "invalid"
+source = "v4l2src ! videoconvert"
+width = 1920
+height = 1080
+framerate = "60/1"
+"#
+        .parse()
+        .unwrap();
+
+        let err = from_table(&table).unwrap_err();
+
+        assert!(err.to_string().contains("must be a single source element"));
+        assert!(matches!(err, ConfigError::Invalid(_)));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_backend_requires_video_sources() {
+        let table: toml::Table =
+            "[kyavserver]\nbackend = \"libavconv\"\ngrab_backend = \"gstreamer\""
+                .parse()
+                .unwrap();
+
+        let err = from_table(&table).unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("requires configured video_sources")
+        );
+        assert!(matches!(err, ConfigError::Invalid(_)));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_encoded_source_rejects_output_scaling() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "encoded"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "60/1"
+output_width = 1280
+output_height = 720
+codec = "H264"
+mode = "encoded"
+"#
+        .parse()
+        .unwrap();
+
+        let err = from_table(&table).unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("output size must match source size")
+        );
+        assert!(matches!(err, ConfigError::Invalid(_)));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_raw_source_pipeline_includes_caps() {
+        let source = GstreamerVideoSource {
+            name: "raw".to_string(),
+            source: "v4l2src device=/dev/video0".to_string(),
+            width: 1920,
+            height: 1080,
+            framerate: "60/1".to_string(),
+            format: "NV12".to_string(),
+            interlace_mode: "progressive".to_string(),
+            output_width: Some(1280),
+            output_height: Some(720),
+            codec: None,
+            encoder: Some(VideoEncoder::V4L2M2M),
+            mode: VideoSourceMode::Raw,
+        };
+
+        assert_eq!(
+            source.pipeline(),
+            "v4l2src device=/dev/video0 ! video/x-raw,width=1920,height=1080,framerate=60/1,format=NV12,interlace-mode=progressive"
+        );
+        assert_eq!(source.source_size(), (1920, 1080));
+        assert_eq!(source.output_size(), (1280, 720));
     }
 }

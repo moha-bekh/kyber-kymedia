@@ -44,6 +44,12 @@ use crate::config::WatermarkConfig;
 
 pub(crate) struct VideoConfig {
     pub(crate) display_id: u32,
+    #[cfg(target_os = "linux")]
+    pub(crate) source_mode: config::VideoSourceMode,
+    #[cfg(target_os = "linux")]
+    pub(crate) source_size: Option<(i32, i32)>,
+    #[cfg(target_os = "linux")]
+    pub(crate) output_size: Option<(i32, i32)>,
     pub(crate) encoder: VideoEncoder,
     pub(crate) bitrate: u32,
     pub(crate) codec: VideoCodec,
@@ -55,6 +61,8 @@ pub(crate) struct VideoConfig {
     pub(crate) watermark: Option<config::WatermarkConfig>,
     #[cfg(target_os = "linux")]
     pub(crate) grab_backend: config::GrabBackend,
+    #[cfg(target_os = "linux")]
+    pub(crate) gstreamer_pipeline: Option<String>,
 }
 
 impl VideoConfig {
@@ -110,7 +118,41 @@ pub(crate) fn grab_provider_name(backend: Option<config::GrabBackend>) -> &'stat
         config::GrabBackend::NvFBC | config::GrabBackend::Xcb => "x11",
         config::GrabBackend::Drm => "kms",
         config::GrabBackend::Wlroots => "wayland",
+        config::GrabBackend::Gstreamer => "gstreamer",
     }
+}
+
+#[cfg(target_os = "linux")]
+fn configure_grab_provider(
+    grab_ctx: &GrabProviderCtx,
+    backend: config::GrabBackend,
+    gstreamer_pipeline: Option<&str>,
+) -> Result<()> {
+    match backend {
+        config::GrabBackend::Gstreamer => {
+            let pipeline = gstreamer_pipeline.ok_or(libavconv_rs::Error::NotFound {
+                name: "gstreamer pipeline",
+            })?;
+            grab_ctx.set_option("name", pipeline)?;
+        }
+        config::GrabBackend::NvFBC
+        | config::GrabBackend::Drm
+        | config::GrabBackend::Xcb
+        | config::GrabBackend::Wlroots => {}
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "linux")]
+fn grab_source_type_mask(backend: config::GrabBackend) -> u64 {
+    let source_type = match backend {
+        config::GrabBackend::Gstreamer => sys::AVGrabSourceType_AVGRAB_SOURCE_TYPE_UNKNOWN,
+        config::GrabBackend::NvFBC
+        | config::GrabBackend::Drm
+        | config::GrabBackend::Xcb
+        | config::GrabBackend::Wlroots => sys::AVGrabSourceType_AVGRAB_SOURCE_TYPE_SCREEN,
+    };
+    1u64 << (source_type as u64)
 }
 
 // libavgrab has no macOS screen-capture provider yet (only dxgi, x11, kms,
@@ -147,11 +189,26 @@ fn create_grab_source(
         grab_ctx.set_hw_device(hw_device);
     }
 
+    #[cfg(target_os = "linux")]
+    configure_grab_provider(
+        &grab_ctx,
+        video_config.grab_backend,
+        video_config.gstreamer_pipeline.as_deref(),
+    )?;
+
     grab_ctx.init()?;
 
-    // Request raw-frame screen sources.
-    // bindgen emits C enum variants as TypeName_VARIANT constants.
-    let payloads: u32 = 1 << sys::AVConvHandlePayload_AVCONV_HANDLE_PAYLOAD_FRAME;
+    #[cfg(target_os = "linux")]
+    let payload = match video_config.source_mode {
+        config::VideoSourceMode::Raw => sys::AVConvHandlePayload_AVCONV_HANDLE_PAYLOAD_FRAME,
+        config::VideoSourceMode::Encoded => sys::AVConvHandlePayload_AVCONV_HANDLE_PAYLOAD_PACKET,
+    };
+    #[cfg(not(target_os = "linux"))]
+    let payload = sys::AVConvHandlePayload_AVCONV_HANDLE_PAYLOAD_FRAME;
+    let payloads: u32 = 1 << payload;
+    #[cfg(target_os = "linux")]
+    let src_types = grab_source_type_mask(video_config.grab_backend);
+    #[cfg(not(target_os = "linux"))]
     let src_types: u64 = 1u64 << (sys::AVGrabSourceType_AVGRAB_SOURCE_TYPE_SCREEN as u64);
 
     let sources = grab_ctx.sources(payloads, src_types)?;
@@ -164,11 +221,13 @@ fn create_grab_source(
         .ok_or(libavconv_rs::Error::NoSource)?;
 
     // Always select the source's default (desktop) stream.
-    let default_idx =
-        src.find_stream_by_type(StreamType::Default)
-            .ok_or(libavconv_rs::Error::NotFound {
-                name: "default source stream",
-            })?;
+    let default_idx = src
+        .find_stream_by_type(StreamType::Default)
+        .or_else(|| src.find_stream_by_type(StreamType::Unknown))
+        .or_else(|| src.streams().next().map(|(idx, _)| idx))
+        .ok_or(libavconv_rs::Error::NotFound {
+            name: "default source stream",
+        })?;
     let cursor_idx = cursor_stream_idx(src);
 
     let stream_indices: Vec<u32> = match cursor_idx {
@@ -186,6 +245,17 @@ fn create_grab_source(
     clock::configure_capture_clock(&mut capture, &video_config.clock_type);
 
     let video_hook = video_hook_closure(metrics.cloned());
+    // Encoded Linux sources feed the muxer directly, with no capture-side hook.
+    #[cfg(target_os = "linux")]
+    if matches!(video_config.source_mode, config::VideoSourceMode::Raw) {
+        install_capture_hook(
+            &mut capture,
+            video_config.display_id,
+            cursor_capture_idx,
+            video_hook,
+        );
+    }
+    #[cfg(not(target_os = "linux"))]
     install_capture_hook(
         &mut capture,
         video_config.display_id,
@@ -274,8 +344,31 @@ fn install_capture_hook(
 }
 
 /// Returns `(encoder_name, filtergraph_description)`.
+#[cfg(target_os = "linux")]
+fn output_scale_filter(config: &VideoConfig) -> Option<String> {
+    if !matches!(config.source_mode, config::VideoSourceMode::Raw) {
+        return None;
+    }
+    let (Some(source_size), Some(output_size)) = (config.source_size, config.output_size) else {
+        return None;
+    };
+    (source_size != output_size).then(|| format!("scale=w={}:h={}", output_size.0, output_size.1))
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
+fn add_output_scale(config: &VideoConfig, filter: String) -> String {
+    #[cfg(target_os = "linux")]
+    match output_scale_filter(config) {
+        Some(scale) if filter == "null" => scale,
+        Some(scale) => format!("{scale},{filter}"),
+        None => filter,
+    }
+    #[cfg(not(target_os = "linux"))]
+    filter
+}
+
 fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
-    match config.encoder {
+    let (enc, filter): (&'static str, String) = match config.encoder {
         VideoEncoder::NVENC => {
             let enc = match config.codec {
                 VideoCodec::H264 => "h264_nvenc",
@@ -321,6 +414,24 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
             let filter = format!("format={pix_fmt}");
             ("libx264", filter)
         }
+        VideoEncoder::V4L2M2M => {
+            let enc = match config.codec {
+                VideoCodec::H264 => "h264_v4l2m2m",
+                VideoCodec::HEVC => "hevc_v4l2m2m",
+                VideoCodec::AV1 => "av1_v4l2m2m",
+            };
+            #[cfg(target_os = "linux")]
+            let filter = if matches!(config.grab_backend, config::GrabBackend::Gstreamer)
+                && output_scale_filter(config).is_none()
+            {
+                "null"
+            } else {
+                "format=nv12"
+            };
+            #[cfg(not(target_os = "linux"))]
+            let filter = "format=nv12";
+            (enc, filter.to_string())
+        }
         // Not implemented by the libavconv backend yet (txproto is the only
         // engine with a macOS/VideoToolbox path so far). Returning a name
         // that isn't registered makes find_encoder_by_name() fail with a
@@ -333,7 +444,9 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
             };
             (enc, "null".to_string())
         }
-    }
+    };
+
+    (enc, add_output_scale(config, filter))
 }
 
 fn print_options(encoder: &str, options: &[(&str, String)]) {
@@ -366,6 +479,7 @@ fn configure_enc_ctx(enc: &EncoderBuilder, config: &VideoConfig) -> Result<()> {
         VideoEncoder::AMF => ("amf", configure_amf(config)),
         VideoEncoder::VAAPI => ("vaapi", configure_vaapi(config)),
         VideoEncoder::QSV => ("qsv", configure_qsv(config)),
+        VideoEncoder::V4L2M2M => ("v4l2m2m", configure_v4l2m2m()),
         VideoEncoder::X264 => ("libx264", configure_x264(config)),
         // Unreachable in practice: encoder_names() already fails the
         // pipeline before configure_enc_ctx() runs (see the comment there).
@@ -496,6 +610,13 @@ fn configure_x264(config: &VideoConfig) -> Vec<(&'static str, String)> {
     options
 }
 
+fn configure_v4l2m2m() -> Vec<(&'static str, String)> {
+    vec![
+        ("num_output_buffers", "1".to_string()),
+        ("num_capture_buffers", "12".to_string()),
+    ]
+}
+
 fn encoder_config_to_options(encoder_config: &config::EncoderConfig) -> Vec<(&str, String)> {
     encoder_config
         .iter()
@@ -562,7 +683,16 @@ fn create_encoder_pipeline(
 
     configure_enc_ctx(&enc, video_config)?;
 
-    fg.set_out_params_from_enc(0, &enc)?;
+    #[cfg(target_os = "linux")]
+    let bind_encoder_output = !matches!(
+        (video_config.encoder, video_config.grab_backend),
+        (VideoEncoder::V4L2M2M, config::GrabBackend::Gstreamer)
+    );
+    #[cfg(not(target_os = "linux"))]
+    let bind_encoder_output = true;
+    if bind_encoder_output {
+        fg.set_out_params_from_enc(0, &enc)?;
+    }
 
     // ULL: cap the filter node's input queue to a single frame and let the
     // upstream connect drop older queued frames when hwdownload falls behind,
@@ -597,8 +727,8 @@ pub(crate) struct VideoPipeline {
     /// hook closures alive until the `AvconvContext` is dropped (which
     /// stops all callback dispatch).
     pub(crate) _capture: GrabCapture,
-    pub(crate) _fg: FilterGraph,
-    pub(crate) _enc: libavconv_rs::Encoder,
+    pub(crate) _fg: Option<FilterGraph>,
+    pub(crate) _enc: Option<libavconv_rs::Encoder>,
     _cursor_discard: Option<DataSink>,
 }
 
@@ -623,7 +753,7 @@ pub(crate) fn configure(
     video_config: VideoConfig,
     output_hdl: Handle,
     metrics: Option<MetricsForwarder>,
-) -> Result<(VideoPipeline, Arc<EncoderControl>)> {
+) -> Result<(VideoPipeline, Option<Arc<EncoderControl>>)> {
     info!(
         "Start screen grab on display {}, encoder {:?}",
         video_config.display_id, video_config.encoder
@@ -631,6 +761,21 @@ pub(crate) fn configure(
 
     let (capture, capture_handle) =
         create_grab_source(Arc::clone(&ctx), hw_device, &video_config, metrics.as_ref())?;
+
+    #[cfg(target_os = "linux")]
+    if matches!(video_config.source_mode, config::VideoSourceMode::Encoded) {
+        info!("Connecting encoded capture stream directly to output");
+        ctx.connect(capture_handle, output_hdl, 0)?;
+        return Ok((
+            VideoPipeline {
+                _capture: capture,
+                _fg: None,
+                _enc: None,
+                _cursor_discard: None,
+            },
+            None,
+        ));
+    }
 
     let (fg, mut enc_builder) = create_encoder_pipeline(
         Arc::clone(&ctx),
@@ -660,9 +805,63 @@ pub(crate) fn configure(
 
     let pipeline = VideoPipeline {
         _capture: capture,
-        _fg: fg,
-        _enc: enc,
+        _fg: Some(fg),
+        _enc: Some(enc),
         _cursor_discard: cursor_discard,
     };
-    Ok((pipeline, control))
+    Ok((pipeline, Some(control)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn video_config(encoder: VideoEncoder) -> VideoConfig {
+        VideoConfig {
+            display_id: 0,
+            #[cfg(target_os = "linux")]
+            source_mode: config::VideoSourceMode::Raw,
+            #[cfg(target_os = "linux")]
+            source_size: Some((1920, 1080)),
+            #[cfg(target_os = "linux")]
+            output_size: Some((1280, 720)),
+            encoder,
+            bitrate: 20_000_000,
+            codec: VideoCodec::H264,
+            yuv444: false,
+            intra_refresh: true,
+            encoder_config: None,
+            clock_type: config::ClockType::ZeroedOrigin,
+            #[cfg(feature = "watermark")]
+            watermark: None,
+            #[cfg(target_os = "linux")]
+            grab_backend: config::GrabBackend::Gstreamer,
+            #[cfg(target_os = "linux")]
+            gstreamer_pipeline: None,
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_backend_selects_provider_and_unknown_source_type() {
+        assert_eq!(
+            grab_provider_name(Some(config::GrabBackend::Gstreamer)),
+            "gstreamer"
+        );
+        assert_eq!(
+            grab_source_type_mask(config::GrabBackend::Gstreamer),
+            1u64 << sys::AVGrabSourceType_AVGRAB_SOURCE_TYPE_UNKNOWN
+        );
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn v4l2m2m_filter_scales_raw_gstreamer_source() {
+        let config = video_config(VideoEncoder::V4L2M2M);
+
+        let (encoder, filter) = encoder_names(&config);
+
+        assert_eq!(encoder, "h264_v4l2m2m");
+        assert_eq!(filter, "scale=w=1280:h=720,format=nv12");
+    }
 }

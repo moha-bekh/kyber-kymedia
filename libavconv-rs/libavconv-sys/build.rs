@@ -144,7 +144,12 @@ fn main() {
         // Every FFmpeg symbol is resolved from the txproto DLL's import library.
         println!("cargo:rustc-link-lib=dylib=txproto");
     } else {
-        for lib in &["libavgrab", "libavcodec"] {
+        // Probe every library whose symbols libavconv-rs references directly:
+        // libavgrab (avgrab_*), libavconv (avconv_*), libavformat (av_guess_format,
+        // avio_*) and libavcodec. A dynamic probe only exposes each .pc's public
+        // Libs (-lavgrab / -lavconv / ...), never the siblings carried in
+        // Requires.private, so each must be probed to reach the link line.
+        for lib in &["libavgrab", "libavconv", "libavcodec", "libavformat"] {
             let probed = pkg_config::Config::new().probe(lib).unwrap_or_else(|e| {
                 panic!(
                     "pkg-config probe for '{lib}' failed: {e}\n\

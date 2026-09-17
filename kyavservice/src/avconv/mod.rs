@@ -68,8 +68,9 @@ pub(crate) struct AvconvVideoContext {
     pub(crate) _output: PipelineOutput,
     pub(crate) _pipeline: video::VideoPipeline,
     /// Shared runtime-control handle for the encoder drives
-    /// `VideoSetBitrate` / `VideoForceIdr`.
-    pub(crate) control: Arc<EncoderControl>,
+    /// `VideoSetBitrate` / `VideoForceIdr`. `None` when the source is
+    /// forwarded pre-encoded: there is no encoder to drive.
+    pub(crate) control: Option<Arc<EncoderControl>>,
     pub(crate) _watcher: Option<libavconv_rs::ErrorWatcher>,
 }
 
@@ -124,13 +125,18 @@ fn forward_init_error(sender: &EventSender<IpcApi>, err: Error, type_: PipelineT
     }));
 }
 
-fn handle_video_set_bitrate(ctx: &mut Option<Context>, bitrate: i32) -> Result<()> {
-    info!("Set bitrate to {bitrate}");
-
+fn encoder_control(ctx: &Option<Context>) -> Result<&Arc<EncoderControl>> {
     match ctx {
-        Some(Context::Avconv(v)) => {
-            v.control.request_bitrate(bitrate as i64);
-            Ok(())
+        Some(Context::Avconv(AvconvVideoContext {
+            control: Some(control),
+            ..
+        })) => Ok(control),
+        Some(Context::Avconv(AvconvVideoContext { control: None, .. })) => {
+            warn!("Video source is pre-encoded, encoder controls are not available");
+            Err(std::io::Error::other(
+                "Video source is pre-encoded, encoder controls are not available",
+            )
+            .into())
         }
         _ => {
             info!("No active video encoder");
@@ -139,19 +145,16 @@ fn handle_video_set_bitrate(ctx: &mut Option<Context>, bitrate: i32) -> Result<(
     }
 }
 
+fn handle_video_set_bitrate(ctx: &mut Option<Context>, bitrate: i32) -> Result<()> {
+    info!("Set bitrate to {bitrate}");
+    encoder_control(ctx)?.request_bitrate(bitrate as i64);
+    Ok(())
+}
+
 fn handle_video_force_idr(ctx: &mut Option<Context>) -> Result<()> {
     info!("Video force IDR");
-
-    match ctx {
-        Some(Context::Avconv(v)) => {
-            v.control.request_force_idr();
-            Ok(())
-        }
-        _ => {
-            info!("No active video encoder");
-            Err(std::io::Error::other("No active video encoder").into())
-        }
-    }
+    encoder_control(ctx)?.request_force_idr();
+    Ok(())
 }
 
 fn av_log_level(level: log::LevelFilter) -> i32 {
@@ -175,6 +178,70 @@ fn ajust_min_bitrate(config: &Config, bitrate: u32) -> u32 {
     }
 }
 
+fn video_config(
+    config: &Config,
+    display_id: u32,
+    bitrate: u32,
+    codec: VideoCodec,
+    yuv444: bool,
+    intra_refresh: Option<bool>,
+) -> Result<VideoConfig> {
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+    let mut encoder = config.encoder();
+
+    #[cfg(target_os = "linux")]
+    let (source_mode, source_size, output_size, gstreamer_pipeline) = match config
+        .gstreamer_video_source(display_id)?
+    {
+        Some(source) => {
+            info!("Using GStreamer video source '{}'", source.name);
+            // A pre-encoded source is forwarded as-is, so the codec the
+            // client asked for must be the one the pipeline produces;
+            // otherwise the client would decode a mislabeled stream.
+            if source.mode == crate::config::VideoSourceMode::Encoded
+                && source.codec.as_ref().is_some_and(|c| *c != codec)
+            {
+                return Err(Error::ConfigInvalid {
+                    reason: format!(
+                        "GStreamer encoded video source '{}' produces {:?} but client requested {codec:?}",
+                        source.name, source.codec
+                    ),
+                });
+            }
+            encoder = source.encoder.unwrap_or(encoder);
+            let source_mode = source.mode;
+            let source_size = Some(source.source_size());
+            let output_size = Some(source.output_size());
+            let pipeline = Some(source.pipeline());
+            (source_mode, source_size, output_size, pipeline)
+        }
+        None => (crate::config::VideoSourceMode::Raw, None, None, None),
+    };
+
+    Ok(VideoConfig {
+        display_id,
+        #[cfg(target_os = "linux")]
+        source_mode,
+        #[cfg(target_os = "linux")]
+        source_size,
+        #[cfg(target_os = "linux")]
+        output_size,
+        encoder,
+        bitrate: ajust_min_bitrate(config, bitrate),
+        codec,
+        yuv444,
+        intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
+        encoder_config: config.video_encoder_config.clone(),
+        clock_type: config.clock_type(),
+        #[cfg(feature = "watermark")]
+        watermark: None,
+        #[cfg(target_os = "linux")]
+        grab_backend: config.grab_backend(),
+        #[cfg(target_os = "linux")]
+        gstreamer_pipeline,
+    })
+}
+
 async fn handle_command(
     cmd: Command,
     sender: &EventSender<IpcApi>,
@@ -192,12 +259,17 @@ async fn handle_command(
             #[cfg(not(target_os = "linux"))]
             let backend = None;
 
-            let display_list = displays::enumerate(backend)?;
+            let display_list = displays::enumerate(config)?;
 
             // Lazily start the hot-plug watcher on first enumeration.
             // Subsequent calls just refresh the synchronous response;
             // the watcher keeps running until `Command::Stop`.
-            if display_watcher.is_none() {
+            #[cfg(target_os = "linux")]
+            let display_watcher_enabled = !config.is_gstreamer();
+            #[cfg(not(target_os = "linux"))]
+            let display_watcher_enabled = true;
+
+            if display_watcher.is_none() && display_watcher_enabled {
                 *display_watcher = display_watcher::spawn(backend, sender.clone());
             }
 
@@ -240,20 +312,14 @@ async fn handle_command(
                 "Start RTP Video: {ip}:{port}, bitrate: {bitrate}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
             );
 
-            let video_config = VideoConfig {
+            let video_config = video_config(
+                config,
                 display_id,
-                encoder: config.encoder(),
-                bitrate: ajust_min_bitrate(config, bitrate),
-                codec: VideoCodec::H264,
+                bitrate,
+                VideoCodec::H264,
                 yuv444,
-                intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
-                encoder_config: config.video_encoder_config.clone(),
-                clock_type: config.clock_type(),
-                #[cfg(feature = "watermark")]
-                watermark: None,
-                #[cfg(target_os = "linux")]
-                grab_backend: config.grab_backend(),
-            };
+                intra_refresh,
+            )?;
 
             let ret = rtp::start_video(video_config, ip, port, sender.clone());
             match ret {
@@ -283,20 +349,13 @@ async fn handle_command(
                 "Start Kymux Video: URI {uri:?}, bitrate: {bitrate}, codec: {codec:?}, yuv444: {yuv444}, intra_refresh: {intra_refresh:?}"
             );
 
-            let video_config = VideoConfig {
-                display_id,
-                encoder: config.encoder(),
-                bitrate: ajust_min_bitrate(config, bitrate),
-                codec,
-                yuv444,
-                intra_refresh: intra_refresh.unwrap_or(config.intra_refresh()),
-                encoder_config: config.video_encoder_config.clone(),
-                clock_type: config.clock_type(),
-                #[cfg(feature = "watermark")]
-                watermark: config.watermark.clone(),
-                #[cfg(target_os = "linux")]
-                grab_backend: config.grab_backend(),
-            };
+            #[cfg_attr(not(feature = "watermark"), allow(unused_mut))]
+            let mut video_config =
+                video_config(config, display_id, bitrate, codec, yuv444, intra_refresh)?;
+            #[cfg(feature = "watermark")]
+            {
+                video_config.watermark = config.watermark.clone();
+            }
 
             let ret =
                 kymux::start_video(video_config, &uri, metrics_uri.as_deref(), sender.clone());

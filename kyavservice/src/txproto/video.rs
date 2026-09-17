@@ -105,12 +105,18 @@ pub(crate) fn grab_backend_api_list(grab_backend: config::GrabBackend) -> Vec<&'
         config::GrabBackend::Drm => vec!["drm", "pulse"],
         config::GrabBackend::Xcb => vec!["xcb", "pulse"],
         config::GrabBackend::Wlroots => vec!["wayland", "pulse"],
+        config::GrabBackend::Gstreamer => vec![],
     }
 }
 
 #[cfg(target_os = "linux")]
 fn grab_backend_to_dict(backend: config::GrabBackend) -> Result<Dictionary> {
     let entries = match backend {
+        config::GrabBackend::Gstreamer => {
+            return Err(crate::txproto::Error::ConfigInvalid {
+                reason: "gstreamer grab_backend requires the libavconv backend".to_string(),
+            });
+        }
         config::GrabBackend::NvFBC => {
             info!("Using NvFBC grab backend");
             vec![("grab_backend", "nvfbc").into()]
@@ -633,6 +639,11 @@ pub(crate) fn configure(
         VideoEncoder::NVENC => create_nvenc,
         VideoEncoder::QSV => create_qsv,
         VideoEncoder::VAAPI => create_vaapi,
+        VideoEncoder::V4L2M2M => {
+            return Err(crate::txproto::Error::ConfigInvalid {
+                reason: "v4l2m2m encoder requires the libavconv backend".to_string(),
+            });
+        }
         VideoEncoder::X264 => create_x264,
         VideoEncoder::VIDEOTOOLBOX => create_videotoolbox,
     };

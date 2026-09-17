@@ -118,6 +118,21 @@ impl GrabProviderCtx {
         unsafe { (*self.ptr).hw_device = owned };
     }
 
+    /// Set an `av_opt_set` option on the provider context before [`Self::init`].
+    pub fn set_option(&self, key: &str, value: &str) -> Result<()> {
+        let key = CString::new(key)?;
+        let value = CString::new(value)?;
+        check_ret(unsafe {
+            sys::av_opt_set(
+                self.ptr as *mut _,
+                key.as_ptr(),
+                value.as_ptr(),
+                sys::AV_OPT_SEARCH_CHILDREN as i32,
+            )
+        })?;
+        Ok(())
+    }
+
     /// Initialise the provider connection.  Must be called after setting any
     /// context fields and before calling `sources()`.
     pub fn init(&mut self) -> Result<()> {

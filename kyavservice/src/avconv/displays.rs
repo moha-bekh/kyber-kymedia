@@ -25,7 +25,9 @@ use libavconv_rs::{GrabProviderCtx, GrabSourceSet, sys};
 use libavconv_rs::HwDeviceRef;
 
 use super::Result;
-use crate::config::GrabBackend;
+#[cfg(target_os = "linux")]
+use crate::config::GstreamerVideoSource;
+use crate::config::{Config, GrabBackend};
 
 /// Build and initialise an avgrab provider context for screen sources.
 ///
@@ -75,8 +77,41 @@ pub(crate) fn collect_displays(sources: &GrabSourceSet) -> Vec<Display> {
         .collect()
 }
 
-/// Enumerate connected screens via the avgrab provider one-shot.
-pub(crate) fn enumerate(backend: Option<GrabBackend>) -> Result<Vec<Display>> {
+#[cfg(target_os = "linux")]
+fn gstreamer_display(source: &GstreamerVideoSource, idx: usize) -> Display {
+    let (width, height) = source.output_size();
+    Display {
+        id: idx as u32,
+        name: source.name.clone(),
+        width,
+        height,
+        x: 0,
+        y: 0,
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn configured_gstreamer_displays(config: &Config) -> Result<Vec<Display>> {
+    Ok(config
+        .gstreamer_video_sources()?
+        .iter()
+        .enumerate()
+        .map(|(idx, source)| gstreamer_display(source, idx))
+        .collect())
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
+pub(crate) fn enumerate(config: &Config) -> Result<Vec<Display>> {
+    #[cfg(target_os = "linux")]
+    if config.is_gstreamer() {
+        return configured_gstreamer_displays(config);
+    }
+
+    #[cfg(target_os = "linux")]
+    let backend = Some(config.grab_backend());
+    #[cfg(not(target_os = "linux"))]
+    let backend = None;
+
     let ctx = build_provider_ctx(backend)?;
     let sources = fetch_screen_sources(&ctx)?;
     Ok(collect_displays(&sources))
