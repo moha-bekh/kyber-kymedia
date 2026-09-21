@@ -242,6 +242,40 @@ fn video_config(
     })
 }
 
+/// Same pipeline selection as `RtpStartVideo` (`video_config`) so the SDP
+/// describes the stream the client will actually receive: on a headless
+/// board with `grab_backend = "gstreamer"` a probe hardwired to the desktop
+/// grabber + VAAPI fails, or describes a different encoder than the stream.
+///
+/// A pre-encoded source has no libavconv encoder to probe, so no SDP can be
+/// produced for it; refuse explicitly instead of probing the wrong pipeline.
+fn sdp_probe_config(
+    config: &Config,
+    display_id: u32,
+    yuv444: bool,
+    intra_refresh: Option<bool>,
+) -> Result<VideoConfig> {
+    let video_config = video_config(
+        config,
+        display_id,
+        rtp::SDP_PROBE_BITRATE,
+        VideoCodec::H264,
+        yuv444,
+        intra_refresh,
+    )?;
+
+    #[cfg(target_os = "linux")]
+    if video_config.source_mode == crate::config::VideoSourceMode::Encoded {
+        return Err(Error::ConfigInvalid {
+            reason: format!(
+                "SDP generation is not supported for pre-encoded GStreamer source (display {display_id})"
+            ),
+        });
+    }
+
+    Ok(video_config)
+}
+
 async fn handle_command(
     cmd: Command,
     sender: &EventSender<IpcApi>,
@@ -283,15 +317,10 @@ async fn handle_command(
             intra_refresh,
         } => {
             info!("Generate RTP Video SDP: yuv444: {yuv444}, intra_refresh: {intra_refresh:?}");
-            let ret = rtp::generate_sdp(
-                display_id,
-                config.encoder(),
-                VideoCodec::H264,
-                yuv444,
-                intra_refresh.unwrap_or(config.intra_refresh()),
-                &config.video_encoder_config,
-            )
-            .await;
+            let ret = match sdp_probe_config(config, display_id, yuv444, intra_refresh) {
+                Ok(video_config) => rtp::generate_sdp(video_config).await,
+                Err(err) => Err(err),
+            };
 
             match ret {
                 Ok(sdp) => return Ok(Response::RtpSdpGenerated { sdp }),
@@ -440,4 +469,65 @@ pub(super) async fn run(
     info!("AV service stopping");
 
     Ok(())
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    fn gstreamer_config(mode: &str, extra: &str) -> Config {
+        let table: toml::Table = format!(
+            r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "cam"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "30/1"
+mode = "{mode}"
+{extra}
+"#
+        )
+        .parse()
+        .unwrap();
+        crate::config::from_table(&table).unwrap()
+    }
+
+    #[test]
+    fn sdp_probe_follows_gstreamer_raw_source() {
+        let config = gstreamer_config("raw", r#"encoder = "v4l2m2m""#);
+
+        let probe = sdp_probe_config(&config, 0, false, None).unwrap();
+
+        assert_eq!(probe.grab_backend, crate::config::GrabBackend::Gstreamer);
+        assert!(matches!(
+            probe.encoder,
+            crate::config::VideoEncoder::V4L2M2M
+        ));
+        assert_eq!(probe.source_mode, crate::config::VideoSourceMode::Raw);
+        assert!(
+            probe
+                .gstreamer_pipeline
+                .as_deref()
+                .is_some_and(|p| p.starts_with("v4l2src device=/dev/video0 !"))
+        );
+    }
+
+    #[test]
+    fn sdp_probe_rejects_encoded_gstreamer_source() {
+        let config = gstreamer_config("encoded", r#"codec = "H264""#);
+
+        let Err(err) = sdp_probe_config(&config, 0, false, None) else {
+            panic!("encoded source must be rejected");
+        };
+
+        assert!(matches!(err, Error::ConfigInvalid { .. }));
+        assert!(err.to_string().contains("pre-encoded"));
+    }
 }

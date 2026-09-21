@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 
 use log::{debug, info, warn};
 
-use kyavservice_types::{IpcApi, PipelineType, VideoCodec};
+use kyavservice_types::{IpcApi, PipelineType};
 use libavconv_rs::{
     AvconvContext, AvioContext, Handle, MUXER_FLAG_OPEN_IO, Muxer, MuxerBuilder, sys,
 };
@@ -36,8 +36,7 @@ use super::video::VideoConfig;
 use super::{
     AvconvAudioContext, AvconvVideoContext, Context, Error, PipelineOutput, Result, audio, video,
 };
-use crate::config;
-use crate::config::{ClockType, VideoEncoder};
+use crate::config::ClockType;
 
 const SDP_PROBE_PORT: u16 = 30_000;
 const SDP_POLL_INTERVAL: Duration = Duration::from_millis(50);
@@ -80,14 +79,13 @@ fn create_rtp_muxer(
     Ok((muxer, stream_hdl))
 }
 
-pub(crate) async fn generate_sdp(
-    display_id: u32,
-    encoder: VideoEncoder,
-    codec: VideoCodec,
-    yuv444: bool,
-    intra_refresh: bool,
-    encoder_config: &Option<config::EncoderConfig>,
-) -> Result<String> {
+/// Bitrate the SDP probe encodes at. Only the codec parameters (fmtp) end up
+/// in the SDP, so the value does not matter beyond being valid for the encoder.
+pub(crate) const SDP_PROBE_BITRATE: u32 = 20_000_000;
+
+/// Run the video pipeline described by `video_config` against a local RTP
+/// muxer and return its `a=fmtp` SDP line.
+pub(crate) async fn generate_sdp(video_config: VideoConfig) -> Result<String> {
     info!("Generate RTP Video SDP via libavconv probe");
 
     // Path the probe pipeline writes the SDP to.  Removed up-front so a stale
@@ -102,7 +100,6 @@ pub(crate) async fn generate_sdp(
     }
     let sdp_path_str = utils::path_to_string(&sdp_path)?;
 
-    let encoder_config = encoder_config.clone();
     let probe_path = sdp_path_str.clone();
 
     // The probe runs on a detached blocking thread:
@@ -118,15 +115,7 @@ pub(crate) async fn generate_sdp(
     // response.
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<String>>();
     let _detached: tokio::task::JoinHandle<()> = tokio::task::spawn_blocking(move || {
-        let probe = build_and_capture_sdp(
-            display_id,
-            encoder,
-            codec,
-            yuv444,
-            intra_refresh,
-            encoder_config,
-            &probe_path,
-        );
+        let probe = build_and_capture_sdp(video_config, &probe_path);
         let (parsed, anchor) = match probe {
             Ok((parsed, anchor)) => (parsed, Some(anchor)),
             Err(err) => (Err(err), None),
@@ -159,37 +148,9 @@ struct ProbeAnchor {
 /// alongside the still-running `AvconvContext` (so the caller can stop it
 /// after replying to the client).
 fn build_and_capture_sdp(
-    display_id: u32,
-    encoder: VideoEncoder,
-    codec: VideoCodec,
-    yuv444: bool,
-    intra_refresh: bool,
-    encoder_config: Option<config::EncoderConfig>,
+    video_config: VideoConfig,
     probe_path: &str,
 ) -> Result<(Result<String>, ProbeAnchor)> {
-    let video_config = VideoConfig {
-        display_id,
-        #[cfg(target_os = "linux")]
-        source_mode: config::VideoSourceMode::Raw,
-        #[cfg(target_os = "linux")]
-        source_size: None,
-        #[cfg(target_os = "linux")]
-        output_size: None,
-        encoder,
-        bitrate: 20_000_000,
-        codec,
-        yuv444,
-        intra_refresh,
-        encoder_config,
-        clock_type: config::ClockType::ZeroedOrigin,
-        #[cfg(feature = "watermark")]
-        watermark: None,
-        #[cfg(target_os = "linux")]
-        grab_backend: config::GrabBackend::NvFBC,
-        #[cfg(target_os = "linux")]
-        gstreamer_pipeline: None,
-    };
-
     let ctx = Arc::new(AvconvContext::new()?);
 
     let hw_device = video_config.create_hw_device()?;
