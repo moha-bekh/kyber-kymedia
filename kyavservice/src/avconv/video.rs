@@ -220,7 +220,10 @@ fn create_grab_source(
         .or_else(|| sources.iter().next())
         .ok_or(libavconv_rs::Error::NoSource)?;
 
-    // Always select the source's default (desktop) stream.
+    // Screen providers tag the desktop image as the Default stream; the
+    // gstreamer provider exports its raw and packet streams as Unknown (it
+    // has no notion of a desktop), so fall back to Unknown, then to whatever
+    // comes first.
     let default_idx = src
         .find_stream_by_type(StreamType::Default)
         .or_else(|| src.find_stream_by_type(StreamType::Unknown))
@@ -418,6 +421,9 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
             let enc = match config.codec {
                 VideoCodec::H264 => "h264_v4l2m2m",
                 VideoCodec::HEVC => "hevc_v4l2m2m",
+                // FFmpeg has no AV1 V4L2 M2M encoder; the unregistered name
+                // makes find_encoder_by_name() fail with a clean NotFound
+                // (same approach as the VideoToolbox arm below).
                 VideoCodec::AV1 => "av1_v4l2m2m",
             };
             #[cfg(target_os = "linux")]

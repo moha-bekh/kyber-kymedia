@@ -186,9 +186,6 @@ fn video_config(
     yuv444: bool,
     intra_refresh: Option<bool>,
 ) -> Result<VideoConfig> {
-    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
-    let mut encoder = config.encoder();
-
     #[cfg(target_os = "linux")]
     let (source_mode, source_size, output_size, gstreamer_pipeline) = match config
         .gstreamer_video_source(display_id)?
@@ -208,11 +205,10 @@ fn video_config(
                     ),
                 });
             }
-            encoder = source.encoder.unwrap_or(encoder);
             let source_mode = source.mode;
             let source_size = Some(source.source_size());
             let output_size = Some(source.output_size());
-            let pipeline = Some(source.pipeline());
+            let pipeline = Some(source.pipeline()?);
             (source_mode, source_size, output_size, pipeline)
         }
         None => (crate::config::VideoSourceMode::Raw, None, None, None),
@@ -226,7 +222,7 @@ fn video_config(
         source_size,
         #[cfg(target_os = "linux")]
         output_size,
-        encoder,
+        encoder: config.encoder(),
         bitrate: ajust_min_bitrate(config, bitrate),
         codec,
         yuv444,
@@ -288,11 +284,6 @@ async fn handle_command(
         Command::EnumerateDisplays => {
             info!("Start display enumeration");
 
-            #[cfg(target_os = "linux")]
-            let backend = Some(config.grab_backend());
-            #[cfg(not(target_os = "linux"))]
-            let backend = None;
-
             let display_list = displays::enumerate(config)?;
 
             // Lazily start the hot-plug watcher on first enumeration.
@@ -304,6 +295,10 @@ async fn handle_command(
             let display_watcher_enabled = true;
 
             if display_watcher.is_none() && display_watcher_enabled {
+                #[cfg(target_os = "linux")]
+                let backend = Some(config.grab_backend());
+                #[cfg(not(target_os = "linux"))]
+                let backend = None;
                 *display_watcher = display_watcher::spawn(backend, sender.clone());
             }
 
@@ -501,15 +496,11 @@ mode = "{mode}"
 
     #[test]
     fn sdp_probe_follows_gstreamer_raw_source() {
-        let config = gstreamer_config("raw", r#"encoder = "v4l2m2m""#);
+        let config = gstreamer_config("raw", "");
 
         let probe = sdp_probe_config(&config, 0, false, None).unwrap();
 
         assert_eq!(probe.grab_backend, crate::config::GrabBackend::Gstreamer);
-        assert!(matches!(
-            probe.encoder,
-            crate::config::VideoEncoder::V4L2M2M
-        ));
         assert_eq!(probe.source_mode, crate::config::VideoSourceMode::Raw);
         assert!(
             probe

@@ -156,7 +156,6 @@ pub(crate) struct GstreamerVideoSource {
     output_width: Option<i32>,
     output_height: Option<i32>,
     pub(crate) codec: Option<VideoCodec>,
-    pub(crate) encoder: Option<VideoEncoder>,
     #[serde(default)]
     pub(crate) mode: VideoSourceMode,
 }
@@ -174,8 +173,8 @@ impl GstreamerVideoSource {
         )
     }
 
-    pub(crate) fn pipeline(&self) -> String {
-        match self.mode {
+    pub(crate) fn pipeline(&self) -> Result<String> {
+        let pipeline = match self.mode {
             VideoSourceMode::Raw => format!(
                 "{} ! video/x-raw,width={},height={},framerate={},format={},interlace-mode={}",
                 self.source,
@@ -195,9 +194,31 @@ impl GstreamerVideoSource {
                     self.source, self.width, self.height, self.framerate,
                 ),
                 Some(VideoCodec::AV1) | None => {
-                    unreachable!("GStreamer source codec is validated during configuration load")
+                    return Err(ConfigError::Invalid(format!(
+                        "GStreamer encoded video source '{}' must set codec to H264 or HEVC",
+                        self.name
+                    )));
                 }
             },
+        };
+        Ok(pipeline)
+    }
+
+    fn validate_framerate(&self) -> Result<()> {
+        let is_fraction = self.framerate.split_once('/').is_some_and(|(num, den)| {
+            !num.is_empty()
+                && !den.is_empty()
+                && num.bytes().all(|b| b.is_ascii_digit())
+                && den.bytes().all(|b| b.is_ascii_digit())
+                && den != "0"
+        });
+        if is_fraction {
+            Ok(())
+        } else {
+            Err(ConfigError::Invalid(format!(
+                "GStreamer video source '{}' framerate must be a GStreamer fraction like \"30/1\", got '{}'",
+                self.name, self.framerate
+            )))
         }
     }
 }
@@ -291,12 +312,7 @@ impl Config {
                 source.name
             )));
         }
-        if source.framerate.trim().is_empty() {
-            return Err(ConfigError::Invalid(format!(
-                "GStreamer video source '{}' framerate cannot be empty",
-                source.name
-            )));
-        }
+        source.validate_framerate()?;
 
         match (source.output_width, source.output_height) {
             (Some(width), Some(height)) if width > 0 && height > 0 => {}
@@ -328,12 +344,6 @@ impl Config {
                 if !matches!(source.codec, Some(VideoCodec::H264 | VideoCodec::HEVC)) {
                     return Err(ConfigError::Invalid(format!(
                         "GStreamer encoded video source '{}' must set codec to H264 or HEVC",
-                        source.name
-                    )));
-                }
-                if source.encoder.is_some() {
-                    return Err(ConfigError::Invalid(format!(
-                        "GStreamer encoded video source '{}' must not set encoder",
                         source.name
                     )));
                 }
@@ -620,7 +630,7 @@ mode = "encoded"
         let source = config.gstreamer_video_source(0).unwrap().unwrap();
 
         assert_eq!(
-            source.pipeline(),
+            source.pipeline().unwrap(),
             "v4l2src device=/dev/video0 ! video/x-h264,width=1920,height=1080,framerate=60/1 ! h264parse config-interval=-1 ! video/x-h264,stream-format=byte-stream,alignment=au"
         );
     }
@@ -652,7 +662,7 @@ mode = "encoded"
         let source = config.gstreamer_video_source(0).unwrap().unwrap();
 
         assert_eq!(
-            source.pipeline(),
+            source.pipeline().unwrap(),
             "v4l2src device=/dev/video0 ! video/x-h265,width=1920,height=1080,framerate=60/1 ! h265parse config-interval=-1 ! video/x-h265,stream-format=byte-stream,alignment=au"
         );
     }
@@ -708,6 +718,35 @@ framerate = "60/1"
         let err = from_table(&table).unwrap_err();
 
         assert!(err.to_string().contains("must be a single source element"));
+        assert!(matches!(err, ConfigError::Invalid(_)));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn gstreamer_source_rejects_non_fraction_framerate() {
+        let table: toml::Table = r#"
+[kyavserver]
+backend = "libavconv"
+grab_backend = "gstreamer"
+
+[kyavserver.gstreamer]
+
+[[kyavserver.gstreamer.video_sources]]
+name = "invalid"
+source = "v4l2src device=/dev/video0"
+width = 1920
+height = 1080
+framerate = "60/1 ! fakesink"
+"#
+        .parse()
+        .unwrap();
+
+        let err = from_table(&table).unwrap_err();
+
+        assert!(
+            err.to_string()
+                .contains("framerate must be a GStreamer fraction")
+        );
         assert!(matches!(err, ConfigError::Invalid(_)));
     }
 
@@ -775,12 +814,11 @@ mode = "encoded"
             output_width: Some(1280),
             output_height: Some(720),
             codec: None,
-            encoder: Some(VideoEncoder::V4L2M2M),
             mode: VideoSourceMode::Raw,
         };
 
         assert_eq!(
-            source.pipeline(),
+            source.pipeline().unwrap(),
             "v4l2src device=/dev/video0 ! video/x-raw,width=1920,height=1080,framerate=60/1,format=NV12,interlace-mode=progressive"
         );
         assert_eq!(source.source_size(), (1920, 1080));
