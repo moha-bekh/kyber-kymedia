@@ -360,16 +360,23 @@ impl Config {
     }
 
     #[cfg(target_os = "linux")]
-    pub(crate) fn gstreamer_video_sources(&self) -> Result<Vec<GstreamerVideoSource>> {
+    fn gstreamer_sources_slice(&self) -> &[GstreamerVideoSource] {
+        self.gstreamer
+            .as_ref()
+            .map(|gstreamer| gstreamer.video_sources.as_slice())
+            .unwrap_or_default()
+    }
+
+    /// Validate the GStreamer section and move `default_source` to index 0,
+    /// so display id N is simply the N-th entry afterwards. Runs once at load
+    /// (`from_table`); the accessors below are plain lookups.
+    #[cfg(target_os = "linux")]
+    fn validate_gstreamer_config(&mut self) -> Result<()> {
         if !self.is_gstreamer() {
-            return Ok(Vec::new());
+            return Ok(());
         }
 
-        let mut sources = self
-            .gstreamer
-            .as_ref()
-            .map(|gstreamer| gstreamer.video_sources.clone())
-            .unwrap_or_default();
+        let sources = self.gstreamer_sources_slice();
         if sources.is_empty() {
             return Err(ConfigError::Invalid(
                 "GStreamer backend requires configured video_sources".to_string(),
@@ -377,9 +384,9 @@ impl Config {
         }
 
         let mut names = HashSet::new();
-        for source in &sources {
+        for source in sources {
             Self::validate_gstreamer_source(source)?;
-            if !names.insert(source.name.clone()) {
+            if !names.insert(source.name.as_str()) {
                 return Err(ConfigError::Invalid(format!(
                     "Duplicate GStreamer video source '{}'",
                     source.name
@@ -387,14 +394,14 @@ impl Config {
             }
         }
 
-        let Some(default_source) = self
-            .gstreamer
-            .as_ref()
-            .and_then(|gstreamer| gstreamer.default_source.as_deref())
-        else {
-            return Ok(sources);
+        let Some(gstreamer) = self.gstreamer.as_mut() else {
+            return Ok(());
         };
-        let Some(default_idx) = sources
+        let Some(default_source) = gstreamer.default_source.as_deref() else {
+            return Ok(());
+        };
+        let Some(default_idx) = gstreamer
+            .video_sources
             .iter()
             .position(|source| source.name == default_source)
         else {
@@ -402,32 +409,33 @@ impl Config {
                 "Unknown default GStreamer source '{default_source}'"
             )));
         };
-
-        let default_source = sources.remove(default_idx);
-        sources.insert(0, default_source);
-        Ok(sources)
+        let default_source = gstreamer.video_sources.remove(default_idx);
+        gstreamer.video_sources.insert(0, default_source);
+        Ok(())
     }
 
+    /// Configured GStreamer sources in display-id order (empty unless the
+    /// GStreamer backend is selected).
     #[cfg(target_os = "linux")]
-    pub(crate) fn validate_gstreamer_config(&self) -> Result<()> {
+    pub(crate) fn gstreamer_video_sources(&self) -> &[GstreamerVideoSource] {
         if self.is_gstreamer() {
-            self.gstreamer_video_sources()?;
+            self.gstreamer_sources_slice()
+        } else {
+            &[]
         }
-        Ok(())
     }
 
     #[cfg(target_os = "linux")]
     pub(crate) fn gstreamer_video_source(
         &self,
         display_id: u32,
-    ) -> Result<Option<GstreamerVideoSource>> {
+    ) -> Result<Option<&GstreamerVideoSource>> {
         if !self.is_gstreamer() {
             return Ok(None);
         }
 
-        self.gstreamer_video_sources()?
-            .into_iter()
-            .nth(display_id as usize)
+        self.gstreamer_video_sources()
+            .get(display_id as usize)
             .map(Some)
             .ok_or_else(|| {
                 ConfigError::Invalid(format!("Unknown GStreamer display id {display_id}"))
@@ -498,7 +506,8 @@ pub fn from_table(table: &toml::Table) -> Result<Config> {
         return Ok(Config::default());
     };
 
-    let config: Config = kyavserver_conf
+    #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
+    let mut config: Config = kyavserver_conf
         .clone()
         .try_into()
         .map_err(ConfigError::Load)?;
@@ -597,7 +606,7 @@ framerate = "30/1"
         .unwrap();
 
         let config = from_table(&table).unwrap();
-        let sources = config.gstreamer_video_sources().unwrap();
+        let sources = config.gstreamer_video_sources();
 
         assert_eq!(sources[0].name, "secondary");
         assert_eq!(sources[1].name, "primary");
@@ -626,7 +635,6 @@ mode = "encoded"
         .unwrap();
 
         let config = from_table(&table).unwrap();
-        config.validate_gstreamer_config().unwrap();
         let source = config.gstreamer_video_source(0).unwrap().unwrap();
 
         assert_eq!(
@@ -658,7 +666,6 @@ mode = "encoded"
         .unwrap();
 
         let config = from_table(&table).unwrap();
-        config.validate_gstreamer_config().unwrap();
         let source = config.gstreamer_video_source(0).unwrap().unwrap();
 
         assert_eq!(

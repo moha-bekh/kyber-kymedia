@@ -91,20 +91,20 @@ fn gstreamer_display(source: &GstreamerVideoSource, idx: usize) -> Display {
 }
 
 #[cfg(target_os = "linux")]
-fn configured_gstreamer_displays(config: &Config) -> Result<Vec<Display>> {
-    Ok(config
-        .gstreamer_video_sources()?
+fn configured_gstreamer_displays(config: &Config) -> Vec<Display> {
+    config
+        .gstreamer_video_sources()
         .iter()
         .enumerate()
         .map(|(idx, source)| gstreamer_display(source, idx))
-        .collect())
+        .collect()
 }
 
 #[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
 pub(crate) fn enumerate(config: &Config) -> Result<Vec<Display>> {
     #[cfg(target_os = "linux")]
     if config.is_gstreamer() {
-        return configured_gstreamer_displays(config);
+        return Ok(configured_gstreamer_displays(config));
     }
 
     #[cfg(target_os = "linux")]
