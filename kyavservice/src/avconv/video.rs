@@ -57,6 +57,43 @@ pub(crate) struct VideoConfig {
     pub(crate) grab_backend: config::GrabBackend,
 }
 
+impl VideoConfig {
+    pub(crate) fn create_hw_device(&self) -> Result<Option<HwDeviceRef>> {
+        #[cfg(target_os = "windows")]
+        {
+            let _ = self;
+            Ok(Some(HwDeviceRef::new(
+                sys::AVHWDeviceType_AV_HWDEVICE_TYPE_D3D11VA,
+            )?))
+        }
+        #[cfg(target_os = "linux")]
+        {
+            #[cfg(feature = "watermark")]
+            let needs_watermark_device = self.watermark.is_some();
+            #[cfg(not(feature = "watermark"))]
+            let needs_watermark_device = false;
+
+            let needs_vaapi = matches!(self.encoder, VideoEncoder::VAAPI | VideoEncoder::QSV)
+                || needs_watermark_device;
+
+            if needs_vaapi {
+                Ok(Some(HwDeviceRef::new(
+                    sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VAAPI,
+                )?))
+            } else {
+                Ok(None)
+            }
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let _ = self;
+            Ok(Some(HwDeviceRef::new(
+                sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VIDEOTOOLBOX,
+            )?))
+        }
+    }
+}
+
 /// Selects the grab provider name for the current platform.
 #[cfg(target_os = "windows")]
 pub(crate) fn grab_provider_name(_backend: Option<config::GrabBackend>) -> &'static str {
@@ -88,7 +125,7 @@ pub(crate) fn grab_provider_name(_backend: Option<config::GrabBackend>) -> &'sta
 /// Set up the capture source.  Returns `(capture, output_handle)`.
 fn create_grab_source(
     ctx: Arc<AvconvContext>,
-    hw_device: &HwDeviceRef,
+    hw_device: Option<&HwDeviceRef>,
     video_config: &VideoConfig,
     metrics: Option<&MetricsForwarder>,
 ) -> Result<(GrabCapture, Handle)> {
@@ -106,7 +143,9 @@ fn create_grab_source(
     let mut grab_ctx = GrabProviderCtx::new(provider)?;
 
     // Provider takes its own reference to hw_device.
-    grab_ctx.set_hw_device(hw_device);
+    if let Some(hw_device) = hw_device {
+        grab_ctx.set_hw_device(hw_device);
+    }
 
     grab_ctx.init()?;
 
@@ -476,7 +515,7 @@ fn encoder_options_to_opt_string(options: &[(&str, String)]) -> String {
 /// composited GPU-side.
 fn create_encoder_pipeline(
     ctx: Arc<AvconvContext>,
-    hw_device: &HwDeviceRef,
+    hw_device: Option<&HwDeviceRef>,
     video_config: &VideoConfig,
     capture_handle: Handle,
     #[cfg(feature = "watermark")] watermark: Option<&WatermarkConfig>,
@@ -484,13 +523,18 @@ fn create_encoder_pipeline(
     let (enc_name, filter_desc) = encoder_names(video_config);
     info!("Create encoder {enc_name}, filter: {filter_desc}");
 
-    let mut fg = FilterGraphBuilder::new(Arc::clone(&ctx), &filter_desc, Some(hw_device))?;
+    let mut fg = FilterGraphBuilder::new(Arc::clone(&ctx), &filter_desc, hw_device)?;
 
     // Install watermark closure before build() libavconv copies the hook
-    // pointers into its internal storage during init.
+    // pointers into its internal storage during init. VideoConfig::
+    // create_hw_device() always hands back a device when a watermark is
+    // configured, so this can only miss one if the two get out of sync.
     #[cfg(feature = "watermark")]
     if let Some(cfg) = watermark {
-        let hook = watermark::watermark_hook(hw_device, cfg)?;
+        let device = hw_device.ok_or(libavconv_rs::Error::NotFound {
+            name: "hw device for watermark",
+        })?;
+        let hook = watermark::watermark_hook(device, cfg)?;
         fg.on_frame_in(hook);
     }
 
@@ -550,7 +594,9 @@ pub(crate) struct VideoPipeline {
 ///
 /// # Arguments
 /// * `ctx`              - libavconv context.
-/// * `hw_device`        - hardware device (D3D11VA on Windows).
+/// * `hw_device`        - hardware device, when the encoder needs one (see
+///   `VideoConfig::create_hw_device`). Always set on Windows (D3D11VA) and
+///   macOS (VideoToolbox).
 /// * `video_config`     - encoder / capture settings.
 /// * `output_hdl`      - scheduler input handle of the terminal node the
 ///   encoder feeds: an RTP muxer stream or a kymux data sink.
@@ -559,7 +605,7 @@ pub(crate) struct VideoPipeline {
 ///   `(pts, encoded)` events.
 pub(crate) fn configure(
     ctx: Arc<AvconvContext>,
-    hw_device: &HwDeviceRef,
+    hw_device: Option<&HwDeviceRef>,
     video_config: VideoConfig,
     output_hdl: Handle,
     metrics: Option<MetricsForwarder>,

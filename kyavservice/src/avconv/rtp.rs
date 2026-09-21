@@ -26,7 +26,7 @@ use log::{debug, info, warn};
 
 use kyavservice_types::{IpcApi, PipelineType, VideoCodec};
 use libavconv_rs::{
-    AvconvContext, AvioContext, Handle, HwDeviceRef, MUXER_FLAG_OPEN_IO, Muxer, MuxerBuilder, sys,
+    AvconvContext, AvioContext, Handle, MUXER_FLAG_OPEN_IO, Muxer, MuxerBuilder, sys,
 };
 use libkypc::EventSender;
 
@@ -184,12 +184,7 @@ fn build_and_capture_sdp(
 
     let ctx = Arc::new(AvconvContext::new()?);
 
-    #[cfg(target_os = "windows")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_D3D11VA)?;
-    #[cfg(target_os = "linux")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VAAPI)?;
-    #[cfg(target_os = "macos")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VIDEOTOOLBOX)?;
+    let hw_device = video_config.create_hw_device()?;
 
     let (muxer, stream_hdl) = create_rtp_muxer(
         Arc::clone(&ctx),
@@ -198,8 +193,13 @@ fn build_and_capture_sdp(
         sys::AVMediaType_AVMEDIA_TYPE_VIDEO,
     )?;
 
-    let (pipeline, _control) =
-        video::configure(Arc::clone(&ctx), &hw_device, video_config, stream_hdl, None)?;
+    let (pipeline, _control) = video::configure(
+        Arc::clone(&ctx),
+        hw_device.as_ref(),
+        video_config,
+        stream_hdl,
+        None,
+    )?;
 
     // Hand libavconv a file-backed AVIOContext. `avconv_sdp` takes
     // ownership; libavconv `avio_closep`s it once the SDP is written,
@@ -261,12 +261,7 @@ pub(crate) fn start_video(
 
     let ctx = Arc::new(AvconvContext::new()?);
 
-    #[cfg(target_os = "windows")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_D3D11VA)?;
-    #[cfg(target_os = "linux")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VAAPI)?;
-    #[cfg(target_os = "macos")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VIDEOTOOLBOX)?;
+    let hw_device = video_config.create_hw_device()?;
 
     let (muxer, stream_hdl) = create_rtp_muxer(
         Arc::clone(&ctx),
@@ -275,8 +270,13 @@ pub(crate) fn start_video(
         sys::AVMediaType_AVMEDIA_TYPE_VIDEO,
     )?;
 
-    let (pipeline, control) =
-        video::configure(Arc::clone(&ctx), &hw_device, video_config, stream_hdl, None)?;
+    let (pipeline, control) = video::configure(
+        Arc::clone(&ctx),
+        hw_device.as_ref(),
+        video_config,
+        stream_hdl,
+        None,
+    )?;
 
     ctx.start()?;
     info!("RTP video context started");

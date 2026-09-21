@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use log::info;
 
-use libavconv_rs::{AvconvContext, DataSink, HwDeviceRef, sys};
+use libavconv_rs::{AvconvContext, DataSink, sys};
 use libkypc::EventSender;
 
 use kyavservice_types::{IpcApi, PipelineType};
@@ -53,12 +53,7 @@ pub(crate) fn start_video(
 
     let ctx = Arc::new(AvconvContext::new()?);
 
-    #[cfg(target_os = "windows")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_D3D11VA)?;
-    #[cfg(target_os = "linux")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VAAPI)?;
-    #[cfg(target_os = "macos")]
-    let hw_device = HwDeviceRef::new(sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VIDEOTOOLBOX)?;
+    let hw_device = video_config.create_hw_device()?;
 
     // The encoder feeds a data sink rather than a muxer: kymux wants the raw
     // encoded packets, and the sink hands them over without a container in the
@@ -71,7 +66,7 @@ pub(crate) fn start_video(
 
     let (pipeline, control) = video::configure(
         Arc::clone(&ctx),
-        &hw_device,
+        hw_device.as_ref(),
         video_config,
         sink.handle(),
         metrics,
