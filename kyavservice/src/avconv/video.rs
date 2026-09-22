@@ -73,10 +73,10 @@ impl VideoConfig {
             #[cfg(not(feature = "watermark"))]
             let needs_watermark_device = false;
 
-            let needs_vaapi = matches!(self.encoder, VideoEncoder::VAAPI | VideoEncoder::QSV)
-                || needs_watermark_device;
+            let needs_vaapi_upload = matches!(self.grab_backend, config::GrabBackend::Xcb)
+                && matches!(self.encoder, VideoEncoder::VAAPI | VideoEncoder::QSV);
 
-            if needs_vaapi {
+            if needs_vaapi_upload || needs_watermark_device {
                 Ok(Some(HwDeviceRef::new(
                     sys::AVHWDeviceType_AV_HWDEVICE_TYPE_VAAPI,
                 )?))
