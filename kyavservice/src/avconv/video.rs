@@ -433,7 +433,12 @@ fn configure_nvenc(config: &VideoConfig) -> Vec<(&'static str, String)> {
 }
 
 fn configure_amf(config: &VideoConfig) -> Vec<(&'static str, String)> {
-    let mut options = vec![("bf", "0".to_string()), ("max_b_frames", "0".to_string())];
+    let mut options = vec![
+        ("bf", "0".to_string()),
+        ("max_b_frames", "0".to_string()),
+        ("async_depth", "1".to_string()),
+        ("flags", "+low_delay".to_string()),
+    ];
 
     match config.codec {
         VideoCodec::H264 => {
