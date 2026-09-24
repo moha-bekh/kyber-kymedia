@@ -306,7 +306,12 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
                 VideoCodec::HEVC => "hevc_qsv",
                 VideoCodec::AV1 => "av1_qsv",
             };
-            (enc, "hwmap,format=qsv,scale_qsv=format=nv12".to_string())
+            let filter = if config.codec == VideoCodec::HEVC && config.yuv444 {
+                "hwmap,format=qsv"
+            } else {
+                "hwmap,format=qsv,scale_qsv=format=nv12"
+            };
+            (enc, filter.to_string())
         }
         VideoEncoder::X264 => {
             let pix_fmt = if config.yuv444 { "yuv444p" } else { "nv12" };
@@ -410,8 +415,12 @@ fn configure_nvenc(config: &VideoConfig) -> Vec<(&'static str, String)> {
 
     match config.codec {
         VideoCodec::H264 => {
-            let profile = if config.yuv444 { "high444p" } else { "high" };
-            options.push(("profile", profile.to_string()));
+            if config.yuv444 {
+                options.push(("profile", "high444p".to_string()));
+                options.push(("rgb_mode", "yuv444".to_string()));
+            } else {
+                options.push(("profile", "high".to_string()));
+            }
         }
         VideoCodec::HEVC | VideoCodec::AV1 => {
             if config.yuv444 {
