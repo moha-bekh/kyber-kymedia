@@ -35,7 +35,8 @@ use super::metrics::MetricsForwarder;
 ///     `(pts, encoding)`.
 ///   - `on_packet_out`: emit `(pts, encoded)`.
 ///   - `on_stream_params`: enable `forced-idr` AVOption on codecs that
-///     expose it.
+///     expose it, and fall back to a nominal frame rate when the capture
+///     didn't declare one.
 pub(crate) fn install(
     enc: &mut EncoderBuilder,
     forwarder: Option<MetricsForwarder>,
@@ -77,7 +78,11 @@ pub(crate) fn install(
     // `av_opt_set` silently ignores the spelling not recognised by the
     // active codec. VAAPI and videotoolbox don't expose the option and
     // derive IDR directly from `pict_type`.
-    enc.on_stream_params(|enc_ctx, _par, _flags| {
+    enc.on_stream_params(|enc_ctx, par, _flags| {
+        if par.frame_rate.num <= 0 || par.frame_rate.den <= 0 {
+            par.frame_rate = sys::AVRational { num: 60, den: 1 };
+        }
+
         for name in ["forced-idr", "forced_idr"] {
             if let Err(err) = libavconv_rs::codec_context_set_option(enc_ctx, name, "1") {
                 debug!("encoder_on_stream_params: {name}=1 not applied ({err:?})");
