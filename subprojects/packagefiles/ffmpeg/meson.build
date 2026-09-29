@@ -197,6 +197,7 @@ elif host_machine.system() == 'linux'
     # hidden visibility would strip those symbols from the .so.
     '--extra-cflags=-fPIC',
     '--enable-nvenc',
+    '--enable-libvpl',
     '--enable-libdrm',
     '--enable-vulkan',
     # Disable features autodetected from host -dev packages but unused by VLC;
