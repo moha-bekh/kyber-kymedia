@@ -426,17 +426,8 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
                 // (same approach as the VideoToolbox arm below).
                 VideoCodec::AV1 => "av1_v4l2m2m",
             };
-            #[cfg(target_os = "linux")]
-            let filter = if matches!(config.grab_backend, config::GrabBackend::Gstreamer)
-                && output_scale_filter(config).is_none()
-            {
-                "null"
-            } else {
-                "format=nv12"
-            };
-            #[cfg(not(target_os = "linux"))]
-            let filter = "format=nv12";
-            (enc, filter.to_string())
+            // No format forced: the accepted input formats are driver-specific
+            (enc, "null".to_string())
         }
         // Not implemented by the libavconv backend yet (txproto is the only
         // engine with a macOS/VideoToolbox path so far). Returning a name
@@ -689,16 +680,7 @@ fn create_encoder_pipeline(
 
     configure_enc_ctx(&enc, video_config)?;
 
-    #[cfg(target_os = "linux")]
-    let bind_encoder_output = !matches!(
-        (video_config.encoder, video_config.grab_backend),
-        (VideoEncoder::V4L2M2M, config::GrabBackend::Gstreamer)
-    );
-    #[cfg(not(target_os = "linux"))]
-    let bind_encoder_output = true;
-    if bind_encoder_output {
-        fg.set_out_params_from_enc(0, &enc)?;
-    }
+    fg.set_out_params_from_enc(0, &enc)?;
 
     // ULL: cap the filter node's input queue to a single frame and let the
     // upstream connect drop older queued frames when hwdownload falls behind,
@@ -868,6 +850,20 @@ mod tests {
         let (encoder, filter) = encoder_names(&config);
 
         assert_eq!(encoder, "h264_v4l2m2m");
-        assert_eq!(filter, "scale=w=1280:h=720,format=nv12");
+        assert_eq!(filter, "scale=w=1280:h=720");
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn v4l2m2m_filter_keeps_source_pixel_format() {
+        for grab_backend in [config::GrabBackend::Gstreamer, config::GrabBackend::Drm] {
+            let mut config = video_config(VideoEncoder::V4L2M2M);
+            config.grab_backend = grab_backend;
+            config.output_size = config.source_size;
+
+            let (_, filter) = encoder_names(&config);
+
+            assert_eq!(filter, "null");
+        }
     }
 }
