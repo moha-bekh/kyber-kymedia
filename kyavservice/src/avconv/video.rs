@@ -440,7 +440,16 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
             let pix_fmt = if config.yuv444 { "yuv444p" } else { "nv12" };
             #[cfg(target_os = "windows")]
             let filter = format!("hwdownload,format=bgra,format={pix_fmt}");
-            #[cfg(not(target_os = "windows"))]
+            #[cfg(target_os = "linux")]
+            let filter = if matches!(
+                config.grab_backend,
+                config::GrabBackend::Drm | config::GrabBackend::Wlroots
+            ) {
+                format!("hwdownload,format=bgr0|bgra,format={pix_fmt}")
+            } else {
+                format!("format={pix_fmt}")
+            };
+            #[cfg(target_os = "macos")]
             let filter = format!("format={pix_fmt}");
             ("libx264", filter)
         }
