@@ -346,6 +346,22 @@ fn install_capture_hook(
     capture.on_frame(video_hook);
 }
 
+#[cfg(target_os = "linux")]
+fn vaapi_import(config: &VideoConfig) -> Option<&'static str> {
+    match config.grab_backend {
+        config::GrabBackend::Drm | config::GrabBackend::Wlroots => {
+            Some("hwmap=derive_device=vaapi")
+        }
+        config::GrabBackend::Xcb | config::GrabBackend::Gstreamer => Some("hwupload"),
+        config::GrabBackend::NvFBC => None,
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn vaapi_import(_config: &VideoConfig) -> Option<&'static str> {
+    None
+}
+
 /// Returns `(encoder_name, filtergraph_description)`.
 #[cfg(target_os = "linux")]
 fn output_scale_filter(config: &VideoConfig) -> Option<String> {
@@ -394,7 +410,14 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
                 VideoCodec::HEVC => "hevc_vaapi",
                 VideoCodec::AV1 => "av1_vaapi",
             };
-            (enc, "null".to_string())
+            if config.yuv444 {
+                warn!("VAAPI encoder doesn't support yuv444, falling back to NV12 (4:2:0)");
+            }
+            let filter = match vaapi_import(config) {
+                Some(import) => format!("{import},scale_vaapi=format=nv12"),
+                None => "null".to_string(),
+            };
+            (enc, filter)
         }
         VideoEncoder::QSV => {
             let enc = match config.codec {
@@ -402,12 +425,16 @@ fn encoder_names(config: &VideoConfig) -> (&'static str, String) {
                 VideoCodec::HEVC => "hevc_qsv",
                 VideoCodec::AV1 => "av1_qsv",
             };
-            let filter = if config.codec == VideoCodec::HEVC && config.yuv444 {
-                "hwmap,format=qsv"
-            } else {
-                "hwmap,format=qsv,scale_qsv=format=nv12"
+            let is_yuv444_hevc = config.codec == VideoCodec::HEVC && config.yuv444;
+            let filter = match (vaapi_import(config), is_yuv444_hevc) {
+                (Some(map), false) => {
+                    format!("{map},scale_vaapi=format=nv12,hwmap=derive_device=qsv,format=qsv")
+                }
+                (Some(map), true) => format!("{map},hwmap=derive_device=qsv,format=qsv"),
+                (None, false) => "hwmap,format=qsv,scale_qsv=format=nv12".to_string(),
+                (None, true) => "hwmap,format=qsv".to_string(),
             };
-            (enc, filter.to_string())
+            (enc, filter)
         }
         VideoEncoder::X264 => {
             let pix_fmt = if config.yuv444 { "yuv444p" } else { "nv12" };
@@ -568,7 +595,7 @@ fn configure_amf(config: &VideoConfig) -> Vec<(&'static str, String)> {
 }
 
 fn configure_vaapi(config: &VideoConfig) -> Vec<(&'static str, String)> {
-    let mut options = vec![("bf", "0".to_string())];
+    let mut options = vec![("bf", "0".to_string()), ("async_depth", "1".to_string())];
     if let VideoCodec::H264 = config.codec {
         options.push(("profile", "high".to_string()));
     }
