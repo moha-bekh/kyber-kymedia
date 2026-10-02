@@ -285,8 +285,11 @@ fn create_vaapi(
 fn create_qsv_nv12_filter(ctx: &Txproto) -> Result<txproto_rs::Handle> {
     let options = Dictionary::from_entries(&[("dump_graph", false).into()])?;
 
+    // Derive the QSV device from the capture frames' device: QSV can only
+    // process textures owned by the D3D11 device its session runs on, and
+    // txproto may attach an unrelated device to the filters.
     let filter = ctx.create_filtergraph(
-        "hwmap,format=qsv,scale_qsv=format=nv12",
+        "hwmap=derive_device=qsv,format=qsv,scale_qsv=format=nv12",
         txproto_rs::HWDeviceType::QSV,
         Some(options),
     )?;
