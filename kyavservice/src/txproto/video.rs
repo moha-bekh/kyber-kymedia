@@ -250,9 +250,8 @@ fn create_vaapi(
     #[cfg(target_os = "linux")]
     let nv12_filter_graph: Option<&str> = match config.grab_backend {
         config::GrabBackend::Xcb => Some("hwupload,scale_vaapi=format=nv12"),
-        config::GrabBackend::Drm | config::GrabBackend::Wlroots => {
-            Some("hwmap,scale_vaapi=format=nv12")
-        }
+        config::GrabBackend::Drm => Some("scale_vaapi=format=nv12"),
+        config::GrabBackend::Wlroots => Some("hwmap,scale_vaapi=format=nv12"),
         config::GrabBackend::NvFBC | config::GrabBackend::Gstreamer => None,
     };
     #[cfg(not(target_os = "linux"))]
