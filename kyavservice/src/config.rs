@@ -24,7 +24,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
-use log::info;
+use log::{info, warn};
 use serde::Deserialize;
 
 #[cfg(target_os = "linux")]
@@ -500,17 +500,69 @@ pub fn parse() -> Result<(toml::Table, Option<PathBuf>)> {
     Ok((table, Some(path)))
 }
 
+/// Name of the section before the kymedia renaming. A file that still uses it
+/// gets the defaults, so it is worth a warning rather than an info.
+const LEGACY_SECTION: &str = "avserver";
+
+/// Keys of the section read by the logger (`log4ky`) and by
+/// `KyavserverLogExtras`, not by `Config`: they are not unknown.
+const SHARED_KEYS: &[&str] = &[
+    "log_level",
+    "log_levels",
+    "txproto_log_level",
+    "ffmpeg_log_level",
+];
+
+/// Deserialize the section, and return beside it the keys that nothing reads,
+/// as dotted paths (`watermark.positon`). Serde skips them without an error,
+/// so a misspelled key would otherwise leave its default in place unnoticed.
+fn load_section(section: &toml::Value) -> Result<(Config, Vec<String>)> {
+    let mut unknown = Vec::new();
+    let config = serde_ignored::deserialize(section.clone(), |path| {
+        let key = dotted(&path);
+        if !SHARED_KEYS.contains(&key.as_str()) {
+            unknown.push(key);
+        }
+    })
+    .map_err(ConfigError::Load)?;
+    Ok((config, unknown))
+}
+
+/// `watermark.file`, `gstreamer.video_sources[0].name`: the path as written in
+/// the file. `Path`'s own `Display` also prints the `Option` and newtype
+/// layers, as `?`, which the file does not have.
+fn dotted(path: &serde_ignored::Path) -> String {
+    use serde_ignored::Path;
+    match path {
+        Path::Root => String::new(),
+        Path::Seq { parent, index } => format!("{}[{index}]", dotted(parent)),
+        Path::Map { parent, key } => match dotted(parent) {
+            parent if parent.is_empty() => key.clone(),
+            parent => format!("{parent}.{key}"),
+        },
+        Path::Some { parent }
+        | Path::NewtypeStruct { parent }
+        | Path::NewtypeVariant { parent } => dotted(parent),
+    }
+}
+
 pub fn from_table(table: &toml::Table) -> Result<Config> {
     let Some(kyavserver_conf) = table.get(SECTION) else {
-        info!("No kyavserver section found, using defaults");
+        if table.contains_key(LEGACY_SECTION) {
+            warn!(
+                "Section [{LEGACY_SECTION}] is ignored: it was renamed [{SECTION}], using defaults"
+            );
+        } else {
+            info!("No kyavserver section found, using defaults");
+        }
         return Ok(Config::default());
     };
 
     #[cfg_attr(not(target_os = "linux"), allow(unused_mut))]
-    let mut config: Config = kyavserver_conf
-        .clone()
-        .try_into()
-        .map_err(ConfigError::Load)?;
+    let (mut config, unknown) = load_section(kyavserver_conf)?;
+    for key in unknown {
+        warn!("Unknown key `{key}` in [{SECTION}] is ignored");
+    }
 
     #[cfg(target_os = "linux")]
     config.validate_gstreamer_config()?;
@@ -567,6 +619,60 @@ mod tests {
             .unwrap();
         let extras = kyavserver_log_extras(&table).unwrap();
         assert_eq!(extras.ffmpeg_log_level, Some(log::LevelFilter::Debug));
+    }
+
+    fn unknown_keys(toml: &str) -> Vec<String> {
+        let table: toml::Table = toml.parse().unwrap();
+        load_section(&table[SECTION]).unwrap().1
+    }
+
+    #[test]
+    fn unknown_keys_are_reported_with_their_path() {
+        let keys = unknown_keys(
+            "[kyavserver]\nencoder = \"x264\"\ngrabbackend = \"xcb\"\n\
+             [kyavserver.watermark]\nfile = \"logo.png\"\npositon = 1.0",
+        );
+        #[cfg(feature = "watermark")]
+        assert_eq!(keys, ["grabbackend", "watermark.positon"]);
+        // Without the feature, the whole table is the unknown key.
+        #[cfg(not(feature = "watermark"))]
+        assert_eq!(keys, ["grabbackend", "watermark"]);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn unknown_keys_in_arrays_of_tables_are_indexed() {
+        let keys = unknown_keys(
+            "[kyavserver]\ngrab_backend = \"gstreamer\"\n\
+             [[kyavserver.gstreamer.video_sources]]\nname = \"a\"\nsource = \"v4l2src\"\n\
+             width = 1\nheight = 1\nframerate = \"60/1\"\nlatency = 0",
+        );
+        assert_eq!(keys, ["gstreamer.video_sources[0].latency"]);
+    }
+
+    #[test]
+    fn keys_read_by_the_logger_are_not_unknown() {
+        let keys = unknown_keys(
+            "[kyavserver]\nlog_level = \"debug\"\nlog_levels = { kynet = \"trace\" }\n\
+             txproto_log_level = \"warn\"\nffmpeg_log_level = \"warn\"",
+        );
+        assert!(keys.is_empty(), "{keys:?}");
+    }
+
+    #[test]
+    fn known_keys_are_not_unknown() {
+        let keys = unknown_keys(
+            "[kyavserver]\nbackend = \"txproto\"\nencoder = \"x264\"\nintra_refresh = false\n\
+             clock_type = \"System\"\nminimum_bitrate = 1000000",
+        );
+        assert!(keys.is_empty(), "{keys:?}");
+    }
+
+    #[test]
+    fn legacy_section_falls_back_to_defaults() {
+        let table: toml::Table = "[avserver]\nencoder = \"x264\"".parse().unwrap();
+        let config = from_table(&table).unwrap();
+        assert!(config.encoder.is_none());
     }
 
     #[test]

@@ -16,6 +16,7 @@ log = { version = "0.4.21", features = ["serde"] }
 log4ky = { version = "0.1.0", features = ["toml"] }
 rmp-serde = "1.1.2"
 serde = "1.0.197"
+serde_ignored = "0.1"
 serde_json = "1.0.114"
 thiserror = "2.0"
 tokio = { version = "1.36.0", features = ["fs", "time"] }
