@@ -397,7 +397,9 @@ async fn handle_command(
                 Err(err) => forward_init_error(sender, err, PipelineType::Audio),
             }
         }
-        Command::VideoSetBitrate { bitrate } => handle_video_set_bitrate(ctx, bitrate)?,
+        Command::VideoSetBitrate { bitrate } => {
+            handle_video_set_bitrate(ctx, config.runtime_bitrate(bitrate))?
+        }
         Command::VideoForceIdr => handle_video_force_idr(ctx)?,
         Command::Stop => {
             *stop = true;
