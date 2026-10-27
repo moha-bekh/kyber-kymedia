@@ -24,7 +24,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
-use log::info;
+use log::{info, warn};
 use serde::Deserialize;
 
 #[cfg(target_os = "linux")]
@@ -271,6 +271,19 @@ impl Config {
 
     pub(crate) fn minimum_bitrate(&self) -> u32 {
         self.minimum_bitrate.unwrap_or(5_000_000)
+    }
+
+    /// A bitrate requested during a session (`VideoSetBitrate`), raised to
+    /// the minimum like the one the session started with. That covers a
+    /// negative request too, which the encoder would otherwise receive.
+    pub(crate) fn runtime_bitrate(&self, bitrate: i32) -> i32 {
+        let min_bitrate = i32::try_from(self.minimum_bitrate()).unwrap_or(i32::MAX);
+        if bitrate < min_bitrate {
+            warn!("Bitrate too low. Reconfigure it: {bitrate} -> {min_bitrate}");
+            min_bitrate
+        } else {
+            bitrate
+        }
     }
 
     #[cfg(target_os = "linux")]
@@ -567,6 +580,22 @@ mod tests {
             .unwrap();
         let extras = kyavserver_log_extras(&table).unwrap();
         assert_eq!(extras.ffmpeg_log_level, Some(log::LevelFilter::Debug));
+    }
+
+    #[test]
+    fn runtime_bitrate_is_raised_to_the_minimum() {
+        let table: toml::Table = "[kyavserver]\nminimum_bitrate = 8000000".parse().unwrap();
+        let config = from_table(&table).unwrap();
+        assert_eq!(config.runtime_bitrate(20_000_000), 20_000_000);
+        assert_eq!(config.runtime_bitrate(8_000_000), 8_000_000);
+        assert_eq!(config.runtime_bitrate(1_000_000), 8_000_000);
+        assert_eq!(config.runtime_bitrate(-3_000_000), 8_000_000);
+    }
+
+    #[test]
+    fn runtime_bitrate_uses_the_default_minimum() {
+        let config = Config::default();
+        assert_eq!(config.runtime_bitrate(0), 5_000_000);
     }
 
     #[test]
