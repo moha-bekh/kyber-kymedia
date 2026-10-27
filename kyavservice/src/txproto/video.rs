@@ -98,13 +98,18 @@ fn encoder_config_to_dict(encoder_config: &config::EncoderConfig) -> Vec<Diction
         .collect()
 }
 
+/// The I/O API that display enumeration and the video pipeline initialize:
+/// the grab backend's alone. txproto fails the whole registration when an API
+/// of the list fails to load, so listing "pulse" here made video depend on a
+/// reachable PulseAudio server. The audio pipeline loads it on its own and
+/// reports its failure as an audio pipeline error.
 #[cfg(target_os = "linux")]
 pub(crate) fn grab_backend_api_list(grab_backend: config::GrabBackend) -> Vec<&'static str> {
     match grab_backend {
-        config::GrabBackend::NvFBC => vec!["nvfbc", "pulse"],
-        config::GrabBackend::Drm => vec!["drm", "pulse"],
-        config::GrabBackend::Xcb => vec!["xcb", "pulse"],
-        config::GrabBackend::Wlroots => vec!["wayland", "pulse"],
+        config::GrabBackend::NvFBC => vec!["nvfbc"],
+        config::GrabBackend::Drm => vec!["drm"],
+        config::GrabBackend::Xcb => vec!["xcb"],
+        config::GrabBackend::Wlroots => vec!["wayland"],
         config::GrabBackend::Gstreamer => vec![],
     }
 }
@@ -588,8 +593,8 @@ pub(crate) fn configure(
 ) -> Result<VideoPipeline> {
     let mut events = vec![];
 
-    // Restrict initialization to only that backend + audio, so other video
-    // backends are not loaded.
+    // Restrict initialization to only that backend, so other video backends
+    // are not loaded.
     #[cfg(target_os = "linux")]
     let api_list: Vec<&str> = grab_backend_api_list(video_config.grab_backend);
     #[cfg(not(target_os = "linux"))]
